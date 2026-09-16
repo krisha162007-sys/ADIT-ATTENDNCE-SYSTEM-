@@ -20,7 +20,8 @@ import {
   getSessions, 
   saveSession, 
   getCollegeName, 
-  setCollegeName 
+  setCollegeName,
+  getAllocationForSubject
 } from '../services/attendanceStorage';
 
 export default function AttendanceSheetView({ showToast }) {
@@ -37,6 +38,17 @@ export default function AttendanceSheetView({ showToast }) {
   const students = getStudents();
   const subjects = getSubjects();
   const allSessions = getSessions();
+
+  // Find active subject allocation from Admin Panel
+  const activeAllocation = useMemo(() => {
+    return getAllocationForSubject(selectedSubjectId);
+  }, [selectedSubjectId]);
+
+  const activeDivisions = activeAllocation.divisions || [
+    { id: '1', name: 'Div 1', facultyName: 'Prof. R. K. Patel' },
+    { id: '2', name: 'Div 2', facultyName: 'Dr. S. M. Mehta' },
+    { id: '3', name: 'Div 3', facultyName: 'Prof. A. N. Shah' },
+  ];
 
   // Find active subject object
   const activeSubject = useMemo(() => {
@@ -55,9 +67,13 @@ export default function AttendanceSheetView({ showToast }) {
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [allSessions, selectedSubjectId]);
 
-  // Filter students based on search and status
+  // Filter students based on search, division, and status
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
+      // Match Class / Division
+      const matchClass = selectedClass === 'ALL' || String(student.class) === String(selectedClass);
+      if (!matchClass) return false;
+
       // Match query with rollNo, name, enrollmentNo
       const query = searchQuery.trim().toLowerCase();
       const matchQuery = !query || 
@@ -273,7 +289,7 @@ export default function AttendanceSheetView({ showToast }) {
               </select>
             </div>
 
-            {/* Class Selector */}
+            {/* Class / Division Selector */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 Class / Div
@@ -282,12 +298,14 @@ export default function AttendanceSheetView({ showToast }) {
                 className="form-control"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                style={{ height: '36px', width: '100px', fontWeight: '600' }}
+                style={{ height: '36px', minWidth: '130px', fontWeight: '600' }}
               >
-                <option value="3">Class 3</option>
-                <option value="1">Class 1</option>
-                <option value="2">Class 2</option>
-                <option value="4">Class 4</option>
+                {activeDivisions.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.facultyName ? d.facultyName.split(' ').slice(-1)[0] : 'Faculty'})
+                  </option>
+                ))}
+                <option value="ALL">All Divisions</option>
               </select>
             </div>
 

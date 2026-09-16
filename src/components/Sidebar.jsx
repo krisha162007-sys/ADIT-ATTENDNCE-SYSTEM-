@@ -8,6 +8,7 @@ import {
   BarChart3, 
   Printer, 
   Users, 
+  ShieldCheck,
   RotateCcw 
 } from 'lucide-react';
 
@@ -20,7 +21,7 @@ export default function Sidebar({ activeTab, setActiveTab, onResetData }) {
     { id: 'topicView', label: 'View Topic', icon: BookOpen },
     { id: 'analytics', label: 'Average & Stats', icon: BarChart3 },
     { id: 'print', label: 'Print Attendance', icon: Printer },
-    { id: 'manage', label: 'Master Data', icon: Users },
+    { id: 'manage', label: 'Admin Panel', icon: ShieldCheck },
   ];
 
   return (

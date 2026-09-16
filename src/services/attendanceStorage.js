@@ -7,6 +7,66 @@ const STORAGE_KEYS = {
   SECURITY: 'adit_attendance_security',
   COLLEGE_NAME: 'adit_college_name',
   DEPARTMENT: 'adit_department_name',
+  FACULTIES: 'adit_attendance_faculties',
+  DEPARTMENTS: 'adit_attendance_departments',
+  ALLOCATIONS: 'adit_attendance_allocations',
+};
+
+// Semesters Master (1st to 8th)
+export const SEMESTERS = [
+  { id: '1st Sem', num: 1, term: 'Odd', year: '1st Year' },
+  { id: '2nd Sem', num: 2, term: 'Even', year: '1st Year' },
+  { id: '3rd Sem', num: 3, term: 'Odd', year: '2nd Year' },
+  { id: '4th Sem', num: 4, term: 'Even', year: '2nd Year' },
+  { id: '5th Sem', num: 5, term: 'Odd', year: '3rd Year' },
+  { id: '6th Sem', num: 6, term: 'Even', year: '3rd Year' },
+  { id: '7th Sem', num: 7, term: 'Odd', year: '4th Year' },
+  { id: '8th Sem', num: 8, term: 'Even', year: '4th Year' },
+];
+
+// Departments Master
+export const DEFAULT_DEPARTMENTS = [
+  { id: 'DEP_CP', code: 'CP', name: 'Computer Engineering', icon: 'Laptop' },
+  { id: 'DEP_IT', code: 'IT', name: 'Information Technology', icon: 'Network' },
+  { id: 'DEP_AI', code: 'AI', name: 'Artificial Intelligence & Data Science', icon: 'Brain' },
+  { id: 'DEP_EC', code: 'EC', name: 'Electronics & Communication', icon: 'Cpu' },
+  { id: 'DEP_ME', code: 'ME', name: 'Mechanical Engineering', icon: 'Cog' },
+  { id: 'DEP_CL', code: 'CL', name: 'Civil Engineering', icon: 'Building' },
+];
+
+// Faculty Master List
+export const DEFAULT_FACULTIES = [
+  { id: 'FAC01', name: 'Prof. R. K. Patel', dept: 'Computer Engineering', designation: 'Associate Professor', email: 'rkpatel@adit.ac.in', phone: '9825012345' },
+  { id: 'FAC02', name: 'Dr. S. M. Mehta', dept: 'Computer Engineering', designation: 'Professor & HOD', email: 'smmehta@adit.ac.in', phone: '9825023456' },
+  { id: 'FAC03', name: 'Prof. A. N. Shah', dept: 'Computer Engineering', designation: 'Assistant Professor', email: 'anshah@adit.ac.in', phone: '9825034567' },
+  { id: 'FAC04', name: 'Prof. P. V. Desai', dept: 'Computer Engineering', designation: 'Assistant Professor', email: 'pvdesai@adit.ac.in', phone: '9825045678' },
+  { id: 'FAC05', name: 'Dr. H. K. Trivedi', dept: 'Information Technology', designation: 'Associate Professor', email: 'hktrivedi@adit.ac.in', phone: '9825056789' },
+  { id: 'FAC06', name: 'Prof. M. B. Joshi', dept: 'Information Technology', designation: 'Assistant Professor', email: 'mbjoshi@adit.ac.in', phone: '9825067890' },
+];
+
+// Subject Division & Faculty Allocations (1, 2, or max 3 divisions)
+export const DEFAULT_ALLOCATIONS = {
+  'SUB_DS': {
+    subjectId: 'SUB_DS',
+    sem: '3rd Sem',
+    dept: 'Computer Engineering',
+    divisionCount: 3, // 1, 2, or 3 divisions
+    divisions: [
+      { id: '1', name: 'Div 1', facultyId: 'FAC02', facultyName: 'Dr. S. M. Mehta' },
+      { id: '2', name: 'Div 2', facultyId: 'FAC03', facultyName: 'Prof. A. N. Shah' },
+      { id: '3', name: 'Div 3', facultyId: 'FAC01', facultyName: 'Prof. R. K. Patel' },
+    ]
+  },
+  'SUB01': {
+    subjectId: 'SUB01',
+    sem: '3rd Sem',
+    dept: 'Computer Engineering',
+    divisionCount: 2,
+    divisions: [
+      { id: '1', name: 'Div 1', facultyId: 'FAC02', facultyName: 'Dr. S. M. Mehta' },
+      { id: '2', name: 'Div 2', facultyId: 'FAC04', facultyName: 'Prof. P. V. Desai' },
+    ]
+  }
 };
 
 // Default Admin Security PIN: 1234
@@ -182,9 +242,21 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'G H Patel College of Engineering & Technology');
+    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEFAULT_DEPARTMENTS));
+    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
     return;
   }
 
+  if (!localStorage.getItem(STORAGE_KEYS.FACULTIES)) {
+    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) {
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEFAULT_DEPARTMENTS));
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) {
+    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
+  }
   if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
@@ -393,4 +465,120 @@ export const calculateAnalytics = (targetSubjectId = null) => {
     subjectStats,
     lowAttendanceCount
   };
+};
+
+// =========================================================================
+// ACADEMIC HIERARCHY API: Faculties, Departments, Allocations, & Divisions
+// =========================================================================
+
+// Faculties API
+export const getFaculties = () => {
+  initializeStorage();
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.FACULTIES) || JSON.stringify(DEFAULT_FACULTIES));
+};
+
+export const saveFaculty = (faculty) => {
+  const faculties = getFaculties();
+  if (faculty.id) {
+    const idx = faculties.findIndex(f => f.id === faculty.id);
+    if (idx !== -1) faculties[idx] = faculty;
+    else faculties.push(faculty);
+  } else {
+    faculty.id = 'FAC_' + Date.now().toString().slice(-4);
+    faculties.push(faculty);
+  }
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  return faculties;
+};
+
+export const deleteFaculty = (facultyId) => {
+  const faculties = getFaculties().filter(f => f.id !== facultyId);
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  return faculties;
+};
+
+// Departments API
+export const getDepartments = () => {
+  initializeStorage();
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) || JSON.stringify(DEFAULT_DEPARTMENTS));
+};
+
+export const saveDepartment = (dept) => {
+  const depts = getDepartments();
+  if (dept.id) {
+    const idx = depts.findIndex(d => d.id === dept.id);
+    if (idx !== -1) depts[idx] = dept;
+    else depts.push(dept);
+  } else {
+    dept.id = 'DEP_' + Date.now().toString().slice(-4);
+    depts.push(dept);
+  }
+  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+  return depts;
+};
+
+export const deleteDepartment = (deptId) => {
+  const depts = getDepartments().filter(d => d.id !== deptId);
+  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+  return depts;
+};
+
+// Subject Allocations API (Division count 1, 2, or 3 & Faculty per Division)
+export const getAllocations = () => {
+  initializeStorage();
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.ALLOCATIONS) || JSON.stringify(DEFAULT_ALLOCATIONS));
+};
+
+export const getAllocationForSubject = (subjectId) => {
+  const all = getAllocations();
+  if (all[subjectId]) return all[subjectId];
+  // Default allocation: 1 division if not yet configured
+  return {
+    subjectId,
+    divisionCount: 1,
+    divisions: [
+      { id: '1', name: 'Div 1', facultyId: 'FAC01', facultyName: 'Prof. R. K. Patel' }
+    ]
+  };
+};
+
+export const saveSubjectAllocation = (subjectId, allocData) => {
+  const all = getAllocations();
+  all[subjectId] = {
+    ...all[subjectId],
+    ...allocData,
+    subjectId
+  };
+  localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(all));
+  return all[subjectId];
+};
+
+// Assign / Move Student to Division
+export const assignStudentDivision = (studentId, newDivision) => {
+  const students = getStudents();
+  const idx = students.findIndex(s => s.id === studentId);
+  if (idx !== -1) {
+    students[idx].class = String(newDivision);
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  }
+  return students;
+};
+
+// Bulk Import Students into a Division
+export const bulkImportStudents = (newStudentsList, sem, dept, division) => {
+  const students = getStudents();
+  newStudentsList.forEach((st, i) => {
+    const newId = 'S_' + Date.now() + '_' + i;
+    students.push({
+      id: newId,
+      rollNo: String(st.rollNo || (students.length + 1)),
+      name: String(st.name || 'Student'),
+      enrollmentNo: String(st.enrollmentNo || `1250204050${Date.now().toString().slice(-4)}`),
+      dept: dept || 'Computer',
+      sem: sem || '3rd Sem',
+      class: String(division || '1')
+    });
+  });
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  return students;
 };

@@ -9,6 +9,7 @@ import TopicView from './components/TopicView';
 import AnalyticsView from './components/AnalyticsView';
 import PrintView from './components/PrintView';
 import ManageMaster from './components/ManageMaster';
+import AdminPanel from './components/AdminPanel';
 import { initializeStorage, resetToDefault, verifyAdminPin } from './services/attendanceStorage';
 import { CheckCircle, ShieldCheck, Lock, X, KeyRound } from 'lucide-react';
 
@@ -94,7 +95,7 @@ export default function App() {
       case 'print':
         return <PrintView showToast={showToast} />;
       case 'manage':
-        return <ManageMaster showToast={showToast} />;
+        return <AdminPanel showToast={showToast} />;
       default:
         return <Dashboard setActiveTab={handleTabChange} />;
     }
