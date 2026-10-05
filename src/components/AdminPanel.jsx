@@ -1,1408 +1,926 @@
 import React, { useState, useMemo } from 'react';
 import { 
   GraduationCap, 
-  Building2, 
-  BookOpen, 
+  LayoutDashboard, 
   Users, 
-  UserCheck, 
-  Layers, 
-  Plus, 
-  ChevronRight, 
-  Check, 
-  ArrowLeft, 
-  Edit2, 
-  Trash2, 
-  FileSpreadsheet, 
+  Calendar, 
   UploadCloud, 
+  BookOpen, 
+  Building2, 
+  Settings as SettingsIcon, 
+  LogOut, 
+  Plus, 
+  Trash2, 
+  Edit2, 
+  Check, 
+  RotateCcw, 
+  ShieldCheck, 
+  FileSpreadsheet, 
   Search, 
-  Save, 
-  RotateCcw,
-  Sparkles,
-  ShieldCheck,
+  ChevronRight, 
+  Download, 
+  KeyRound, 
+  Clock, 
+  Layers,
+  ArrowRight,
   UserPlus,
-  BookPlus
+  BookPlus,
+  ArrowLeft
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
   SEMESTERS, 
   getDepartments, 
   saveDepartment, 
-  deleteDepartment,
+  deleteDepartment, 
   getSubjects, 
   saveSubject, 
-  deleteSubject,
+  deleteSubject, 
   getFaculties, 
   saveFaculty, 
-  deleteFaculty,
+  deleteFaculty, 
   getAllocations, 
-  getAllocationForSubject, 
-  saveSubjectAllocation,
+  saveSubjectAllocation, 
   getStudents, 
   saveStudent, 
   deleteStudent, 
   assignStudentDivision, 
-  bulkImportStudents,
-  resetToDefault
+  bulkImportStudents, 
+  verifyAdminPin, 
+  updateAdminPin, 
+  resetToDefault,
+  getCollegeName,
+  setCollegeName,
+  getClasses
 } from '../services/attendanceStorage';
+import { 
+  getAllFacultyTimetables, 
+  resetFacultyTimetablesToDefault,
+  TIME_SLOTS,
+  TIMETABLE_DAYS,
+  updateFacultyNameInEntries,
+  updateSubjectInEntries,
+  notifyTimetableSync,
+  getTimetableEntries
+} from '../services/timetableStorage';
+import FacultyTimetablePanel from './FacultyTimetablePanel';
+import ClassTimetablePanel from './ClassTimetablePanel';
+import ClassManagementPanel from './ClassManagementPanel';
+import TimetableUploadModal from './TimetableUploadModal';
+import DepartmentAdminPanel from './DepartmentAdminPanel';
 
-export default function AdminPanel({ showToast }) {
-  // Stepper State: 1 = Semester, 2 = Department, 3 = Subjects, 4 = Divisions & Faculty, 5 = Students in Division
-  const [currentStep, setCurrentStep] = useState(1);
+export default function AdminPanel({ showToast, onExit }) {
+  // Navigation inside Admin Panel
+  // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
+  const [adminTab, setAdminTab] = useState('faculty');
 
-  // Selections
-  const [selectedSem, setSelectedSem] = useState('3rd Sem');
-  const [selectedDept, setSelectedDept] = useState('Computer Engineering');
-  const [selectedSubjectId, setSelectedSubjectId] = useState('SUB_DS');
-  const [selectedDivision, setSelectedDivision] = useState('3'); // '1', '2', or '3'
-
-  // Data states
+  // Master data states
   const [departments, setDepartments] = useState(getDepartments());
   const [subjects, setSubjects] = useState(getSubjects());
   const [faculties, setFaculties] = useState(getFaculties());
   const [students, setStudents] = useState(getStudents());
   const [allocations, setAllocations] = useState(getAllocations());
 
-  // Search & Filter
-  const [studentSearch, setStudentSearch] = useState('');
+  // Department and Semester selections for administration views
+  const [activeDept, setActiveDept] = useState('AI & Data Science');
+  const [activeSem, setActiveSem] = useState('3rd Semester');
 
-  // Modals
-  const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [subjectForm, setSubjectForm] = useState({ id: '', code: '', name: '', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering' });
-
-  const [showFacultyModal, setShowFacultyModal] = useState(false);
-  const [facultyForm, setFacultyForm] = useState({ id: '', name: '', dept: 'Computer Engineering', designation: 'Assistant Professor', email: '', phone: '' });
-
-  const [showStudentModal, setShowStudentModal] = useState(false);
-  const [studentForm, setStudentForm] = useState({ id: '', rollNo: '', name: '', enrollmentNo: '', class: '1', dept: 'Computer', sem: '3rd Sem' });
-
+  // Modals & form states
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '' });
 
-  // Get active subject object
-  const activeSubject = useMemo(() => {
-    return subjects.find(s => s.id === selectedSubjectId) || subjects[0] || {
-      id: 'SUB_DS',
-      code: '102040304',
-      name: 'DATA STRUCTURES',
-      dept: 'Computer Engineering',
-      sem: '3rd Sem'
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [subjectForm, setSubjectForm] = useState({ id: '', code: '', name: '', shortName: '', credits: 4, sem: '3rd Semester', dept: 'AI & Data Science' });
+
+  const [showFacultyModal, setShowFacultyModal] = useState(false);
+  const [facultyForm, setFacultyForm] = useState({ id: '', name: '', dept: 'AI & Data Science', designation: 'Assistant Professor', email: '', phone: '', subjects: '' });
+
+  // PIN change state
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [pinChangeMsg, setPinChangeMsg] = useState('');
+
+  // Sidebar Menu Items
+  const adminMenuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'faculty', label: 'Faculty Timetables', icon: Users },
+    { id: 'class-timetables', label: 'Class Timetables', icon: Layers },
+    { id: 'classes', label: 'Classes', icon: GraduationCap },
+    { id: 'subjects', label: 'Subjects', icon: BookOpen },
+    { id: 'departments', label: 'Departments', icon: Building2 },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon },
+  ];
+
+  // Refresh all state from localStorage
+  const refreshState = () => {
+    setDepartments(getDepartments());
+    setSubjects(getSubjects());
+    setFaculties(getFaculties());
+    setStudents(getStudents());
+    setAllocations(getAllocations());
+  };
+
+  // Listen for faculty updates dispatched from DepartmentAdminPanel
+  React.useEffect(() => {
+    const handleFacultyUpdated = () => {
+      setFaculties([...getFaculties()]);
     };
-  }, [subjects, selectedSubjectId]);
+    window.addEventListener('adit-faculty-updated', handleFacultyUpdated);
+    return () => {
+      window.removeEventListener('adit-faculty-updated', handleFacultyUpdated);
+    };
+  }, []);
 
-  // Current Subject Allocation
-  const activeAllocation = useMemo(() => {
-    return allocations[activeSubject.id] || getAllocationForSubject(activeSubject.id);
-  }, [allocations, activeSubject.id]);
-
-  // Filtered Subjects for active Semester & Department
-  const filteredSubjects = useMemo(() => {
-    return subjects.filter(s => {
-      const matchSem = !s.sem || s.sem === selectedSem || s.sem.toLowerCase().includes(selectedSem.toLowerCase().slice(0, 3));
-      const matchDept = !s.dept || s.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4));
-      return matchSem && matchDept;
-    });
-  }, [subjects, selectedSem, selectedDept]);
-
-  // Filtered Students for active Semester, Department & Division
-  const divisionStudents = useMemo(() => {
-    return students.filter(st => {
-      const matchDiv = String(st.class) === String(selectedDivision);
-      const query = studentSearch.trim().toLowerCase();
-      const matchQuery = !query || 
-        (st.name && st.name.toLowerCase().includes(query)) ||
-        (st.enrollmentNo && st.enrollmentNo.toLowerCase().includes(query)) ||
-        (st.rollNo && st.rollNo.toString().includes(query));
-      return matchDiv && matchQuery;
-    });
-  }, [students, selectedDivision, studentSearch]);
-
-  // Total students in a division helper
-  const getDivisionCount = (divId) => {
-    return students.filter(st => String(st.class) === String(divId)).length;
+  // Faculty Save Handler
+  const handleSaveFaculty = (facultyData) => {
+    const updated = saveFaculty(facultyData);
+    updateFacultyNameInEntries(facultyData.id, facultyData.name);
+    notifyTimetableSync();
+    setFaculties([...updated]);
+    if (showToast) showToast('Faculty details updated successfully!');
   };
 
-  // Step 4: Division count change (1, 2, or max 3 divisions)
-  const handleDivisionCountChange = (count) => {
-    const validCount = Math.min(3, Math.max(1, count));
-    const currentDivs = activeAllocation.divisions || [];
-    const newDivs = [];
-
-    for (let i = 1; i <= validCount; i++) {
-      const divId = String(i);
-      const existing = currentDivs.find(d => d.id === divId);
-      if (existing) {
-        newDivs.push(existing);
-      } else {
-        const defaultFaculty = faculties[(i - 1) % faculties.length] || faculties[0];
-        newDivs.push({
-          id: divId,
-          name: `Div ${divId}`,
-          facultyId: defaultFaculty?.id || 'FAC01',
-          facultyName: defaultFaculty?.name || 'Faculty Member'
-        });
-      }
-    }
-
-    const updated = saveSubjectAllocation(activeSubject.id, {
-      ...activeAllocation,
-      divisionCount: validCount,
-      divisions: newDivs
-    });
-
-    setAllocations(getAllocations());
-    if (showToast) showToast(`Configured ${validCount} Division(s) for ${activeSubject.code}`);
-  };
-
-  // Step 4: Assign Faculty to a Division
-  const handleFacultyAssign = (divisionId, facultyId) => {
-    const fac = faculties.find(f => f.id === facultyId);
-    const updatedDivs = (activeAllocation.divisions || []).map(d => {
-      if (d.id === divisionId) {
-        return {
-          ...d,
-          facultyId: fac?.id || facultyId,
-          facultyName: fac?.name || 'Faculty Member'
-        };
-      }
-      return d;
-    });
-
-    saveSubjectAllocation(activeSubject.id, {
-      ...activeAllocation,
-      divisions: updatedDivs
-    });
-
-    setAllocations(getAllocations());
-    if (showToast) showToast(`Assigned ${fac?.name || 'Faculty'} to Division ${divisionId}`);
-  };
-
-  // Move Student to another Division
-  const handleMoveStudentDivision = (studentId, newDiv) => {
-    const updated = assignStudentDivision(studentId, newDiv);
-    setStudents([...updated]);
-    if (showToast) showToast(`Student moved to Division ${newDiv}!`);
-  };
-
-  // Add / Save Student
-  const handleSaveStudent = (e) => {
+  // Department Save Handler
+  const handleSaveDepartment = (e) => {
     e.preventDefault();
-    if (!studentForm.rollNo || !studentForm.name || !studentForm.enrollmentNo) {
-      alert('Please fill out Roll No, Student Name, and Enrollment No!');
+    if (!deptForm.name || !deptForm.code) {
+      alert('Department Code and Name are required.');
       return;
     }
-    const studentToSave = {
-      ...studentForm,
-      class: String(selectedDivision),
-      sem: selectedSem,
-      dept: selectedDept
-    };
-    const updated = saveStudent(studentToSave);
-    setStudents([...updated]);
-    setShowStudentModal(false);
-    setStudentForm({ id: '', rollNo: '', name: '', enrollmentNo: '', class: selectedDivision, dept: selectedDept, sem: selectedSem });
-    if (showToast) showToast('Student saved to Division ' + selectedDivision);
+    const updated = saveDepartment(deptForm);
+    setDepartments([...updated]);
+    setShowDeptModal(false);
+    setDeptForm({ id: '', code: '', name: '' });
+    if (showToast) showToast(`Department ${deptForm.name} saved!`);
   };
 
-  // Delete Student
-  const handleDeleteStudent = (id) => {
-    if (window.confirm('Are you sure you want to remove this student?')) {
-      const updated = deleteStudent(id);
-      setStudents([...updated]);
-      if (showToast) showToast('Student removed from database.');
-    }
-  };
-
-  // Add / Save Subject
+  // Subject Save Handler
   const handleSaveSubject = (e) => {
     e.preventDefault();
     if (!subjectForm.code || !subjectForm.name) {
-      alert('Please enter Subject Code and Name!');
+      alert('Subject Code and Name are required.');
       return;
     }
-    const subjectToSave = {
+    const newSubj = {
       ...subjectForm,
-      sem: selectedSem,
-      dept: selectedDept
+      dept: activeDept,
+      sem: activeSem
     };
-    const updated = saveSubject(subjectToSave);
+    const updated = saveSubject(newSubj);
+    updateSubjectInEntries(newSubj.id || subjectForm.id, { name: subjectForm.name, shortName: subjectForm.shortName || subjectForm.name.slice(0, 8) });
+    notifyTimetableSync();
     setSubjects([...updated]);
     setShowSubjectModal(false);
-    setSubjectForm({ id: '', code: '', name: '', credits: 4, sem: selectedSem, dept: selectedDept });
-    if (showToast) showToast('Subject saved to ' + selectedDept);
+    setSubjectForm({ id: '', code: '', name: '', shortName: '', credits: 4, sem: activeSem, dept: activeDept });
+    if (showToast) showToast(`Subject ${subjectForm.name} saved to ${activeDept}!`);
   };
 
-  // Delete Subject
-  const handleDeleteSubject = (id) => {
-    if (window.confirm('Are you sure you want to delete this subject?')) {
-      const updated = deleteSubject(id);
-      setSubjects([...updated]);
-      if (showToast) showToast('Subject deleted.');
-    }
-  };
-
-  // Add / Save Faculty
-  const handleSaveFaculty = (e) => {
+  // PIN Update Handler
+  const handlePinUpdate = (e) => {
     e.preventDefault();
-    if (!facultyForm.name) {
-      alert('Please enter Faculty Name!');
+    if (newPin.length < 4) {
+      setPinChangeMsg('PIN must be at least 4 digits.');
       return;
     }
-    const updated = saveFaculty(facultyForm);
-    setFaculties([...updated]);
-    setShowFacultyModal(false);
-    setFacultyForm({ id: '', name: '', dept: selectedDept, designation: 'Assistant Professor', email: '', phone: '' });
-    if (showToast) showToast('Faculty member added to system!');
+    if (updateAdminPin(oldPin, newPin)) {
+      setPinChangeMsg('Security PIN updated successfully!');
+      setOldPin('');
+      setNewPin('');
+      if (showToast) showToast('Security PIN updated!');
+    } else {
+      setPinChangeMsg('Incorrect current PIN.');
+    }
   };
 
-  // Excel / CSV File Import for Division Roster
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
-        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-        // Find headers or take rows
-        const parsedStudents = [];
-        for (let i = 1; i < rawData.length; i++) {
-          const row = rawData[i];
-          if (row && row.length >= 2) {
-            parsedStudents.push({
-              rollNo: String(row[0] || i),
-              name: String(row[1] || `Student ${i}`),
-              enrollmentNo: String(row[2] || `1250204050${1000 + i}`),
-            });
-          }
-        }
-
-        if (parsedStudents.length === 0) {
-          alert('No student records detected in file. Expected columns: Roll No, Name, Enrollment No');
-          return;
-        }
-
-        const updated = bulkImportStudents(parsedStudents, selectedSem, selectedDept, selectedDivision);
-        setStudents([...updated]);
-        if (showToast) showToast(`Successfully imported ${parsedStudents.length} students into Division ${selectedDivision}!`);
-      } catch (err) {
-        alert('Error parsing file: ' + err.message);
-      }
-    };
-    reader.readAsBinaryString(file);
-    e.target.value = null;
+  // Reset all academic data to defaults
+  const handleResetDefaults = () => {
+    if (window.confirm('Reset all academic departments, faculty, subjects and timetables back to default sample records?')) {
+      resetToDefault();
+      resetFacultyTimetablesToDefault();
+      refreshState();
+      if (showToast) showToast('Academic data and timetables reset to defaults!');
+    }
   };
 
-  // Export Division Roster (.xlsx)
-  const handleExportRoster = () => {
-    const headerRow = [`${activeSubject.name} - Division ${selectedDivision} Student Roster`];
-    const subHeader = [`Semester: ${selectedSem}`, `Department: ${selectedDept}`, `Total Students: ${divisionStudents.length}`];
-    const tableHeader = ['Roll No', 'Student Name', 'Enrollment No', 'Department', 'Semester', 'Division'];
+  // Filtered subjects for active dept & sem
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => {
+      const matchDept = !s.dept || s.dept.toLowerCase().includes(activeDept.toLowerCase().slice(0, 4));
+      return matchDept;
+    });
+  }, [subjects, activeDept]);
 
-    const dataRows = divisionStudents.map(st => [
-      st.rollNo,
-      st.name,
-      st.enrollmentNo,
-      st.dept,
-      st.sem,
-      `Div ${st.class}`
-    ]);
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headerRow, subHeader, [], tableHeader, ...dataRows]);
-    XLSX.utils.book_append_sheet(wb, ws, `Div_${selectedDivision}_Roster`);
-    XLSX.writeFile(wb, `${selectedDept.replace(/\s+/g, '_')}_Sem_${selectedSem}_Div_${selectedDivision}_Students.xlsx`);
-    if (showToast) showToast('Student roster exported to Excel!');
-  };
-
-  // Active divisions list (1, 2, or 3)
-  const activeDivisionsList = activeAllocation.divisions || [
-    { id: '1', name: 'Div 1', facultyId: 'FAC01', facultyName: 'Prof. R. K. Patel' }
-  ];
+  const subjectEntryCounts = useMemo(() => {
+    const entries = getTimetableEntries();
+    const counts = {};
+    entries.forEach(e => { counts[e.subjectId] = (counts[e.subjectId] || 0) + 1; });
+    return counts;
+  }, [subjects]);
 
   return (
-    <div className="admin-panel-container">
+    <div className="admin-root-container">
       
-      {/* Top Banner */}
-      <div className="card" style={{ marginBottom: '20px', padding: '20px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      {/* ===================================================================
+          LEFT DARK SIDEBAR: ADIT Attendance Admin Panel
+          =================================================================== */}
+      <aside className="admin-dark-sidebar no-print">
+        {/* Brand */}
+        <div className="admin-sidebar-header">
+          <div className="admin-brand-icon">
+            <GraduationCap size={24} style={{ color: '#38bdf8' }} />
+          </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShieldCheck size={26} style={{ color: 'var(--blue-primary)' }} />
-              <h1 style={{ fontSize: '24px', color: 'var(--navy-dark)', fontWeight: '800' }}>
-                Academic Administration Panel
+            <h2 className="admin-brand-title">ADIT Attendance</h2>
+            <span className="admin-brand-subtitle">Admin Panel</span>
+          </div>
+        </div>
+
+        {/* Navigation List */}
+        <nav className="admin-sidebar-nav">
+          <ul>
+            {adminMenuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = adminTab === item.id;
+              return (
+                <li key={item.id}>
+                  <button
+                    className={`admin-nav-btn ${isActive ? 'active' : ''}`}
+                    onClick={() => setAdminTab(item.id)}
+                  >
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Sidebar Footer: Return to Faculty Attendance Portal / Logout */}
+        <div className="admin-sidebar-footer">
+          <button 
+            className="admin-logout-btn"
+            onClick={() => {
+              if (onExit) onExit();
+              else window.location.reload();
+            }}
+            title="Return to Attendance Portal"
+          >
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ===================================================================
+          MAIN ADMIN WORKSPACE AREA
+          =================================================================== */}
+      <div className="admin-main-viewport">
+        
+        {/* VIEW 1: FACULTY TIMETABLES (Primary View from User Screenshot) */}
+        {adminTab === 'faculty' && (
+          <FacultyTimetablePanel
+            departments={departments}
+            faculties={faculties}
+            subjects={subjects}
+            onSaveFaculty={handleSaveFaculty}
+            onSwitchToClassTimetable={() => setAdminTab('class-timetables')}
+            showToast={showToast}
+          />
+        )}
+
+        {/* VIEW: CLASS TIMETABLES (Division/Class-wise Weekly Schedule & Sync) */}
+        {adminTab === 'class-timetables' && (
+          <ClassTimetablePanel
+            departments={departments}
+            faculties={faculties}
+            subjects={subjects}
+            onSwitchToFacultyTimetable={() => setAdminTab('faculty')}
+            showToast={showToast}
+          />
+        )}
+
+        {/* VIEW: CLASS MANAGEMENT (Department + Semester + Division + Academic Year) */}
+        {adminTab === 'classes' && (
+          <ClassManagementPanel
+            departments={departments}
+            showToast={showToast}
+            onOpenClassTimetable={(dept, sem, div) => setAdminTab('class-timetables')}
+          />
+        )}
+
+        {/* VIEW 2: DASHBOARD (Overview & High-level Metrics) */}
+        {adminTab === 'dashboard' && (
+          <div className="admin-subview">
+            <div style={{ marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
+                Administration Dashboard
               </h1>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Follow the academic cascade: <strong>Semester &rarr; Department &rarr; Subjects &rarr; Faculty &rarr; Divisions (1 to 3) &rarr; Students</strong>
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                if (window.confirm('Reset all academic master data and divisions to default sample?')) {
-                  resetToDefault();
-                  setDepartments(getDepartments());
-                  setSubjects(getSubjects());
-                  setFaculties(getFaculties());
-                  setStudents(getStudents());
-                  setAllocations(getAllocations());
-                  if (showToast) showToast('Database reset to defaults.');
-                }
-              }}
-              title="Reset academic structures to default"
-            >
-              <RotateCcw size={14} />
-              <span>Reset Defaults</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Hierarchical Stepper / Breadcrumbs Bar */}
-        <div style={{
-          display: 'flex', 
-          alignItems: 'center', 
-          flexWrap: 'wrap', 
-          gap: '8px', 
-          marginTop: '20px', 
-          padding: '12px 16px', 
-          backgroundColor: '#f8fafc', 
-          borderRadius: '8px', 
-          border: '1px solid var(--border-color)'
-        }}>
-          {/* Step 1 */}
-          <button 
-            onClick={() => setCurrentStep(1)}
-            style={{
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: currentStep === 1 ? 'var(--blue-primary)' : 'transparent',
-              color: currentStep === 1 ? 'white' : 'var(--navy-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <GraduationCap size={16} />
-            <span>1. Semester: {selectedSem}</span>
-          </button>
-
-          <ChevronRight size={16} style={{ color: '#94a3b8' }} />
-
-          {/* Step 2 */}
-          <button 
-            onClick={() => setCurrentStep(2)}
-            style={{
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: currentStep === 2 ? 'var(--blue-primary)' : 'transparent',
-              color: currentStep === 2 ? 'white' : 'var(--navy-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Building2 size={16} />
-            <span>2. Department: {selectedDept.replace(' Engineering', '')}</span>
-          </button>
-
-          <ChevronRight size={16} style={{ color: '#94a3b8' }} />
-
-          {/* Step 3 */}
-          <button 
-            onClick={() => setCurrentStep(3)}
-            style={{
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: currentStep === 3 ? 'var(--blue-primary)' : 'transparent',
-              color: currentStep === 3 ? 'white' : 'var(--navy-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <BookOpen size={16} />
-            <span>3. Subject: {activeSubject.code}</span>
-          </button>
-
-          <ChevronRight size={16} style={{ color: '#94a3b8' }} />
-
-          {/* Step 4 */}
-          <button 
-            onClick={() => setCurrentStep(4)}
-            style={{
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: currentStep === 4 ? 'var(--blue-primary)' : 'transparent',
-              color: currentStep === 4 ? 'white' : 'var(--navy-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Layers size={16} />
-            <span>4. Divisions ({activeAllocation.divisionCount || 1}) & Faculty</span>
-          </button>
-
-          <ChevronRight size={16} style={{ color: '#94a3b8' }} />
-
-          {/* Step 5 */}
-          <button 
-            onClick={() => setCurrentStep(5)}
-            style={{
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: currentStep === 5 ? 'var(--blue-primary)' : 'transparent',
-              color: currentStep === 5 ? 'white' : 'var(--navy-primary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: '700',
-              cursor: 'pointer'
-            }}
-          >
-            <Users size={16} />
-            <span>5. Div {selectedDivision} Students ({getDivisionCount(selectedDivision)})</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ===================================================================
-          STEP 1: SEMESTER SELECTOR
-          =================================================================== */}
-      {currentStep === 1 && (
-        <div className="card">
-          <div className="card-header-flex" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
-            <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                Step 1: Select Academic Semester
-              </h2>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                Choose the academic semester to manage departments, subjects, and divisions.
+              <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
+                High-level academic structure, faculty distribution, and timetable coverage.
               </p>
             </div>
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px', marginTop: '20px' }}>
-            {SEMESTERS.map(sem => {
-              const isSelected = selectedSem === sem.id;
-              const semSubjectCount = subjects.filter(s => s.sem === sem.id).length;
-
-              return (
-                <div
-                  key={sem.id}
-                  onClick={() => {
-                    setSelectedSem(sem.id);
-                    setCurrentStep(2);
-                  }}
-                  style={{
-                    border: isSelected ? '2px solid var(--blue-primary)' : '1px solid var(--border-color)',
-                    backgroundColor: isSelected ? 'var(--blue-light)' : 'white',
-                    borderRadius: '12px',
-                    padding: '20px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isSelected ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                    position: 'relative'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className="badge" style={{ backgroundColor: sem.term === 'Odd' ? '#e0e7ff' : '#fef3c7', color: sem.term === 'Odd' ? '#3730a3' : '#b45309', fontWeight: '700' }}>
-                      {sem.term} Term ({sem.year})
-                    </span>
-                    {isSelected && <Check size={18} style={{ color: 'var(--blue-primary)' }} />}
-                  </div>
-
-                  <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--navy-primary)', marginTop: '12px' }}>
-                    {sem.name}
-                  </h3>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                    <span>{semSubjectCount} Configured Subjects</span>
-                    <span style={{ color: 'var(--blue-primary)', fontWeight: '700', display: 'flex', alignItems: 'center' }}>
-                      Select &rarr;
-                    </span>
+            {/* KPI Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div className="card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Total Departments</span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Building2 size={18} />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          STEP 2: DEPARTMENT SELECTOR
-          =================================================================== */}
-      {currentStep === 2 && (
-        <div className="card">
-          <div className="card-header-flex" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '14px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentStep(1)}>
-                  <ArrowLeft size={14} /> Back
-                </button>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                  Step 2: Select Department for {selectedSem}
-                </h2>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                  {departments.length}
+                </div>
+                <span style={{ fontSize: '12px', color: '#059669', fontWeight: '600' }}>Active Engineering Programs</span>
               </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Select an academic department or add a new department.
-              </p>
-            </div>
 
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                setDeptForm({ id: '', code: '', name: '' });
-                setShowDeptModal(true);
-              }}
-            >
-              <Plus size={15} /> Add Department
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px', marginTop: '20px' }}>
-            {departments.map(dept => {
-              const isSelected = selectedDept === dept.name;
-              const deptSubjCount = subjects.filter(s => s.dept === dept.name && s.sem === selectedSem).length;
-
-              return (
-                <div
-                  key={dept.id}
-                  onClick={() => {
-                    setSelectedDept(dept.name);
-                    setCurrentStep(3);
-                  }}
-                  style={{
-                    border: isSelected ? '2px solid var(--blue-primary)' : '1px solid var(--border-color)',
-                    backgroundColor: isSelected ? 'var(--blue-light)' : 'white',
-                    borderRadius: '12px',
-                    padding: '20px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isSelected ? 'var(--shadow-md)' : 'var(--shadow-sm)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#0f172a', fontWeight: '800' }}>
-                      {dept.code}
-                    </span>
-                    {isSelected && <Check size={18} style={{ color: 'var(--blue-primary)' }} />}
-                  </div>
-
-                  <h3 style={{ fontSize: '17px', fontWeight: '800', color: 'var(--navy-dark)', marginTop: '10px' }}>
-                    {dept.name}
-                  </h3>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                    <span>{deptSubjCount} Subjects in {selectedSem}</span>
-                    <span style={{ color: 'var(--blue-primary)', fontWeight: '700' }}>
-                      Configure &rarr;
-                    </span>
+              <div 
+                className="card" 
+                style={{ padding: '20px', cursor: 'pointer' }}
+                onClick={() => setAdminTab('classes')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Active Classes</span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <GraduationCap size={18} />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          STEP 3: SUBJECTS IN DEPARTMENT
-          =================================================================== */}
-      {currentStep === 3 && (
-        <div className="card">
-          <div className="card-header-flex" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentStep(2)}>
-                  <ArrowLeft size={14} /> Back
-                </button>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                  Step 3: Subjects in {selectedDept} ({selectedSem})
-                </h2>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                  {getClasses().length}
+                </div>
+                <span style={{ fontSize: '12px', color: '#0284c7', fontWeight: '600' }}>Dept • Sem • Div Rosters</span>
               </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Click <strong>"Configure Divisions & Faculty"</strong> on any subject to assign faculties and set division count (1 to 3).
-              </p>
+
+              <div className="card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Faculty Members</span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Users size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                  {faculties.length}
+                </div>
+                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>Configured Across Depts</span>
+              </div>
+
+              <div className="card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Active Subjects</span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#fef3c7', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BookOpen size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                  {subjects.length}
+                </div>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Odd & Even Semesters</span>
+              </div>
+
+              <div className="card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Timetables Active</span>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Calendar size={18} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                  {faculties.length}
+                </div>
+                <span style={{ fontSize: '12px', color: '#7e22ce', fontWeight: '600' }}>Individual Faculty Schedules</span>
+              </div>
             </div>
 
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setSubjectForm({ id: '', code: '', name: '', credits: 4, sem: selectedSem, dept: selectedDept });
-                setShowSubjectModal(true);
-              }}
-            >
-              <BookPlus size={16} /> Add New Subject
-            </button>
-          </div>
-
-          {/* Subjects Table */}
-          <div className="table-responsive" style={{ marginTop: '20px' }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Course Code</th>
-                  <th>Course Name</th>
-                  <th>Credits</th>
-                  <th>Divisions (Max 3)</th>
-                  <th>Assigned Faculty</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSubjects.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                      No subjects configured for {selectedDept} in {selectedSem}. Click "+ Add New Subject" to create one.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubjects.map(subj => {
-                    const alloc = allocations[subj.id] || getAllocationForSubject(subj.id);
-                    const divCount = alloc.divisionCount || 1;
-                    const isSelected = selectedSubjectId === subj.id;
-
-                    return (
-                      <tr 
-                        key={subj.id}
-                        style={{ backgroundColor: isSelected ? '#eff6ff' : 'transparent' }}
-                      >
-                        <td style={{ fontWeight: '800', color: 'var(--navy-primary)' }}>
-                          {subj.code}
-                        </td>
-                        <td style={{ fontWeight: '700' }}>
-                          {subj.name}
-                        </td>
-                        <td>
-                          <span className="badge" style={{ backgroundColor: '#f1f5f9', fontWeight: '700' }}>
-                            {subj.credits || 4} Credits
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge" style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: '700' }}>
-                            {divCount} Division{divCount > 1 ? 's' : ''}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '12px' }}>
-                            {(alloc.divisions || []).map(d => (
-                              <span key={d.id}>
-                                <strong>{d.name}:</strong> {d.facultyName || 'Unassigned'}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                            <button
-                              className="btn btn-primary btn-sm"
-                              onClick={() => {
-                                setSelectedSubjectId(subj.id);
-                                setCurrentStep(4);
-                              }}
-                              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
-                            >
-                              <Layers size={14} />
-                              <span>Configure Divisions & Faculty</span>
-                            </button>
-
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => {
-                                setSubjectForm(subj);
-                                setShowSubjectModal(true);
-                              }}
-                              title="Edit Subject"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={() => handleDeleteSubject(subj.id)}
-                              title="Delete Subject"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          STEP 4: DIVISION CONFIGURATION (1, 2, or 3) & FACULTY ASSIGNMENT
-          =================================================================== */}
-      {currentStep === 4 && (
-        <div className="card">
-          <div className="card-header-flex" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '14px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentStep(3)}>
-                  <ArrowLeft size={14} /> Back to Subjects
-                </button>
-                <h2 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                  Step 4: Division & Faculty Allocation for {activeSubject.code}
-                </h2>
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Subject: <strong>{activeSubject.name}</strong> ({selectedDept} - {selectedSem})
-              </p>
-            </div>
-
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                setFacultyForm({ id: '', name: '', dept: selectedDept, designation: 'Assistant Professor', email: '', phone: '' });
-                setShowFacultyModal(true);
-              }}
-            >
-              <UserPlus size={15} /> Add New Faculty Member
-            </button>
-          </div>
-
-          {/* Division Count Controller (Max 3, or 2, or 1) */}
-          <div style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '20px',
-            marginTop: '20px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--navy-primary)' }}>
-                  Choose Number of Divisions (Option: 1, 2, or Maximum 3)
+            {/* Department Breakdown Cards */}
+            <div className="card" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+                  Departments Overview
                 </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Select how many divisions take this subject. You can map a dedicated faculty member and manage students for each division.
-                </p>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setAdminTab('faculty')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span>Open Faculty Timetables</span>
+                  <ArrowRight size={14} />
+                </button>
               </div>
 
-              {/* Toggle Buttons for 1, 2, or 3 Divisions */}
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[1, 2, 3].map(cnt => {
-                  const isActive = (activeAllocation.divisionCount || 1) === cnt;
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                {departments.map((d) => {
+                  const facCount = faculties.filter(f => f.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
+                  const subjCount = subjects.filter(s => s.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
+
                   return (
-                    <button
-                      key={cnt}
-                      onClick={() => handleDivisionCountChange(cnt)}
+                    <div 
+                      key={d.id || d.code}
                       style={{
-                        padding: '10px 20px',
-                        borderRadius: '8px',
-                        border: isActive ? '2px solid var(--blue-primary)' : '1px solid var(--border-color)',
-                        backgroundColor: isActive ? 'var(--blue-primary)' : 'white',
-                        color: isActive ? 'white' : 'var(--navy-dark)',
-                        fontWeight: '800',
-                        fontSize: '14px',
-                        cursor: 'pointer',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '18px',
+                        backgroundColor: '#f8fafc',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: isActive ? 'var(--shadow-md)' : 'none',
-                        transition: 'all 0.15s ease'
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
                       }}
                     >
-                      {isActive && <Check size={16} />}
-                      <span>{cnt} Division{cnt > 1 ? 's' : ''}</span>
-                    </button>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span className="badge" style={{ backgroundColor: '#e2e8f0', color: '#1e293b', fontWeight: '800' }}>
+                            {d.code}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>{facCount} Faculty</span>
+                        </div>
+                        <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
+                          {d.name}
+                        </h4>
+                        <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+                          {subjCount} Configured Subjects
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveDept(d.name);
+                          setAdminTab('faculty');
+                        }}
+                        style={{
+                          marginTop: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid #bfdbfe',
+                          backgroundColor: 'white',
+                          color: '#2563eb',
+                          fontWeight: '700',
+                          fontSize: '12.5px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span>View Timetables</span>
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
             </div>
           </div>
+        )}
 
-          {/* Division Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${activeDivisionsList.length}, 1fr)`, gap: '20px', marginTop: '24px' }}>
-            {activeDivisionsList.map((div) => {
-              const enrolledCount = getDivisionCount(div.id);
-
-              return (
-                <div 
-                  key={div.id}
-                  style={{
-                    backgroundColor: 'white',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    boxShadow: 'var(--shadow-md)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                >
-                  {/* Card Header */}
-                  <div style={{
-                    backgroundColor: 'var(--blue-light)',
-                    borderBottom: '1px solid var(--border-color)',
-                    padding: '16px 20px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <span className="badge" style={{ backgroundColor: 'white', color: 'var(--navy-primary)', fontWeight: '800', marginBottom: '4px' }}>
-                        Division {div.id}
-                      </span>
-                      <h4 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                        {div.name}
-                      </h4>
-                    </div>
-
-                    <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontWeight: '800' }}>
-                      {enrolledCount} Students Enrolled
-                    </span>
-                  </div>
-
-                  {/* Card Body */}
-                  <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    
-                    {/* Faculty Assignment Dropdown */}
-                    <div>
-                      <label style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>
-                        Assigned Faculty for {div.name}
-                      </label>
-                      <select
-                        className="form-control"
-                        value={div.facultyId}
-                        onChange={(e) => handleFacultyAssign(div.id, e.target.value)}
-                        style={{ height: '40px', fontWeight: '700' }}
-                      >
-                        {faculties.map(fac => (
-                          <option key={fac.id} value={fac.id}>
-                            {fac.name} ({fac.designation})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Faculty Details Preview */}
-                    <div style={{ padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                      <div style={{ color: 'var(--navy-primary)', fontWeight: '700' }}>
-                        {div.facultyName}
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Department: {selectedDept}
-                      </div>
-                    </div>
-
-                    {/* Button to Manage Students for this Division */}
-                    <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => {
-                          setSelectedDivision(div.id);
-                          setCurrentStep(5);
-                        }}
-                        style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
-                      >
-                        <Users size={16} />
-                        <span>Manage Division {div.id} Students ({enrolledCount})</span>
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          STEP 5: STUDENTS IN DIVISION (View, Add, Move, Excel Import)
-          =================================================================== */}
-      {currentStep === 5 && (
-        <div className="card">
-          <div className="card-header-flex" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '14px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentStep(4)}>
-                  <ArrowLeft size={14} /> Back to Divisions
-                </button>
-                <h2 style={{ fontSize: '19px', fontWeight: '800', color: 'var(--navy-dark)' }}>
-                  Step 5: Enrolled Students in Division {selectedDivision}
-                </h2>
+        {/* VIEW 3: TIMETABLES (Department Master View) */}
+        {adminTab === 'timetables' && (
+          <div className="admin-subview">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+              <div>
+                <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
+                  Department Master Timetables
+                </h1>
+                <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
+                  Comprehensive schedule matrix for {activeDept} ({activeSem}).
+                </p>
               </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Course: <strong>{activeSubject.code} - {activeSubject.name}</strong> | Faculty: <strong>{activeDivisionsList.find(d => d.id === selectedDivision)?.facultyName || 'Faculty'}</strong>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setAdminTab('faculty')}
+                >
+                  <Users size={14} /> Individual Faculty Timetables
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => window.print()}
+                >
+                  <Download size={14} /> Export Schedule
+                </button>
+              </div>
+            </div>
+
+            {/* Department selector */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
+              <select
+                className="form-control"
+                value={activeDept}
+                onChange={(e) => setActiveDept(e.target.value)}
+                style={{ maxWidth: '280px', fontWeight: '700' }}
+              >
+                {departments.map((d) => (
+                  <option key={d.id || d.name} value={d.name}>{d.name}</option>
+                ))}
+              </select>
+
+              <select
+                className="form-control"
+                value={activeSem}
+                onChange={(e) => setActiveSem(e.target.value)}
+                style={{ maxWidth: '180px', fontWeight: '700' }}
+              >
+                <option value="1st Semester">1st Semester</option>
+                <option value="2nd Semester">2nd Semester</option>
+                <option value="3rd Semester">3rd Semester</option>
+                <option value="4th Semester">4th Semester</option>
+                <option value="5th Semester">5th Semester</option>
+                <option value="6th Semester">6th Semester</option>
+                <option value="7th Semester">7th Semester</option>
+                <option value="8th Semester">8th Semester</option>
+              </select>
+            </div>
+
+            {/* Department Master Matrix */}
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>
+                Weekly Department Matrix - {activeDept}
+              </h3>
+
+              <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '10px 14px', width: '120px' }}>Time Slot</th>
+                      {TIMETABLE_DAYS.map(day => (
+                        <th key={day} style={{ padding: '10px', textAlign: 'center' }}>{day}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {TIME_SLOTS.map((slotTime) => {
+                      if (slotTime === '12:40 - 1:25') {
+                        return (
+                          <tr key={slotTime} style={{ backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '8px 14px', fontWeight: '700', color: '#64748b' }}>{slotTime}</td>
+                            <td colSpan={6} style={{ textAlign: 'center', fontWeight: '800', color: '#64748b', letterSpacing: '0.1em', fontSize: '11px', textTransform: 'uppercase' }}>
+                              LUNCH BREAK
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={slotTime} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: '700', color: '#475569', backgroundColor: '#fafbfc' }}>
+                            {slotTime}
+                          </td>
+                          {TIMETABLE_DAYS.map(day => (
+                            <td key={day} style={{ padding: '8px', borderRight: '1px solid #f1f5f9', textAlign: 'center' }}>
+                              <span style={{ color: '#64748b', fontSize: '12px' }}>Scheduled Lectures</span>
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 4: UPLOAD TIMETABLE (Dedicated Upload Hub) */}
+        {adminTab === 'upload' && (
+          <div className="admin-subview">
+            <div style={{ marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
+                Timetable Upload Hub
+              </h1>
+              <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
+                Upload official class or faculty timetable files in Excel (.xlsx, .csv), Image, or PDF format.
               </p>
             </div>
 
-            {/* Division Pill Switcher */}
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)', marginRight: '4px' }}>Division:</span>
-              {activeDivisionsList.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => setSelectedDivision(d.id)}
-                  className={`btn btn-sm ${selectedDivision === d.id ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ fontWeight: '700' }}
-                >
-                  Div {d.id} ({getDivisionCount(d.id)})
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Action Toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
-            
-            {/* Search Input */}
-            <div style={{ position: 'relative', width: '260px' }}>
-              <Search size={15} style={{ position: 'absolute', left: '10px', top: '11px', color: '#94a3b8' }} />
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search roll, name, enrollment..."
-                value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                style={{ paddingLeft: '32px', height: '36px' }}
-              />
-            </div>
-
-            {/* Roster Actions: Import Excel, Export Excel, Add Student */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              
-              {/* Import Excel / CSV Button */}
-              <label 
-                className="btn btn-secondary"
-                style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                title="Upload class roster in .xlsx or .csv format"
-              >
-                <UploadCloud size={16} style={{ color: 'var(--blue-primary)' }} />
-                <span>Import Excel/CSV</span>
-                <input
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  style={{ display: 'none' }}
-                  onChange={handleFileUpload}
+            <div style={{ maxWidth: '720px' }}>
+              <div className="card" style={{ padding: '30px' }}>
+                <TimetableUploadModal
+                  selectedFaculty={faculties[0]}
+                  departmentName={activeDept}
+                  semesterName={activeSem}
+                  onClose={() => setAdminTab('faculty')}
+                  onTimetableUpdated={() => {
+                    if (showToast) showToast('Timetable successfully loaded!');
+                    setAdminTab('faculty');
+                  }}
+                  showToast={showToast}
                 />
-              </label>
+              </div>
+            </div>
+          </div>
+        )}
 
-              {/* Export Roster Excel Button */}
-              <button
-                className="btn btn-secondary"
-                onClick={handleExportRoster}
-                style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                title="Download this division's student roster as an Excel file"
-              >
-                <FileSpreadsheet size={16} style={{ color: '#059669' }} />
-                <span>Export Excel</span>
-              </button>
+        {/* VIEW 5: SUBJECTS MANAGEMENT */}
+        {adminTab === 'subjects' && (
+          <div className="admin-subview">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+              <div>
+                <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
+                  Subjects Management
+                </h1>
+                <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
+                  Manage course subjects, credits, and syllabus codes for {activeDept}.
+                </p>
+              </div>
 
-              {/* Add Student Modal Trigger */}
               <button
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 onClick={() => {
-                  setStudentForm({ 
-                    id: '', 
-                    rollNo: String(divisionStudents.length + 1), 
-                    name: '', 
-                    enrollmentNo: '', 
-                    class: selectedDivision, 
-                    dept: selectedDept, 
-                    sem: selectedSem 
-                  });
-                  setShowStudentModal(true);
+                  setSubjectForm({ id: '', code: '', name: '', shortName: '', credits: 4, sem: activeSem, dept: activeDept });
+                  setShowSubjectModal(true);
                 }}
-                style={{ height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <UserPlus size={16} />
-                <span>Add Student</span>
+                <Plus size={15} /> Add Subject
               </button>
             </div>
-          </div>
 
-          {/* Students Table */}
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Roll No</th>
-                  <th>Student Name</th>
-                  <th>Enrollment No</th>
-                  <th>Semester</th>
-                  <th>Department</th>
-                  <th>Active Division</th>
-                  <th style={{ textAlign: 'center' }}>Move Division</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {divisionStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
-                      No students currently assigned to Division {selectedDivision}. Click <strong>"+ Add Student"</strong> or <strong>"Import Excel/CSV"</strong> to enroll students.
-                    </td>
-                  </tr>
-                ) : (
-                  divisionStudents.map((st) => (
-                    <tr key={st.id}>
-                      <td style={{ fontWeight: '800', color: 'var(--navy-primary)' }}>{st.rollNo}</td>
-                      <td style={{ fontWeight: '700' }}>{st.name}</td>
-                      <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: '13px' }}>{st.enrollmentNo}</td>
-                      <td>{st.sem}</td>
-                      <td>{st.dept}</td>
-                      <td>
-                        <span className="badge" style={{ backgroundColor: '#e0e7ff', color: '#3730a3', fontWeight: '800' }}>
-                          Div {st.class}
-                        </span>
-                      </td>
-                      
-                      {/* Move to another Division action */}
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Move:</span>
-                          {activeDivisionsList
-                            .filter(d => d.id !== selectedDivision)
-                            .map(targetDiv => (
-                              <button
-                                key={targetDiv.id}
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleMoveStudentDivision(st.id, targetDiv.id)}
-                                style={{ padding: '2px 8px', fontSize: '11px', fontWeight: '700' }}
-                                title={`Move to Division ${targetDiv.id}`}
-                              >
-                                &rarr; Div {targetDiv.id}
-                              </button>
-                            ))}
-                        </div>
-                      </td>
+            {/* Department Filter */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px' }}>
+              <select
+                className="form-control"
+                value={activeDept}
+                onChange={(e) => setActiveDept(e.target.value)}
+                style={{ maxWidth: '280px', fontWeight: '700' }}
+              >
+                {departments.map((d) => (
+                  <option key={d.id || d.name} value={d.name}>{d.name}</option>
+                ))}
+              </select>
+            </div>
 
-                      {/* Actions */}
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => {
-                              setStudentForm(st);
-                              setShowStudentModal(true);
-                            }}
-                            title="Edit student"
-                          >
-                            <Edit2 size={13} />
-                          </button>
-
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDeleteStudent(st.id)}
-                            title="Remove student"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
+            {/* Subjects Table */}
+            <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Subject Code</th>
+                      <th>Subject Name</th>
+                      <th>Short Name</th>
+                      <th>Department</th>
+                      <th>Credits</th>
+                      <th>Faculty In-Charge</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))
+                  </thead>
+                  <tbody>
+                    {filteredSubjects.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                          No subjects configured for {activeDept}. Click "Add Subject" to create one.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSubjects.map(s => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: '800', color: '#1e3a8a' }}>{s.code}</td>
+                          <td style={{ fontWeight: '700' }}>
+                            {s.name}
+                            {subjectEntryCounts[s.id] > 0 && (
+                              <span className="badge" style={{ marginLeft: '8px', backgroundColor: '#ecfdf5', color: '#059669', fontSize: '10px' }}>
+                                {subjectEntryCounts[s.id]} slots
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
+                              {s.shortName || s.name.slice(0, 8)}
+                            </span>
+                          </td>
+                          <td>{s.dept}</td>
+                          <td>{s.credits || 4}</td>
+                          <td>{s.faculty || 'Unassigned'}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                if (window.confirm(`Delete subject ${s.name}?`)) {
+                                  const updated = deleteSubject(s.id);
+                                  setSubjects([...updated]);
+                                  if (showToast) showToast('Subject deleted.');
+                                }
+                              }}
+                              style={{ color: '#e11d48', padding: '4px 8px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 6: DEPARTMENT ADMINISTRATION PANEL */}
+        {adminTab === 'departments' && (
+          <DepartmentAdminPanel
+            onOpenFacultyTimetable={() => setAdminTab('faculty')}
+            showToast={showToast}
+          />
+        )}
+
+        {/* VIEW 7: SETTINGS (Security PIN & College Branding) */}
+        {adminTab === 'settings' && (
+          <div className="admin-subview" style={{ maxWidth: '640px' }}>
+            <div style={{ marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
+                Admin & Security Settings
+              </h1>
+              <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
+                Manage master administrator PIN code, data synchronization, and college branding.
+              </p>
+            </div>
+
+            {/* PIN Code Form */}
+            <div className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <KeyRound size={18} style={{ color: '#2563eb' }} />
+                Change Admin Security PIN
+              </h3>
+              <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+                Default PIN code is <strong>1234</strong>.
+              </p>
+
+              <form onSubmit={handlePinUpdate} style={{ marginTop: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Current PIN</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="Current 4-digit PIN"
+                      value={oldPin}
+                      onChange={(e) => setOldPin(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>New PIN</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="New PIN"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {pinChangeMsg && (
+                  <div style={{ fontSize: '12.5px', marginTop: '10px', fontWeight: '700', color: pinChangeMsg.includes('success') ? '#059669' : '#e11d48' }}>
+                    {pinChangeMsg}
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
-      {/* ===================================================================
-          MODAL: ADD / EDIT STUDENT
-          =================================================================== */}
-      {showStudentModal && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '440px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
-                <UserPlus size={20} />
-                {studentForm.id ? 'Edit Student Details' : `Add Student to Division ${selectedDivision}`}
-              </h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowStudentModal(false)}>
-                <X size={16} />
-              </button>
+                <div style={{ marginTop: '16px', textAlign: 'right' }}>
+                  <button type="submit" className="btn btn-primary btn-sm">
+                    <ShieldCheck size={14} /> Update PIN Code
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form onSubmit={handleSaveStudent}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Roll Number *</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="e.g. 1, 2, 3..."
-                    value={studentForm.rollNo}
-                    onChange={(e) => setStudentForm({ ...studentForm, rollNo: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Full Student Name *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. Aarav Patel"
-                    value={studentForm.name}
-                    onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>University Enrollment Number *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. 12502040501127"
-                    value={studentForm.enrollmentNo}
-                    onChange={(e) => setStudentForm({ ...studentForm, enrollmentNo: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Division Assignment</label>
-                  <select
-                    className="form-control"
-                    value={studentForm.class || selectedDivision}
-                    onChange={(e) => setStudentForm({ ...studentForm, class: e.target.value })}
-                  >
-                    {activeDivisionsList.map(d => (
-                      <option key={d.id} value={d.id}>Division {d.id} ({d.name})</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowStudentModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={15} /> Save Student
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          MODAL: ADD / EDIT SUBJECT
-          =================================================================== */}
-      {showSubjectModal && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '460px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
-                <BookPlus size={20} />
-                {subjectForm.id ? 'Edit Subject' : 'Add Subject to ' + selectedDept}
+            {/* Database Reset Option */}
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#e11d48', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RotateCcw size={18} />
+                Reset System Database
               </h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowSubjectModal(false)}>
-                <X size={16} />
-              </button>
-            </div>
+              <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+                Restore all faculties, timetables, subjects, and departments to default sample data.
+              </p>
 
-            <form onSubmit={handleSaveSubject}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Subject / Course Code *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. 102040304"
-                    value={subjectForm.code}
-                    onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Subject Name *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. DATA STRUCTURES"
-                    value={subjectForm.name}
-                    onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Credits</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={subjectForm.credits || 4}
-                    onChange={(e) => setSubjectForm({ ...subjectForm, credits: Number(e.target.value) })}
-                    min="1"
-                    max="10"
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowSubjectModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={15} /> Save Subject
+              <div style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={handleResetDefaults}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RotateCcw size={14} /> Reset Academic Database to Defaults
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          MODAL: ADD FACULTY
-          =================================================================== */}
-      {showFacultyModal && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '440px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
-                <UserPlus size={20} /> Add Faculty Member
-              </h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowFacultyModal(false)}>
-                <X size={16} />
-              </button>
             </div>
-
-            <form onSubmit={handleSaveFaculty}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label>Faculty Name *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. Dr. A. B. Joshi"
-                    value={facultyForm.name}
-                    onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Designation</label>
-                  <select
-                    className="form-control"
-                    value={facultyForm.designation}
-                    onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })}
-                  >
-                    <option value="Professor & HOD">Professor & HOD</option>
-                    <option value="Professor">Professor</option>
-                    <option value="Associate Professor">Associate Professor</option>
-                    <option value="Assistant Professor">Assistant Professor</option>
-                    <option value="Visiting Lecturer">Visiting Lecturer</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Department</label>
-                  <select
-                    className="form-control"
-                    value={facultyForm.dept}
-                    onChange={(e) => setFacultyForm({ ...facultyForm, dept: e.target.value })}
-                  >
-                    {departments.map(d => (
-                      <option key={d.id} value={d.name}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowFacultyModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={15} /> Save Faculty
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>
 
       {/* ===================================================================
-          MODAL: ADD DEPARTMENT
+          MODALS: Add Department & Add Subject
           =================================================================== */}
       {showDeptModal && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '420px' }}>
+          <div className="modal-card" style={{ maxWidth: '440px' }}>
             <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
-                <Building2 size={20} /> Add Academic Department
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                Add Academic Department
               </h3>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowDeptModal(false)}>
-                <X size={16} />
+                &times;
               </button>
             </div>
-
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (!deptForm.name || !deptForm.code) return;
-              const updated = saveDepartment(deptForm);
-              setDepartments([...updated]);
-              setShowDeptModal(false);
-              setDeptForm({ id: '', code: '', name: '' });
-              if (showToast) showToast('Department created!');
-            }}>
-              <div className="modal-body">
+            <form onSubmit={handleSaveDepartment}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div className="form-group">
-                  <label>Department Code *</label>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Department Code *</label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="e.g. AI, EE, CH"
+                    placeholder="e.g. AI&DS, CP, IT, EC"
                     value={deptForm.code}
-                    onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                    onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value })}
                     required
                   />
                 </div>
-
                 <div className="form-group">
-                  <label>Department Name *</label>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Department Full Name *</label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="e.g. Chemical Engineering"
+                    placeholder="e.g. Artificial Intelligence & Data Science"
                     value={deptForm.name}
                     onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                     required
                   />
                 </div>
               </div>
-
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowDeptModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">
-                  <Save size={15} /> Create Department
-                </button>
+                <button type="submit" className="btn btn-primary">Save Department</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showSubjectModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                Add Subject to {activeDept}
+              </h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowSubjectModal(false)}>
+                &times;
+              </button>
+            </div>
+            <form onSubmit={handleSaveSubject}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Subject Code *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. 3130703"
+                    value={subjectForm.code}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Subject Full Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Database Management Systems"
+                    value={subjectForm.name}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Short Label</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. DBMS"
+                      value={subjectForm.shortName}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, shortName: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Credits</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={subjectForm.credits}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, credits: parseInt(e.target.value) || 4 })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowSubjectModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Subject</button>
               </div>
             </form>
           </div>

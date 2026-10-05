@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Save, 
   CheckSquare, 
@@ -11,19 +11,40 @@ import {
   Clock, 
   FileSpreadsheet, 
   Sparkles, 
-  UploadCloud 
+  UploadCloud,
+  GraduationCap,
+  Layers,
+  Building2,
+  Users
 } from 'lucide-react';
-import { getStudents, getSubjects, saveSession } from '../services/attendanceStorage';
+import { 
+  getStudents, 
+  getSubjects, 
+  getDepartments,
+  getClasses,
+  findClassByCriteria,
+  getOrCreateClass,
+  getStudentsByClassId,
+  getStudentsForClassCriteria,
+  saveSession,
+  DEFAULT_ACADEMIC_YEAR,
+  ACADEMIC_YEARS,
+  normalizeSem,
+  normalizeDiv
+} from '../services/attendanceStorage';
 import { getScheduledLecturesForDate } from '../services/timetableStorage';
 import TimetableModal from './TimetableModal';
 
 export default function EnterAttendance({ onSaved, showToast }) {
-  const students = getStudents();
+  const departments = getDepartments();
   const subjects = getSubjects();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [sem, setSem] = useState('5th Sem');
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id || '');
+  const [selectedDept, setSelectedDept] = useState(departments[0]?.name || 'AI & Data Science');
+  const [sem, setSem] = useState('3rd Sem');
+  const [division, setDivision] = useState('Div 1');
+  const [academicYear, setAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
+  const [subjectId, setSubjectId] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [topic, setTopic] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
@@ -32,25 +53,87 @@ export default function EnterAttendance({ onSaved, showToast }) {
   // Scheduled lectures for active date
   const { dayName, lectures: scheduledLectures } = getScheduledLecturesForDate(date);
 
-  // Auto-schedule subject when date changes
+  // Automatically select suitable subject when department or subjects change
+  useEffect(() => {
+    const deptSubjs = subjects.filter(s => 
+      !s.dept || s.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4))
+    );
+    if (deptSubjs.length > 0) {
+      if (!subjectId || !deptSubjs.some(s => s.id === subjectId)) {
+        setSubjectId(deptSubjs[0].id);
+      }
+    } else if (subjects.length > 0 && !subjectId) {
+      setSubjectId(subjects[0].id);
+    }
+  }, [selectedDept, subjects]);
+
+  // Auto-schedule lecture quick-selection when date changes
   useEffect(() => {
     if (scheduledLectures && scheduledLectures.length > 0) {
       const firstSess = scheduledLectures[0];
       setSubjectId(firstSess.subjectId);
       setSelectedTimeSlot(firstSess.time);
+      if (firstSess.sem) setSem(normalizeSem(firstSess.sem));
+      if (firstSess.div) setDivision(normalizeDiv(firstSess.div));
+      if (firstSess.departmentId) {
+        const foundDept = departments.find(d => 
+          d.id === firstSess.departmentId || 
+          d.name.toLowerCase().includes(firstSess.departmentId.toLowerCase())
+        );
+        if (foundDept) setSelectedDept(foundDept.name);
+      }
     }
   }, [date]);
 
-  // Initial attendance record map: default all 'present'
-  const [records, setRecords] = useState(() => {
-    const initial = {};
-    students.forEach(s => {
-      initial[s.id] = 'present';
-    });
-    return initial;
-  });
+  // Handler when clicking a scheduled lecture quick pill
+  const handleSelectScheduledLecture = (lec) => {
+    setSubjectId(lec.subjectId);
+    setSelectedTimeSlot(lec.time);
+    if (lec.sem) setSem(normalizeSem(lec.sem));
+    if (lec.div) setDivision(normalizeDiv(lec.div));
+    if (lec.departmentId) {
+      const foundDept = departments.find(d => 
+        d.id === lec.departmentId || 
+        d.name.toLowerCase().includes(lec.departmentId.toLowerCase())
+      );
+      if (foundDept) setSelectedDept(foundDept.name);
+    }
+  };
 
+  // Resolve active Class entity: Department + Semester + Division + Academic Year
+  const activeClass = useMemo(() => {
+    return findClassByCriteria(selectedDept, sem, division, academicYear) || 
+           getOrCreateClass(selectedDept, sem, division, academicYear);
+  }, [selectedDept, sem, division, academicYear]);
+
+  // Retrieve enrolled students for this specific Class
+  const classStudents = useMemo(() => {
+    if (activeClass && activeClass.id) {
+      const enrolled = getStudentsByClassId(activeClass.id);
+      if (enrolled && enrolled.length > 0) return enrolled;
+    }
+    // Fallback: search by criteria or all students
+    const criteriaEnrolled = getStudentsForClassCriteria(selectedDept, sem, division, academicYear);
+    if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
+    return getStudents();
+  }, [activeClass, selectedDept, sem, division, academicYear]);
+
+  // Attendance record status map: studentId -> 'present' | 'absent'
+  const [records, setRecords] = useState({});
   const [remarks, setRemarks] = useState({});
+
+  // When class students change, update records map defaulting each to 'present'
+  useEffect(() => {
+    setRecords(prev => {
+      const nextRecords = { ...prev };
+      classStudents.forEach(s => {
+        if (!nextRecords[s.id]) {
+          nextRecords[s.id] = 'present';
+        }
+      });
+      return nextRecords;
+    });
+  }, [classStudents]);
 
   const handleStatusChange = (studentId, status) => {
     setRecords(prev => ({
@@ -68,7 +151,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
 
   const markAllStatus = (status) => {
     const updated = {};
-    students.forEach(s => {
+    classStudents.forEach(s => {
       updated[s.id] = status;
     });
     setRecords(updated);
@@ -89,7 +172,11 @@ export default function EnterAttendance({ onSaved, showToast }) {
     const newSession = {
       date,
       subjectId,
+      department: selectedDept,
       sem,
+      division,
+      academicYear,
+      classId: activeClass ? activeClass.id : null,
       timeSlot: selectedTimeSlot,
       topic: topic.trim(),
       records,
@@ -97,20 +184,20 @@ export default function EnterAttendance({ onSaved, showToast }) {
     };
 
     saveSession(newSession);
-    if (showToast) showToast('Attendance session successfully recorded!');
+    if (showToast) showToast(`Attendance recorded for ${selectedDept} • ${sem} • ${division}!`);
     if (onSaved) onSaved();
 
     setTopic('');
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-    s.rollNo.includes(studentSearch) ||
-    s.enrollmentNo.includes(studentSearch)
+  const filteredStudents = classStudents.filter(s =>
+    (s.name && s.name.toLowerCase().includes(studentSearch.toLowerCase())) ||
+    (s.rollNo && String(s.rollNo).includes(studentSearch)) ||
+    (s.enrollmentNo && String(s.enrollmentNo).toLowerCase().includes(studentSearch.toLowerCase()))
   );
 
-  const presentCount = Object.values(records).filter(st => st === 'present').length;
-  const absentCount = Object.values(records).filter(st => st === 'absent').length;
+  const presentCount = classStudents.filter(s => (records[s.id] || 'present') === 'present').length;
+  const absentCount = classStudents.filter(s => records[s.id] === 'absent').length;
 
   const getSubjectObj = (id) => subjects.find(s => s.id === id) || { code: id, name: id };
 
@@ -123,7 +210,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
             Enter Lecture Attendance
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Select session details, enter topic covered, and mark student attendance status.
+            Select class &amp; session details, enter topic covered, and mark enrolled student attendance.
           </p>
         </div>
 
@@ -150,7 +237,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
             marginTop: '20px',
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '12px'
           }}
@@ -172,16 +259,13 @@ export default function EnterAttendance({ onSaved, showToast }) {
             {scheduledLectures.map((lec, idx) => {
               const isSelected = subjectId === lec.subjectId && selectedTimeSlot === lec.time;
               const subj = getSubjectObj(lec.subjectId);
-              const lectureSem = lec.sem || subj.sem || '5th Sem';
+              const lectureSem = lec.sem || subj.sem || '3rd Sem';
+              const lectureDiv = lec.div || 'Div 1';
               return (
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => {
-                    setSubjectId(lec.subjectId);
-                    setSelectedTimeSlot(lec.time);
-                    if (lec.sem || subj.sem) setSem(lec.sem || subj.sem);
-                  }}
+                  onClick={() => handleSelectScheduledLecture(lec)}
                   className="btn btn-sm"
                   style={{
                     backgroundColor: isSelected ? 'var(--navy-primary)' : 'white',
@@ -190,12 +274,15 @@ export default function EnterAttendance({ onSaved, showToast }) {
                     fontWeight: '700',
                     padding: '8px 14px',
                     borderRadius: 'var(--radius-md)',
-                    boxShadow: isSelected ? '0 2px 6px rgba(30, 58, 138, 0.25)' : 'none'
+                    boxShadow: isSelected ? '0 2px 6px rgba(30, 58, 138, 0.25)' : 'none',
+                    cursor: 'pointer'
                   }}
                 >
                   <Clock size={13} style={{ color: isSelected ? 'white' : 'var(--blue-primary)' }} />
                   <span>Lecture #{idx + 1}: {lec.time}</span>
-                  <span style={{ opacity: 0.8, fontSize: '11px', marginLeft: '4px' }}>({subj.code} • {lectureSem})</span>
+                  <span style={{ opacity: 0.8, fontSize: '11px', marginLeft: '4px' }}>
+                    ({subj.code} • {lectureSem} • {lectureDiv})
+                  </span>
                 </button>
               );
             })}
@@ -205,9 +292,13 @@ export default function EnterAttendance({ onSaved, showToast }) {
 
       <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
         {/* Form Controls Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+          
           <div className="form-group">
-            <label>Attendance Date</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={14} style={{ color: '#2563eb' }} />
+              <span>Attendance Date</span>
+            </label>
             <input
               type="date"
               className="form-control"
@@ -218,11 +309,14 @@ export default function EnterAttendance({ onSaved, showToast }) {
           </div>
 
           <div className="form-group">
-            <label>Lecture Time Slot</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={14} style={{ color: '#2563eb' }} />
+              <span>Lecture Time Slot</span>
+            </label>
             <input
               type="text"
               className="form-control"
-              placeholder="e.g. 10:00 AM - 11:00 AM"
+              placeholder="e.g. 10:00 - 10:50"
               value={selectedTimeSlot}
               onChange={(e) => setSelectedTimeSlot(e.target.value)}
               style={{ fontWeight: '700' }}
@@ -230,11 +324,32 @@ export default function EnterAttendance({ onSaved, showToast }) {
           </div>
 
           <div className="form-group">
-            <label>Academic Semester</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Building2 size={14} style={{ color: '#2563eb' }} />
+              <span>Department</span>
+            </label>
+            <select
+              className="form-control"
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              style={{ fontWeight: '700' }}
+            >
+              {departments.map(d => (
+                <option key={d.id || d.code} value={d.name}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <GraduationCap size={14} style={{ color: '#2563eb' }} />
+              <span>Academic Semester</span>
+            </label>
             <select
               className="form-control"
               value={sem}
               onChange={(e) => setSem(e.target.value)}
+              style={{ fontWeight: '700' }}
             >
               <option value="1st Sem">1st Semester</option>
               <option value="2nd Sem">2nd Semester</option>
@@ -248,7 +363,27 @@ export default function EnterAttendance({ onSaved, showToast }) {
           </div>
 
           <div className="form-group">
-            <label>Subject / Course</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Layers size={14} style={{ color: '#2563eb' }} />
+              <span>Division</span>
+            </label>
+            <select
+              className="form-control"
+              value={division}
+              onChange={(e) => setDivision(e.target.value)}
+              style={{ fontWeight: '700' }}
+            >
+              <option value="Div 1">Division 1 (Div 1)</option>
+              <option value="Div 2">Division 2 (Div 2)</option>
+              <option value="Div 3">Division 3 (Div 3)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <BookOpen size={14} style={{ color: '#2563eb' }} />
+              <span>Subject / Course</span>
+            </label>
             <select
               className="form-control"
               value={subjectId}
@@ -257,7 +392,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
             >
               {subjects.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.code} - {s.name} ({s.faculty})
+                  {s.code} - {s.name} ({s.faculty || 'Faculty'})
                 </option>
               ))}
             </select>
@@ -268,7 +403,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
             <input
               type="text"
               className="form-control"
-              placeholder="e.g. React Hooks, Database Normalization BCNF..."
+              placeholder="e.g. React Hooks, Database Normalization BCNF, Graph Algorithms..."
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               required
@@ -276,78 +411,117 @@ export default function EnterAttendance({ onSaved, showToast }) {
           </div>
         </div>
 
-        {/* Action Header Banner */}
+        {/* Active Class & Enrolled Roster Banner */}
         <div 
           style={{
             display: 'flex',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '16px',
-            backgroundColor: 'var(--blue-light)',
-            padding: '16px 20px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--blue-sky)',
-            marginBottom: '20px'
+            gap: '14px',
+            backgroundColor: '#f8fafc',
+            padding: '14px 18px',
+            borderRadius: '10px',
+            border: '1px solid #e2e8f0',
+            marginBottom: '18px'
           }}
         >
-          {/* Quick Filter Search */}
-          <div className="input-with-icon" style={{ flex: 1, minWidth: '220px', maxWidth: '320px' }}>
-            <Search className="input-icon" size={16} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Filter student list..."
-              value={studentSearch}
-              onChange={(e) => setStudentSearch(e.target.value)}
-            />
+          {/* Class Identity Pill */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '8px',
+              backgroundColor: '#e0f2fe',
+              color: '#0284c7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '800'
+            }}>
+              <GraduationCap size={20} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>
+                  {selectedDept} • {sem} • {division}
+                </span>
+                <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#2563eb', fontWeight: '700' }}>
+                  {academicYear}
+                </span>
+                <span className="badge" style={{ backgroundColor: '#ecfdf5', color: '#059669', fontWeight: '700' }}>
+                  {classStudents.length} Enrolled Students
+                </span>
+              </div>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
+                Students dynamically loaded from Class Roster
+              </span>
+            </div>
           </div>
 
-          {/* Quick Mark All Buttons */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => markAllStatus('present')}
-            >
-              <CheckSquare size={14} style={{ color: 'var(--status-present)' }} />
-              All Present
-            </button>
+          {/* Quick Filter Search & Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div className="input-with-icon" style={{ minWidth: '180px', maxWidth: '240px' }}>
+              <Search className="input-icon" size={15} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search roll, name..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                style={{ height: '34px', fontSize: '12.5px' }}
+              />
+            </div>
 
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => markAllStatus('absent')}
-            >
-              <XSquare size={14} style={{ color: 'var(--status-absent)' }} />
-              All Absent
-            </button>
-          </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => markAllStatus('present')}
+                title="Mark all as Present"
+              >
+                <CheckSquare size={13} style={{ color: 'var(--status-present)' }} />
+                <span>All Present</span>
+              </button>
 
-          {/* Realtime Counters */}
-          <div style={{ display: 'flex', gap: '12px', fontSize: '13px', fontWeight: '700' }}>
-            <span className="badge badge-present">Present: {presentCount}</span>
-            <span className="badge badge-absent">Absent: {absentCount}</span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => markAllStatus('absent')}
+                title="Mark all as Absent"
+              >
+                <XSquare size={13} style={{ color: 'var(--status-absent)' }} />
+                <span>All Absent</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: '700' }}>
+              <span className="badge badge-present">Present: {presentCount}</span>
+              <span className="badge badge-absent">Absent: {absentCount}</span>
+            </div>
           </div>
         </div>
 
         {/* Student Attendance Table */}
-        <div className="table-responsive">
+        <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
           <table className="data-table">
             <thead>
               <tr>
-                <th>Roll No</th>
+                <th style={{ width: '80px' }}>Roll No</th>
                 <th>Student Name</th>
                 <th>Enrollment No</th>
-                <th style={{ textAlign: 'center' }}>Attendance Status</th>
+                <th style={{ textAlign: 'center', width: '200px' }}>Attendance Status</th>
                 <th>Remarks / Reason</th>
               </tr>
             </thead>
             <tbody>
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                    No matching students found.
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
+                    No enrolled students found for <strong>{selectedDept} • {sem} • {division} ({academicYear})</strong>.
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                      Tip: Go to <strong>Admin Panel &rarr; Classes</strong> to add or bulk upload students to this class.
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -356,7 +530,12 @@ export default function EnterAttendance({ onSaved, showToast }) {
                   return (
                     <tr key={student.id}>
                       <td style={{ fontWeight: '800', color: 'var(--navy-primary)' }}>{student.rollNo}</td>
-                      <td style={{ fontWeight: '600' }}>{student.name}</td>
+                      <td style={{ fontWeight: '600' }}>
+                        <div>{student.name}</div>
+                        {student.email && (
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>{student.email}</span>
+                        )}
+                      </td>
                       <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{student.enrollmentNo}</td>
                       <td style={{ textAlign: 'center' }}>
                         <div className="attendance-toggle-group">
@@ -396,9 +575,13 @@ export default function EnterAttendance({ onSaved, showToast }) {
 
         {/* Submit Action */}
         <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-          <button type="submit" className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '16px' }}>
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            style={{ padding: '12px 32px', fontSize: '15px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
             <Save size={18} />
-            Save Attendance Session
+            <span>Save Attendance Session</span>
           </button>
         </div>
       </form>

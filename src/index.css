@@ -991,3 +991,195 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 12.5px;
   color: #334155;
 }
+
+/* ==========================================================================
+   ADMINISTRATION DEPARTMENT-WISE PANEL STYLES (Matching Reference UI)
+   ========================================================================== */
+
+.content-area-admin {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+}
+
+.admin-root-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f8fafc;
+}
+
+/* Dark Navy Sidebar */
+.admin-dark-sidebar {
+  width: 240px;
+  background-color: #0f172a;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.admin-sidebar-header {
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.admin-brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.admin-brand-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.admin-brand-subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.admin-sidebar-nav {
+  flex: 1;
+  padding: 20px 12px;
+}
+
+.admin-sidebar-nav ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.admin-nav-btn:hover {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
+.admin-nav-btn.active {
+  background-color: #1e3a8a;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid #1e293b;
+}
+
+.admin-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+  background-color: #1e293b;
+  color: #ef4444;
+}
+
+/* Main Viewport */
+.admin-main-viewport {
+  flex: 1;
+  padding: 28px 36px 48px;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.faculty-timetables-view {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.faculty-list-item:hover {
+  border-color: #cbd5e1 !important;
+  transform: translateY(-1px);
+}
+
+.timetable-cell-interactive:hover {
+  background-color: #f0f9ff !important;
+}
+
+.quick-action-btn:hover {
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06);
+}
+
+@media (max-width: 1180px) {
+  .faculty-grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media print {
+  .admin-dark-sidebar,
+  .no-print,
+  .app-sidebar,
+  .app-header {
+    display: none !important;
+  }
+
+  .admin-root-container,
+  .main-wrapper,
+  .admin-main-viewport,
+  .faculty-timetables-view {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: white !important;
+  }
+
+  .timetable-cell-interactive {
+    cursor: default !important;
+  }
+}

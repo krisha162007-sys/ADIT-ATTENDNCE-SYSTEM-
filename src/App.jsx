@@ -14,12 +14,12 @@ import { initializeStorage, resetToDefault, verifyAdminPin } from './services/at
 import { CheckCircle, ShieldCheck, Lock, X, KeyRound } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('manage');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
   // Security state
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(true);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -78,6 +78,12 @@ export default function App() {
     }
   };
 
+  const handleAdminExit = () => {
+    setIsAdminUnlocked(false);
+    setActiveTab('dashboard');
+    showToast('Logged out of Admin Panel.');
+  };
+
   const renderActiveView = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -95,39 +101,43 @@ export default function App() {
       case 'print':
         return <PrintView showToast={showToast} />;
       case 'manage':
-        return <AdminPanel showToast={showToast} />;
+        return <AdminPanel showToast={showToast} onExit={handleAdminExit} />;
       default:
         return <Dashboard setActiveTab={handleTabChange} />;
     }
   };
 
   return (
-    <div className="app-container">
-      {/* Navigation Sidebar */}
-      <Sidebar 
-        activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
-        onResetData={handleResetData}
-      />
+    <div className={`app-container ${activeTab === 'manage' ? 'in-admin-mode' : ''}`}>
+      {/* Navigation Sidebar (hidden when inside dedicated Admin Panel) */}
+      {activeTab !== 'manage' && (
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={handleTabChange} 
+          onResetData={handleResetData}
+        />
+      )}
 
       {/* Main Content Area */}
-      <div className="main-wrapper">
-        <Header 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-          activeTab={activeTab} 
-          isUnlocked={isAdminUnlocked}
-          onLockToggle={() => {
-            if (isAdminUnlocked) {
-              setIsAdminUnlocked(false);
-              showToast('Admin mode locked.');
-            } else {
-              requestAdminAccess(() => {});
-            }
-          }}
-        />
+      <div className="main-wrapper" style={activeTab === 'manage' ? { width: '100%', maxWidth: '100%' } : {}}>
+        {activeTab !== 'manage' && (
+          <Header 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
+            activeTab={activeTab} 
+            isUnlocked={isAdminUnlocked}
+            onLockToggle={() => {
+              if (isAdminUnlocked) {
+                setIsAdminUnlocked(false);
+                showToast('Admin mode locked.');
+              } else {
+                requestAdminAccess(() => {});
+              }
+            }}
+          />
+        )}
 
-        <main className="content-area">
+        <main className={activeTab === 'manage' ? 'content-area-admin' : 'content-area'}>
           {renderActiveView()}
         </main>
       </div>
