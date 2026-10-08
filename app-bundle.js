@@ -5399,6 +5399,7 @@ function FacultyTimetablePanel({
   subjects,
   onSaveFaculty,
   onSwitchToClassTimetable,
+  onOpenFacultyPortal,
   showToast
 }) {
   const [selectedDept, setSelectedDept] = useState("AI & Data Science");
@@ -5922,7 +5923,30 @@ function FacultyTimetablePanel({
           }
         },
         getInitials(currentFaculty.name)
-      ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a" } }, currentFaculty.name), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", color: "#64748b" } }, currentFaculty.designation || "Faculty Member"))), /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a" } }, currentFaculty.name), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", color: "#64748b" } }, currentFaculty.designation || "Faculty Member"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, onOpenFacultyPortal && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-primary btn-sm no-print",
+          onClick: () => onOpenFacultyPortal(currentFaculty.id),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            borderRadius: "8px",
+            padding: "7px 14px",
+            fontSize: "12.5px",
+            fontWeight: "700",
+            backgroundColor: "#0284c7",
+            borderColor: "#0284c7",
+            color: "white",
+            boxShadow: "0 2px 4px rgba(2, 132, 199, 0.25)"
+          },
+          title: `Open ${currentFaculty.name}'s Attendance Portal`
+        },
+        /* @__PURE__ */ React.createElement(UserCheck, { size: 14 }),
+        /* @__PURE__ */ React.createElement("span", null, "Open Faculty Portal")
+      ), /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "btn btn-secondary btn-sm no-print",
@@ -5940,7 +5964,7 @@ function FacultyTimetablePanel({
         },
         /* @__PURE__ */ React.createElement(Edit3, { size: 14 }),
         " Edit Details"
-      )),
+      ))),
       /* @__PURE__ */ React.createElement(
         "div",
         {
@@ -8752,6 +8776,10 @@ function AdminPanel({ showToast, onExit }) {
       subjects,
       onSaveFaculty: handleSaveFaculty,
       onSwitchToClassTimetable: () => setAdminTab("class-timetables"),
+      onOpenFacultyPortal: (facId) => {
+        if (facId) setActiveFacultyId(facId);
+        if (onExit) onExit("faculty");
+      },
       showToast
     }
   ), adminTab === "class-timetables" && /* @__PURE__ */ React.createElement(

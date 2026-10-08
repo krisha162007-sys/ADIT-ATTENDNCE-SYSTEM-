@@ -48,6 +48,7 @@ export default function FacultyTimetablePanel({
   subjects,
   onSaveFaculty,
   onSwitchToClassTimetable,
+  onOpenFacultyPortal,
   showToast
 }) {
   // Department & Semester Filter
@@ -707,23 +708,50 @@ export default function FacultyTimetablePanel({
                 </div>
               </div>
 
-              {/* Edit Details Button */}
-              <button
-                className="btn btn-secondary btn-sm no-print"
-                onClick={() => setShowEditFacultyModal(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  color: '#1e293b'
-                }}
-              >
-                <Edit3 size={14} /> Edit Details
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {onOpenFacultyPortal && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm no-print"
+                    onClick={() => onOpenFacultyPortal(currentFaculty.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      padding: '7px 14px',
+                      fontSize: '12.5px',
+                      fontWeight: '700',
+                      backgroundColor: '#0284c7',
+                      borderColor: '#0284c7',
+                      color: 'white',
+                      boxShadow: '0 2px 4px rgba(2, 132, 199, 0.25)'
+                    }}
+                    title={`Open ${currentFaculty.name}'s Attendance Portal`}
+                  >
+                    <UserCheck size={14} />
+                    <span>Open Faculty Portal</span>
+                  </button>
+                )}
+
+                {/* Edit Details Button */}
+                <button
+                  className="btn btn-secondary btn-sm no-print"
+                  onClick={() => setShowEditFacultyModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    borderRadius: '8px',
+                    padding: '7px 14px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    color: '#1e293b'
+                  }}
+                >
+                  <Edit3 size={14} /> Edit Details
+                </button>
+              </div>
             </div>
 
             {/* Meta Row: Department, Subjects, Email */}

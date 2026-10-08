@@ -52,7 +52,8 @@ import {
   resetToDefault,
   getCollegeName,
   setCollegeName,
-  getClasses
+  getClasses,
+  setActiveFacultyId
 } from '../services/attendanceStorage';
 import { 
   getAllFacultyTimetables, 
@@ -299,6 +300,10 @@ export default function AdminPanel({ showToast, onExit }) {
             subjects={subjects}
             onSaveFaculty={handleSaveFaculty}
             onSwitchToClassTimetable={() => setAdminTab('class-timetables')}
+            onOpenFacultyPortal={(facId) => {
+              if (facId) setActiveFacultyId(facId);
+              if (onExit) onExit('faculty');
+            }}
             showToast={showToast}
           />
         )}
