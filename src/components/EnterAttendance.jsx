@@ -15,7 +15,8 @@ import {
   GraduationCap,
   Layers,
   Building2,
-  Users
+  Users,
+  HelpCircle
 } from 'lucide-react';
 import { 
   getStudents, 
@@ -198,6 +199,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
 
   const presentCount = classStudents.filter(s => (records[s.id] || 'present') === 'present').length;
   const absentCount = classStudents.filter(s => records[s.id] === 'absent').length;
+  const dontCareCount = classStudents.filter(s => records[s.id] === 'dont_care' || records[s.id] === 'od').length;
 
   const getSubjectObj = (id) => subjects.find(s => s.id === id) || { code: id, name: id };
 
@@ -493,11 +495,22 @@ export default function EnterAttendance({ onSaved, showToast }) {
                 <XSquare size={13} style={{ color: 'var(--status-absent)' }} />
                 <span>All Absent</span>
               </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => markAllStatus('dont_care')}
+                title="Mark all as Don't Care / Neutral"
+              >
+                <HelpCircle size={13} style={{ color: '#475569' }} />
+                <span>All Don't Care</span>
+              </button>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: '700' }}>
               <span className="badge badge-present">Present: {presentCount}</span>
               <span className="badge badge-absent">Absent: {absentCount}</span>
+              <span className="badge badge-dontcare">Don't Care: {dontCareCount}</span>
             </div>
           </div>
         </div>
@@ -510,7 +523,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
                 <th style={{ width: '80px' }}>Roll No</th>
                 <th>Student Name</th>
                 <th>Enrollment No</th>
-                <th style={{ textAlign: 'center', width: '200px' }}>Attendance Status</th>
+                <th style={{ textAlign: 'center', width: '260px' }}>Attendance Status</th>
                 <th>Remarks / Reason</th>
               </tr>
             </thead>
@@ -552,6 +565,14 @@ export default function EnterAttendance({ onSaved, showToast }) {
                             onClick={() => handleStatusChange(student.id, 'absent')}
                           >
                             Absent
+                          </button>
+                          <button
+                            type="button"
+                            className={`toggle-option ${currentStatus === 'dont_care' || currentStatus === 'od' ? 'active-dontcare' : ''}`}
+                            onClick={() => handleStatusChange(student.id, 'dont_care')}
+                            title="Don't Care / Neutral Exemption"
+                          >
+                            Don't Care
                           </button>
                         </div>
                       </td>

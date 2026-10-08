@@ -348,11 +348,38 @@ const setCollegeName = (name) => {
   return name;
 };
 const getFacultyName = () => {
-  return localStorage.getItem("adit_faculty_name") || "Prof. R. K. Patel";
+  return localStorage.getItem("adit_faculty_name") || "Prof. Priya Shah";
 };
 const setFacultyName = (name) => {
   localStorage.setItem("adit_faculty_name", name);
   return name;
+};
+const getActiveFacultyId = () => {
+  return localStorage.getItem("adit_active_faculty_id") || "FAC_PS";
+};
+const setActiveFacultyId = (id) => {
+  localStorage.setItem("adit_active_faculty_id", id);
+  const faculties = getFaculties();
+  const f = faculties.find((fac) => fac.id === id);
+  if (f) {
+    setFacultyName(f.name);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-active-faculty-changed", { detail: { facultyId: id } }));
+  }
+  return id;
+};
+const getActiveFaculty = () => {
+  const faculties = getFaculties();
+  const activeId = getActiveFacultyId();
+  return faculties.find((f) => f.id === activeId) || faculties[0] || {
+    id: "FAC_PS",
+    name: "Prof. Priya Shah",
+    dept: "AI & Data Science",
+    designation: "Assistant Professor",
+    email: "priya.shah@adit.ac.in",
+    subjects: "DBMS, Data Structures"
+  };
 };
 const DEFAULT_STUDENTS = [
   // Computer Engineering • Sem 3 • Div 3 (2026-27)
@@ -1073,6 +1100,15 @@ const getLastSubjectDates = (subjectId) => {
 };
 const saveSession = (session) => {
   const sessions = getSessions();
+  if (!session.facultyName) {
+    session.facultyName = getFacultyName();
+  }
+  if (!session.facultyId) {
+    session.facultyId = getActiveFacultyId();
+  }
+  if (!session.createdAt) {
+    session.createdAt = (/* @__PURE__ */ new Date()).toISOString();
+  }
   if (session.id) {
     const idx = sessions.findIndex((s) => s.id === session.id);
     if (idx !== -1) {
@@ -1085,11 +1121,17 @@ const saveSession = (session) => {
     sessions.push(session);
   }
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+  }
   return sessions;
 };
 const deleteSession = (sessionId) => {
   const sessions = getSessions().filter((s) => s.id !== sessionId);
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+  }
   return sessions;
 };
 const resetToDefault = () => {
@@ -1128,21 +1170,31 @@ const calculateAnalytics = (targetSubjectId = null) => {
     let attended = 0;
     let totalAssigned = 0;
     let odCount = 0;
+    let dontCareCount = 0;
     sessions.forEach((sess) => {
       if (sess.records && sess.records[student.id] !== void 0) {
-        totalAssigned++;
         const status = sess.records[student.id];
-        if (status === "present") attended += 1;
-        else if (status === "late") attended += 0.8;
-        else if (status === "od") odCount += 1;
+        if (status === "present") {
+          attended += 1;
+          totalAssigned++;
+        } else if (status === "late") {
+          attended += 0.8;
+          totalAssigned++;
+        } else if (status === "absent") {
+          totalAssigned++;
+        } else if (status === "dont_care" || status === "od") {
+          odCount += 1;
+          dontCareCount += 1;
+        }
       }
     });
-    const percentage = totalAssigned > 0 ? (attended / totalAssigned * 100).toFixed(2) : "0.00";
+    const percentage = totalAssigned > 0 ? (attended / totalAssigned * 100).toFixed(2) : "100.00";
     const percentageDC = totalAssigned > 0 ? (odCount / totalAssigned * 100).toFixed(2) : "0.00";
     return {
       ...student,
       attended,
       odCount,
+      dontCareCount,
       totalAssigned,
       percentage: parseFloat(percentage),
       percentageDC: parseFloat(percentageDC),
@@ -1157,9 +1209,15 @@ const calculateAnalytics = (targetSubjectId = null) => {
     let totalPossible = 0;
     subjSessions.forEach((sess) => {
       Object.values(sess.records || {}).forEach((status) => {
-        totalPossible++;
-        if (status === "present") totalPresent += 1;
-        else if (status === "late") totalPresent += 0.8;
+        if (status === "present") {
+          totalPresent += 1;
+          totalPossible++;
+        } else if (status === "late") {
+          totalPresent += 0.8;
+          totalPossible++;
+        } else if (status === "absent") {
+          totalPossible++;
+        }
       });
     });
     const pct = totalPossible > 0 ? (totalPresent / totalPossible * 100).toFixed(2) : "0.00";
@@ -2004,14 +2062,21 @@ const saveTimetable = (timetableData, fileInfo = null) => {
   }
   return timetableData;
 };
-const getScheduledLecturesForDate = (dateStr) => {
+const getScheduledLecturesForDate = (dateStr, facultyId = null) => {
   if (!dateStr) return { dayName: "", lectures: [] };
   const d = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
   const dayName = DAYS[d.getDay()];
   const entries = getTimetableEntries();
-  const dayEntries = entries.filter((e) => e.day === dayName);
+  const dayEntries = entries.filter((e) => {
+    if (e.day !== dayName) return false;
+    if (facultyId) {
+      return e.facultyId === facultyId || e.facultyName && facultyId.length > 6 && e.facultyName.toLowerCase().includes(facultyId.toLowerCase());
+    }
+    return true;
+  });
   if (dayEntries.length > 0) {
     const lectures2 = dayEntries.map((e) => ({
+      id: e.id,
       time: e.timeSlot,
       subjectId: e.subjectId,
       subjectName: e.subjectName || e.subjectFullName || e.subjectId,
@@ -2021,12 +2086,14 @@ const getScheduledLecturesForDate = (dateStr) => {
       div: e.divId || e.div,
       departmentId: e.departmentId,
       room: e.room,
-      type: e.type || "Lecture"
+      type: e.type || "Lecture",
+      color: e.color
     }));
     return { dayName, lectures: lectures2 };
   }
   const timetable = getTimetable();
-  const lectures = timetable[dayName] || [];
+  const rawLectures = timetable[dayName] || [];
+  const lectures = facultyId ? rawLectures.filter((l) => l.facultyId === facultyId || l.faculty && l.faculty.toLowerCase().includes(facultyId.toLowerCase())) : rawLectures;
   return { dayName, lectures };
 };
 const _fuzzyTimeSlot = (cellTime) => {
@@ -3100,6 +3167,8 @@ function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockTogg
   });
   const getTabTitle = () => {
     switch (activeTab) {
+      case "faculty":
+        return "Faculty Attendance Portal";
       case "dashboard":
         return "Dashboard & Overview";
       case "enter":
@@ -3166,6 +3235,7 @@ function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockTogg
 }
 function Sidebar({ activeTab, setActiveTab, onResetData }) {
   const menuItems = [
+    { id: "faculty", label: "Faculty Panel", icon: UserCheck },
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "enter", label: "Enter Attendance", icon: UserCheck },
     { id: "list", label: "View & Edit Attendance", icon: FileText },
@@ -3392,6 +3462,7 @@ function EnterAttendance({ onSaved, showToast }) {
   );
   const presentCount = classStudents.filter((s) => (records[s.id] || "present") === "present").length;
   const absentCount = classStudents.filter((s) => records[s.id] === "absent").length;
+  const dontCareCount = classStudents.filter((s) => records[s.id] === "dont_care" || records[s.id] === "od").length;
   const getSubjectObj = (id) => subjects.find((s) => s.id === id) || { code: id, name: id };
   return /* @__PURE__ */ React.createElement("div", { className: "card" }, /* @__PURE__ */ React.createElement("div", { className: "card-header-flex", style: { borderBottom: "1px solid var(--border-color)", paddingBottom: "16px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "card-title", style: { fontSize: "22px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 24, style: { color: "var(--blue-primary)" } }), "Enter Lecture Attendance"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" } }, "Select class & session details, enter topic covered, and mark enrolled student attendance.")), /* @__PURE__ */ React.createElement(
     "button",
@@ -3579,8 +3650,18 @@ function EnterAttendance({ onSaved, showToast }) {
       },
       /* @__PURE__ */ React.createElement(XSquare, { size: 13, style: { color: "var(--status-absent)" } }),
       /* @__PURE__ */ React.createElement("span", null, "All Absent")
-    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", fontSize: "12px", fontWeight: "700" } }, /* @__PURE__ */ React.createElement("span", { className: "badge badge-present" }, "Present: ", presentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-absent" }, "Absent: ", absentCount)))
-  ), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "200px" } }, "Attendance Status"), /* @__PURE__ */ React.createElement("th", null, "Remarks / Reason"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "5", style: { textAlign: "center", padding: "30px", color: "var(--text-muted)" } }, "No enrolled students found for ", /* @__PURE__ */ React.createElement("strong", null, selectedDept, " \u2022 ", sem, " \u2022 ", division, " (", academicYear, ")"), ".", /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "6px" } }, "Tip: Go to ", /* @__PURE__ */ React.createElement("strong", null, "Admin Panel \u2192 Classes"), " to add or bulk upload students to this class."))) : filteredStudents.map((student) => {
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => markAllStatus("dont_care"),
+        title: "Mark all as Don't Care / Neutral"
+      },
+      /* @__PURE__ */ React.createElement(HelpCircle, { size: 13, style: { color: "#475569" } }),
+      /* @__PURE__ */ React.createElement("span", null, "All Don't Care")
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", fontSize: "12px", fontWeight: "700" } }, /* @__PURE__ */ React.createElement("span", { className: "badge badge-present" }, "Present: ", presentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-absent" }, "Absent: ", absentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-dontcare" }, "Don't Care: ", dontCareCount)))
+  ), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "260px" } }, "Attendance Status"), /* @__PURE__ */ React.createElement("th", null, "Remarks / Reason"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "5", style: { textAlign: "center", padding: "30px", color: "var(--text-muted)" } }, "No enrolled students found for ", /* @__PURE__ */ React.createElement("strong", null, selectedDept, " \u2022 ", sem, " \u2022 ", division, " (", academicYear, ")"), ".", /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "6px" } }, "Tip: Go to ", /* @__PURE__ */ React.createElement("strong", null, "Admin Panel \u2192 Classes"), " to add or bulk upload students to this class."))) : filteredStudents.map((student) => {
     const currentStatus = records[student.id] || "present";
     return /* @__PURE__ */ React.createElement("tr", { key: student.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "var(--navy-primary)" } }, student.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600" } }, /* @__PURE__ */ React.createElement("div", null, student.name), student.email && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, student.email)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12px", color: "var(--text-muted)" } }, student.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "attendance-toggle-group" }, /* @__PURE__ */ React.createElement(
       "button",
@@ -3598,6 +3679,15 @@ function EnterAttendance({ onSaved, showToast }) {
         onClick: () => handleStatusChange(student.id, "absent")
       },
       "Absent"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: `toggle-option ${currentStatus === "dont_care" || currentStatus === "od" ? "active-dontcare" : ""}`,
+        onClick: () => handleStatusChange(student.id, "dont_care"),
+        title: "Don't Care / Neutral Exemption"
+      },
+      "Don't Care"
     ))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -4109,9 +4199,11 @@ function AttendanceList({ searchQuery, showToast }) {
     const total = recs.length;
     const present = recs.filter((st) => st === "present").length;
     const late = recs.filter((st) => st === "late").length;
+    const dontCare = recs.filter((st) => st === "dont_care" || st === "od").length;
     const effectivePresent = present + late * 0.8;
-    const pct = total > 0 ? (effectivePresent / total * 100).toFixed(1) : 0;
-    return /* @__PURE__ */ React.createElement("tr", { key: sess.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700", whiteSpace: "nowrap" } }, sess.date), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "var(--navy-dark)", border: "1px solid var(--border-color)", fontWeight: "700" } }, semLabel)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "var(--blue-light)", color: "var(--navy-primary)", border: "1px solid var(--blue-sky)" } }, subj.code)), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600", maxWidth: "280px" } }, sess.topic || /* @__PURE__ */ React.createElement("em", { style: { color: "var(--text-light)" } }, "No topic specified")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700" } }, present), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--text-muted)", fontSize: "12px" } }, " / ", total), late > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "var(--status-late)", marginLeft: "4px" } }, "(", late, " late)")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: `badge ${pct >= 75 ? "badge-present" : "badge-absent"}` }, pct, "%")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(
+    const gradedTotal = total - dontCare;
+    const pct = gradedTotal > 0 ? (effectivePresent / gradedTotal * 100).toFixed(1) : total > 0 ? "100.0" : 0;
+    return /* @__PURE__ */ React.createElement("tr", { key: sess.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700", whiteSpace: "nowrap" } }, sess.date), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "var(--navy-dark)", border: "1px solid var(--border-color)", fontWeight: "700" } }, semLabel)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "var(--blue-light)", color: "var(--navy-primary)", border: "1px solid var(--blue-sky)" } }, subj.code)), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600", maxWidth: "280px" } }, sess.topic || /* @__PURE__ */ React.createElement("em", { style: { color: "var(--text-light)" } }, "No topic specified")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700" } }, present), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--text-muted)", fontSize: "12px" } }, " / ", total), late > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "var(--status-late)", marginLeft: "4px" } }, "(", late, " late)"), dontCare > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#475569", marginLeft: "4px", fontWeight: "700" } }, "(", dontCare, " DC)")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: `badge ${pct >= 75 ? "badge-present" : "badge-absent"}` }, pct, "%")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-secondary btn-sm",
@@ -4153,31 +4245,92 @@ function AttendanceList({ searchQuery, showToast }) {
       value: editTopic,
       onChange: (e) => setEditTopic(e.target.value)
     }
-  ))), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14px", marginBottom: "12px", color: "var(--navy-dark)" } }, "Student Attendance & Remarks"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "340px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, students.map((s) => /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, s.rollNo), /* @__PURE__ */ React.createElement("td", null, s.name), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
-    "select",
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14px", margin: 0, color: "var(--navy-dark)" } }, "Student Attendance & Remarks"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px" } }, /* @__PURE__ */ React.createElement(
+    "button",
     {
-      className: "form-control",
-      value: editRecords[s.id] || "present",
-      onChange: (e) => setEditRecords({ ...editRecords, [s.id]: e.target.value }),
-      style: { height: "32px", fontSize: "12px", padding: "4px 8px" }
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+        const activeSList = sList.length > 0 ? sList : students;
+        activeSList.forEach((s) => {
+          updated[s.id] = "present";
+        });
+        setEditRecords(updated);
+      }
     },
-    /* @__PURE__ */ React.createElement("option", { value: "present" }, "Present"),
-    /* @__PURE__ */ React.createElement("option", { value: "absent" }, "Absent"),
-    /* @__PURE__ */ React.createElement("option", { value: "late" }, "Late")
-  )), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
-    "input",
+    "All Present"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
     {
-      type: "text",
-      className: "form-control",
-      value: editRemarks[s.id] || "",
-      onChange: (e) => setEditRemarks({ ...editRemarks, [s.id]: e.target.value }),
-      style: { height: "32px", fontSize: "12px" }
-    }
-  )))))))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setEditingSession(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveEdit }, /* @__PURE__ */ React.createElement(Save, { size: 16 }), " Save Changes")))), viewingSession && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card" }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", null, "Session Details: ", viewingSession.date), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setViewingSession(null) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px", backgroundColor: "var(--blue-light)", borderRadius: "var(--radius-md)" } }, /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", getSubjectObj(viewingSession.subjectId).name, " (", getSubjectObj(viewingSession.subjectId).code, ")"), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("strong", null, "Topic Covered:"), " ", viewingSession.topic || "N/A")), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "350px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, students.map((s) => {
-    const st = viewingSession.records ? viewingSession.records[s.id] : "absent";
-    const rem = viewingSession.remarks ? viewingSession.remarks[s.id] : "";
-    return /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", null, s.rollNo), /* @__PURE__ */ React.createElement("td", null, s.name), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: `badge badge-${st}` }, st)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "13px", color: "var(--text-muted)" } }, rem || "-"));
-  }))))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setViewingSession(null) }, "Close")))), deletingSessionId && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "420px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 20 }), " Delete Attendance Session")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", null, "Are you sure you want to delete this attendance record? This action cannot be undone.")), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setDeletingSessionId(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-danger", onClick: confirmDelete }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }), " Delete Record"))))));
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+        const activeSList = sList.length > 0 ? sList : students;
+        activeSList.forEach((s) => {
+          updated[s.id] = "absent";
+        });
+        setEditRecords(updated);
+      }
+    },
+    "All Absent"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+        const activeSList = sList.length > 0 ? sList : students;
+        activeSList.forEach((s) => {
+          updated[s.id] = "dont_care";
+        });
+        setEditRecords(updated);
+      }
+    },
+    "All Don't Care"
+  ))), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "340px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+    const activeSList = sList.length > 0 ? sList : students;
+    return activeSList.map((s) => /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, s.rollNo), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", null, s.name), s.enrollmentNo && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, s.enrollmentNo)), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: editRecords[s.id] || "present",
+        onChange: (e) => setEditRecords({ ...editRecords, [s.id]: e.target.value }),
+        style: { height: "32px", fontSize: "12px", padding: "4px 8px", fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "present" }, "Present"),
+      /* @__PURE__ */ React.createElement("option", { value: "absent" }, "Absent"),
+      /* @__PURE__ */ React.createElement("option", { value: "dont_care" }, "Don't Care"),
+      /* @__PURE__ */ React.createElement("option", { value: "late" }, "Late")
+    )), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        value: editRemarks[s.id] || "",
+        onChange: (e) => setEditRemarks({ ...editRemarks, [s.id]: e.target.value }),
+        style: { height: "32px", fontSize: "12px" }
+      }
+    ))));
+  })())))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setEditingSession(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveEdit }, /* @__PURE__ */ React.createElement(Save, { size: 16 }), " Save Changes")))), viewingSession && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card" }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", null, "Session Details: ", viewingSession.date), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setViewingSession(null) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px", backgroundColor: "var(--blue-light)", borderRadius: "var(--radius-md)" } }, /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", getSubjectObj(viewingSession.subjectId).name, " (", getSubjectObj(viewingSession.subjectId).code, ")"), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("strong", null, "Topic Covered:"), " ", viewingSession.topic || "N/A"), viewingSession.facultyName && /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("strong", null, "Faculty:"), " ", viewingSession.facultyName)), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "350px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const sList = (viewingSession.classId ? getStudentsByClassId(viewingSession.classId) : []) || students;
+    const activeSList = sList.length > 0 ? sList : students;
+    return activeSList.map((s) => {
+      const st = viewingSession.records ? viewingSession.records[s.id] : "absent";
+      const rem = viewingSession.remarks ? viewingSession.remarks[s.id] : "";
+      const isDC = st === "dont_care" || st === "od";
+      return /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", null, s.rollNo), /* @__PURE__ */ React.createElement("td", null, s.name), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: `badge ${isDC ? "badge-dontcare" : `badge-${st}`}` }, isDC ? "Don't Care" : st)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "13px", color: "var(--text-muted)" } }, rem || "-"));
+    });
+  })())))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setViewingSession(null) }, "Close")))), deletingSessionId && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "420px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 20 }), " Delete Attendance Session")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", null, "Are you sure you want to delete this attendance record? This action cannot be undone.")), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", onClick: () => setDeletingSessionId(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-danger", onClick: confirmDelete }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }), " Delete Record"))))));
 }
 function DateView() {
   const [selectedDate, setSelectedDate] = useState((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
@@ -8570,8 +8723,21 @@ function AdminPanel({ showToast, onExit }) {
     "button",
     {
       className: "admin-logout-btn",
+      style: { marginBottom: "8px", backgroundColor: "#0284c7", borderColor: "#38bdf8", color: "#ffffff", fontWeight: "700" },
       onClick: () => {
-        if (onExit) onExit();
+        if (onExit) onExit("faculty");
+        else window.location.reload();
+      },
+      title: "Open Faculty Attendance Portal"
+    },
+    /* @__PURE__ */ React.createElement(UserCheck, { size: 16 }),
+    /* @__PURE__ */ React.createElement("span", null, "Faculty Panel")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "admin-logout-btn",
+      onClick: () => {
+        if (onExit) onExit("faculty");
         else window.location.reload();
       },
       title: "Return to Attendance Portal"
@@ -8856,8 +9022,1046 @@ function AdminPanel({ showToast, onExit }) {
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Subject"))))));
 }
+function FacultyPanel({ showToast, onRequestAdminAccess }) {
+  const [facultiesList, setFacultiesList] = useState(getFaculties());
+  const [currentFacultyId, setCurrentFacultyId] = useState(getActiveFacultyId());
+  const currentFaculty = useMemo(() => {
+    return facultiesList.find((f) => f.id === currentFacultyId) || facultiesList[0] || {
+      id: "FAC_PS",
+      name: "Prof. Priya Shah",
+      dept: "AI & Data Science",
+      designation: "Assistant Professor",
+      email: "priya.shah@adit.ac.in",
+      subjects: "DBMS, Data Structures"
+    };
+  }, [facultiesList, currentFacultyId]);
+  const handleFacultyChange = (newId) => {
+    setCurrentFacultyId(newId);
+    setActiveFacultyId(newId);
+    if (showToast) {
+      const f = facultiesList.find((fac) => fac.id === newId);
+      showToast(`Logged in as ${f?.name || "Faculty Member"}`);
+    }
+  };
+  useEffect(() => {
+    const handleFacultyUpdate = () => {
+      setFacultiesList(getFaculties());
+    };
+    const handleActiveFacultyChange = (e) => {
+      if (e?.detail?.facultyId) {
+        setCurrentFacultyId(e.detail.facultyId);
+      }
+    };
+    window.addEventListener("adit-faculty-updated", handleFacultyUpdate);
+    window.addEventListener("adit-active-faculty-changed", handleActiveFacultyChange);
+    return () => {
+      window.removeEventListener("adit-faculty-updated", handleFacultyUpdate);
+      window.removeEventListener("adit-active-faculty-changed", handleActiveFacultyChange);
+    };
+  }, []);
+  const [activeSubTab, setActiveSubTab] = useState("take");
+  const [timetableSyncTick, setTimetableSyncTick] = useState(0);
+  const facultyTimetableGrid = useMemo(() => {
+    return getFacultyTimetable(currentFaculty?.id || "FAC_PS");
+  }, [currentFaculty?.id, timetableSyncTick]);
+  const facultyEntries = useMemo(() => {
+    return getEntriesByFaculty(currentFaculty?.id || "FAC_PS");
+  }, [currentFaculty?.id, timetableSyncTick]);
+  useEffect(() => {
+    const handleTimetableSync = () => {
+      setTimetableSyncTick((prev) => prev + 1);
+    };
+    window.addEventListener("adit-timetable-synced", handleTimetableSync);
+    return () => {
+      window.removeEventListener("adit-timetable-synced", handleTimetableSync);
+    };
+  }, []);
+  const departments = getDepartments();
+  const allSubjects = getSubjects();
+  const [date, setDate] = useState((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+  const [selectedDept, setSelectedDept] = useState(currentFaculty?.dept || departments[0]?.name || "AI & Data Science");
+  const [sem, setSem] = useState("3rd Sem");
+  const [division, setDivision] = useState("Div 1");
+  const [academicYear, setAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
+  const [subjectId, setSubjectId] = useState("");
+  const [timeSlot, setTimeSlot] = useState("");
+  const [room, setRoom] = useState("");
+  const [topic, setTopic] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [records, setRecords] = useState({});
+  const [remarks, setRemarks] = useState({});
+  const { dayName, lectures: scheduledLectures } = useMemo(() => {
+    return getScheduledLecturesForDate(date, currentFaculty?.id);
+  }, [date, currentFaculty?.id, timetableSyncTick]);
+  const [sessionsTick, setSessionsTick] = useState(0);
+  const allSessions = useMemo(() => getSessions(), [sessionsTick]);
+  useEffect(() => {
+    const handleSessionsUpdate = () => {
+      setSessionsTick((prev) => prev + 1);
+    };
+    window.addEventListener("adit-sessions-updated", handleSessionsUpdate);
+    return () => {
+      window.removeEventListener("adit-sessions-updated", handleSessionsUpdate);
+    };
+  }, []);
+  const recordedSessionLookup = useMemo(() => {
+    const map = {};
+    allSessions.forEach((sess) => {
+      if (sess.date === date) {
+        const key = `${sess.date}_${sess.subjectId}_${normalizeSem(sess.sem)}_${normalizeDiv(sess.division)}`;
+        map[key] = sess;
+      }
+    });
+    return map;
+  }, [allSessions, date]);
+  useEffect(() => {
+    if (scheduledLectures && scheduledLectures.length > 0) {
+      const first = scheduledLectures[0];
+      handleSelectLecture(first);
+    } else {
+      const deptSubjs = allSubjects.filter(
+        (s) => !s.dept || s.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4))
+      );
+      if (deptSubjs.length > 0) {
+        if (!subjectId || !deptSubjs.some((s) => s.id === subjectId)) {
+          setSubjectId(deptSubjs[0].id);
+        }
+      }
+    }
+  }, [date, currentFaculty?.id, selectedDept]);
+  const handleSelectLecture = (lec) => {
+    if (!lec) return;
+    if (lec.time) setTimeSlot(lec.time);
+    if (lec.room) setRoom(lec.room);
+    if (lec.sem) setSem(normalizeSem(lec.sem));
+    if (lec.div) setDivision(normalizeDiv(lec.div));
+    if (lec.subjectId) setSubjectId(lec.subjectId);
+    if (lec.departmentId) {
+      const foundDept = departments.find(
+        (d) => d.id === lec.departmentId || d.name.toLowerCase().includes(lec.departmentId.toLowerCase())
+      );
+      if (foundDept) setSelectedDept(foundDept.name);
+    }
+  };
+  const activeClass = useMemo(() => {
+    return findClassByCriteria(selectedDept, sem, division, academicYear) || getOrCreateClass(selectedDept, sem, division, academicYear);
+  }, [selectedDept, sem, division, academicYear]);
+  const classStudents = useMemo(() => {
+    if (activeClass && activeClass.id) {
+      const enrolled = getStudentsByClassId(activeClass.id);
+      if (enrolled && enrolled.length > 0) return enrolled;
+    }
+    const criteriaEnrolled = getStudentsForClassCriteria(selectedDept, sem, division, academicYear);
+    if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
+    return [];
+  }, [activeClass, selectedDept, sem, division, academicYear]);
+  useEffect(() => {
+    setRecords((prev) => {
+      const nextRecords = { ...prev };
+      classStudents.forEach((s) => {
+        if (!nextRecords[s.id]) {
+          nextRecords[s.id] = "present";
+        }
+      });
+      return nextRecords;
+    });
+  }, [classStudents]);
+  const handleStatusChange = (studentId, status) => {
+    setRecords((prev) => ({
+      ...prev,
+      [studentId]: status
+    }));
+  };
+  const handleRemarkChange = (studentId, text) => {
+    setRemarks((prev) => ({
+      ...prev,
+      [studentId]: text
+    }));
+  };
+  const markAllStatus = (status) => {
+    const updated = {};
+    classStudents.forEach((s) => {
+      updated[s.id] = status;
+    });
+    setRecords(updated);
+  };
+  const presentCount = classStudents.filter((s) => (records[s.id] || "present") === "present").length;
+  const absentCount = classStudents.filter((s) => records[s.id] === "absent").length;
+  const dontCareCount = classStudents.filter((s) => records[s.id] === "dont_care" || records[s.id] === "od").length;
+  const filteredStudents = classStudents.filter(
+    (s) => s.name && s.name.toLowerCase().includes(studentSearch.toLowerCase()) || s.rollNo && String(s.rollNo).includes(studentSearch) || s.enrollmentNo && String(s.enrollmentNo).toLowerCase().includes(studentSearch.toLowerCase())
+  );
+  const handleSubmitAttendance = (e) => {
+    e.preventDefault();
+    if (!subjectId) {
+      alert("Please select a subject!");
+      return;
+    }
+    if (!topic.trim()) {
+      if (!window.confirm("Topic field is empty. Do you want to submit attendance without entering a topic?")) {
+        return;
+      }
+    }
+    const currentSubj = allSubjects.find((s) => s.id === subjectId);
+    const sessionPayload = {
+      date,
+      timeSlot,
+      room,
+      department: selectedDept,
+      sem,
+      division,
+      academicYear,
+      classId: activeClass ? activeClass.id : null,
+      subjectId,
+      subjectName: currentSubj ? currentSubj.name : subjectId,
+      facultyId: currentFaculty.id,
+      facultyName: currentFaculty.name,
+      topic: topic.trim(),
+      records,
+      remarks
+    };
+    saveSession(sessionPayload);
+    setSessionsTick((prev) => prev + 1);
+    if (showToast) {
+      showToast(`Attendance successfully saved for ${selectedDept} \u2022 ${sem} \u2022 ${division}!`);
+    }
+    setTopic("");
+  };
+  const [editingSession, setEditingSession] = useState(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTimeSlot, setEditTimeSlot] = useState("");
+  const [editTopic, setEditTopic] = useState("");
+  const [editRecords, setEditRecords] = useState({});
+  const [editRemarks, setEditRemarks] = useState({});
+  const [viewingSession, setViewingSession] = useState(null);
+  const [deletingSessionId, setDeletingSessionId] = useState(null);
+  const [historySubjectFilter, setHistorySubjectFilter] = useState("ALL");
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const facultySessions = useMemo(() => {
+    return allSessions.filter((sess) => {
+      const matchFaculty = !sess.facultyId || sess.facultyId === currentFaculty.id || sess.facultyName && sess.facultyName.toLowerCase() === currentFaculty.name.toLowerCase();
+      return matchFaculty;
+    });
+  }, [allSessions, currentFaculty]);
+  const filteredHistorySessions = useMemo(() => {
+    return facultySessions.filter((sess) => {
+      const matchSubj = historySubjectFilter === "ALL" || sess.subjectId === historySubjectFilter;
+      const q = historySearchQuery.toLowerCase().trim();
+      const matchQuery = !q || sess.date && sess.date.includes(q) || sess.topic && sess.topic.toLowerCase().includes(q) || sess.department && sess.department.toLowerCase().includes(q) || sess.sem && sess.sem.toLowerCase().includes(q) || sess.division && sess.division.toLowerCase().includes(q);
+      return matchSubj && matchQuery;
+    });
+  }, [facultySessions, historySubjectFilter, historySearchQuery]);
+  const handleStartEditSession = (sess) => {
+    setEditingSession(sess);
+    setEditDate(sess.date);
+    setEditTimeSlot(sess.timeSlot || "");
+    setEditTopic(sess.topic || "");
+    setEditRecords({ ...sess.records || {} });
+    setEditRemarks({ ...sess.remarks || {} });
+  };
+  const handleSaveEditSession = () => {
+    if (!editingSession) return;
+    const updated = {
+      ...editingSession,
+      date: editDate,
+      timeSlot: editTimeSlot,
+      topic: editTopic.trim(),
+      records: editRecords,
+      remarks: editRemarks
+    };
+    saveSession(updated);
+    setSessionsTick((prev) => prev + 1);
+    setEditingSession(null);
+    if (showToast) {
+      showToast("Attendance session successfully updated!");
+    }
+  };
+  const handleConfirmDelete = () => {
+    if (deletingSessionId) {
+      deleteSession(deletingSessionId);
+      setSessionsTick((prev) => prev + 1);
+      setDeletingSessionId(null);
+      if (showToast) showToast("Attendance session deleted successfully!");
+    }
+  };
+  const getSubjectObj = (id) => allSubjects.find((s) => s.id === id) || { code: id, name: id };
+  return /* @__PURE__ */ React.createElement("div", { className: "faculty-portal-root", style: { width: "100%", minHeight: "100vh", backgroundColor: "#f8fafc", paddingBottom: "40px" } }, /* @__PURE__ */ React.createElement(
+    "header",
+    {
+      className: "no-print",
+      style: {
+        backgroundColor: "#0f172a",
+        color: "white",
+        borderBottom: "1px solid #1e293b",
+        boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+        position: "sticky",
+        top: 0,
+        zIndex: 100
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1440px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: {
+      width: "42px",
+      height: "42px",
+      borderRadius: "10px",
+      background: "linear-gradient(135deg, #2563eb 0%, #38bdf8 100%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: "0 4px 10px rgba(37, 99, 235, 0.35)"
+    } }, /* @__PURE__ */ React.createElement(GraduationCap, { size: 24, color: "#ffffff" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "18px", fontWeight: "800", margin: 0, letterSpacing: "-0.02em", color: "#ffffff" } }, "ADIT Faculty Attendance Portal"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "800", backgroundColor: "#1e293b", color: "#38bdf8", padding: "2px 8px", borderRadius: "4px", border: "1px solid #334155" } }, "FACULTY PANEL")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#94a3b8", margin: "2px 0 0 0" } }, "Academic Session 2026-27 \u2022 A D Patel Institute of Technology"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", backgroundColor: "#1e293b", padding: "6px 14px", borderRadius: "8px", border: "1px solid #334155" } }, /* @__PURE__ */ React.createElement(User, { size: 16, style: { color: "#38bdf8" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", textTransform: "uppercase", color: "#94a3b8", fontWeight: "800", letterSpacing: "0.04em" } }, "Logged-in Faculty Profile"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        value: currentFacultyId,
+        onChange: (e) => handleFacultyChange(e.target.value),
+        style: {
+          backgroundColor: "transparent",
+          border: "none",
+          color: "#ffffff",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          cursor: "pointer",
+          outline: "none",
+          padding: 0
+        }
+      },
+      facultiesList.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id, style: { backgroundColor: "#0f172a", color: "white" } }, f.name, " (", f.dept || "Engineering", ")"))
+    ))), onRequestAdminAccess && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-sm",
+        onClick: onRequestAdminAccess,
+        style: {
+          backgroundColor: "rgba(255,255,255,0.08)",
+          color: "#e2e8f0",
+          border: "1px solid rgba(255,255,255,0.15)",
+          fontWeight: "700",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          padding: "8px 14px",
+          borderRadius: "8px"
+        },
+        title: "Switch to Academic Admin Panel"
+      },
+      /* @__PURE__ */ React.createElement(ShieldCheck, { size: 15, style: { color: "#38bdf8" } }),
+      /* @__PURE__ */ React.createElement("span", null, "Admin Panel")
+    ))),
+    /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#1e293b", borderTop: "1px solid #334155", padding: "8px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1440px", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#e2e8f0", fontWeight: "700" } }, currentFaculty.name), /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8" } }, "\u2022"), /* @__PURE__ */ React.createElement("span", { style: { color: "#cbd5e1" } }, currentFaculty.designation || "Faculty"), /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8" } }, "\u2022"), /* @__PURE__ */ React.createElement("span", { style: { color: "#38bdf8", fontWeight: "600" } }, currentFaculty.dept || "AI & Data Science"), currentFaculty.email && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8" } }, "\u2022"), /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8" } }, currentFaculty.email))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8" } }, "Today: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#ffffff" } }, dayName || "Schedule")), /* @__PURE__ */ React.createElement("span", { style: { backgroundColor: scheduledLectures.length > 0 ? "#065f46" : "#334155", color: "#a7f3d0", padding: "2px 8px", borderRadius: "4px", fontWeight: "700" } }, scheduledLectures.length, " Lecture(s) Scheduled")))),
+    /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1440px", margin: "0 auto", padding: "0 24px", display: "flex", gap: "2px", overflowX: "auto" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveSubTab("take"),
+        style: {
+          padding: "12px 18px",
+          backgroundColor: activeSubTab === "take" ? "#f8fafc" : "transparent",
+          color: activeSubTab === "take" ? "#0f172a" : "#94a3b8",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          border: "none",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(UserCheck, { size: 16, style: { color: activeSubTab === "take" ? "#2563eb" : "currentColor" } }),
+      /* @__PURE__ */ React.createElement("span", null, "Take Attendance")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveSubTab("history"),
+        style: {
+          padding: "12px 18px",
+          backgroundColor: activeSubTab === "history" ? "#f8fafc" : "transparent",
+          color: activeSubTab === "history" ? "#0f172a" : "#94a3b8",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          border: "none",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(List, { size: 16, style: { color: activeSubTab === "history" ? "#2563eb" : "currentColor" } }),
+      /* @__PURE__ */ React.createElement("span", null, "View & Edit Attendance"),
+      facultySessions.length > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", backgroundColor: activeSubTab === "history" ? "#e2e8f0" : "#334155", color: activeSubTab === "history" ? "#0f172a" : "#f1f5f9", padding: "1px 6px", borderRadius: "10px" } }, facultySessions.length)
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveSubTab("timetable"),
+        style: {
+          padding: "12px 18px",
+          backgroundColor: activeSubTab === "timetable" ? "#f8fafc" : "transparent",
+          color: activeSubTab === "timetable" ? "#0f172a" : "#94a3b8",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          border: "none",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Calendar, { size: 16, style: { color: activeSubTab === "timetable" ? "#2563eb" : "currentColor" } }),
+      /* @__PURE__ */ React.createElement("span", null, "My Timetable (Admin Sync)")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setActiveSubTab("roster"),
+        style: {
+          padding: "12px 18px",
+          backgroundColor: activeSubTab === "roster" ? "#f8fafc" : "transparent",
+          color: activeSubTab === "roster" ? "#0f172a" : "#94a3b8",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          border: "none",
+          borderTopLeftRadius: "8px",
+          borderTopRightRadius: "8px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Users, { size: 16, style: { color: activeSubTab === "roster" ? "#2563eb" : "currentColor" } }),
+      /* @__PURE__ */ React.createElement("span", null, "Class Roster & Students")
+    ))
+  ), /* @__PURE__ */ React.createElement("main", { style: { maxWidth: "1440px", margin: "24px auto", padding: "0 24px" } }, activeSubTab === "take" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "18px 22px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
+        marginBottom: "20px"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Sparkles, { size: 20, style: { color: "#2563eb" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Timetable Schedule for ", currentFaculty.name, " (", dayName || "Today", ")"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#64748b", margin: "2px 0 0 0" } }, "Pulled directly from Admin Panel timetable records. Click any lecture card to immediately auto-load class details & students roster."))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#475569" } }, "Date:"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        className: "form-control",
+        value: date,
+        onChange: (e) => setDate(e.target.value),
+        style: { width: "150px", height: "34px", fontSize: "12.5px", fontWeight: "700" }
+      }
+    ))),
+    scheduledLectures.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { padding: "16px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px dashed #cbd5e1", textAlign: "center", color: "#64748b", fontSize: "13px" } }, "No lectures scheduled for ", currentFaculty.name, " on ", dayName || "this date", ".", /* @__PURE__ */ React.createElement("span", { style: { display: "block", fontSize: "12px", color: "#94a3b8", marginTop: "4px" } }, "You can still manually select a class & subject below to record extra lectures or lab sessions.")) : /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "12px" } }, scheduledLectures.map((lec, idx) => {
+      const isSelected = subjectId === lec.subjectId && timeSlot === lec.time;
+      const sessionKey = `${date}_${lec.subjectId}_${normalizeSem(lec.sem)}_${normalizeDiv(lec.div)}`;
+      const existingRecord = recordedSessionLookup[sessionKey];
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: idx,
+          onClick: () => handleSelectLecture(lec),
+          style: {
+            backgroundColor: isSelected ? "#eff6ff" : "#ffffff",
+            border: isSelected ? "2px solid #2563eb" : "1px solid #e2e8f0",
+            borderRadius: "10px",
+            padding: "12px 14px",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+            boxShadow: isSelected ? "0 4px 10px rgba(37, 99, 235, 0.15)" : "none"
+          }
+        },
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "800", color: "#2563eb", display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 12 }), " ", lec.time), existingRecord ? /* @__PURE__ */ React.createElement("span", { className: "badge badge-present", style: { fontSize: "10px", padding: "2px 6px" } }, "\u2713 Recorded") : /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", fontWeight: "700", color: "#d97706", backgroundColor: "#fef3c7", padding: "2px 6px", borderRadius: "4px" } }, "\u23F1 Pending")),
+        /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13.5px", fontWeight: "800", color: "#0f172a" } }, lec.subjectName),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px", fontSize: "11.5px", color: "#64748b" } }, /* @__PURE__ */ React.createElement("span", null, lec.sem, " \u2022 ", lec.div), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700", color: "#0284c7" } }, lec.room || "Room TBD"))
+      );
+    }))
+  ), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmitAttendance }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "22px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
+        marginBottom: "20px"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "18px", borderBottom: "1px solid #f1f5f9", paddingBottom: "12px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 18, style: { color: "#2563eb" } }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Class & Session Configuration")),
+    /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 13, style: { color: "#2563eb" } }), " Department"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: selectedDept,
+        onChange: (e) => setSelectedDept(e.target.value),
+        style: { fontWeight: "700" }
+      },
+      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.code, value: d.name }, d.name))
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(GraduationCap, { size: 13, style: { color: "#2563eb" } }), " Semester"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: sem,
+        onChange: (e) => setSem(e.target.value),
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "1st Sem" }, "1st Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "2nd Sem" }, "2nd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "3rd Sem" }, "3rd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "4th Sem" }, "4th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "5th Sem" }, "5th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "6th Sem" }, "6th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "7th Sem" }, "7th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "8th Sem" }, "8th Semester")
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Layers, { size: 13, style: { color: "#2563eb" } }), " Division"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: division,
+        onChange: (e) => setDivision(e.target.value),
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "Div 1" }, "Division 1 (Div 1)"),
+      /* @__PURE__ */ React.createElement("option", { value: "Div 2" }, "Division 2 (Div 2)"),
+      /* @__PURE__ */ React.createElement("option", { value: "Div 3" }, "Division 3 (Div 3)")
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 13, style: { color: "#2563eb" } }), " Course / Subject *"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: subjectId,
+        onChange: (e) => setSubjectId(e.target.value),
+        required: true,
+        style: { fontWeight: "700" }
+      },
+      allSubjects.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.code, " - ", s.name, " (", s.faculty || "Faculty", ")"))
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 13, style: { color: "#2563eb" } }), " Lecture Time Slot"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "e.g. 9:00 - 9:55",
+        value: timeSlot,
+        onChange: (e) => setTimeSlot(e.target.value),
+        style: { fontWeight: "700" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Room / Lab No"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "e.g. Room 201",
+        value: room,
+        onChange: (e) => setRoom(e.target.value)
+      }
+    ))),
+    /* @__PURE__ */ React.createElement("div", { className: "form-group", style: { marginTop: "14px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700" } }, "Lecture Topic Covered *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "e.g. Relational Calculus, B-Trees & Indexing, Process Scheduling Algorithms...",
+        value: topic,
+        onChange: (e) => setTopic(e.target.value),
+        required: true,
+        style: { fontSize: "14px" }
+      }
+    ))
+  ), /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "22px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", marginBottom: "18px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Enrolled Students (", classStudents.length, ")"), /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "700" } }, selectedDept, " \u2022 ", sem, " \u2022 ", division)), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#64748b", margin: "3px 0 0 0" } }, "Mark Present, Absent, or Don't Care for each student below.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "input-with-icon", style: { width: "180px" } }, /* @__PURE__ */ React.createElement(Search, { className: "input-icon", size: 14 }), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "Search roll, name...",
+        value: studentSearch,
+        onChange: (e) => setStudentSearch(e.target.value),
+        style: { height: "34px", fontSize: "12.5px" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => markAllStatus("present"),
+        title: "Mark all as Present",
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement(CheckSquare, { size: 13, style: { color: "#059669" } }),
+      /* @__PURE__ */ React.createElement("span", null, "All Present")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => markAllStatus("absent"),
+        title: "Mark all as Absent",
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement(XSquare, { size: 13, style: { color: "#e11d48" } }),
+      /* @__PURE__ */ React.createElement("span", null, "All Absent")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => markAllStatus("dont_care"),
+        title: "Mark all as Don't Care (Neutral Exemption)",
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement(HelpCircle, { size: 13, style: { color: "#475569" } }),
+      /* @__PURE__ */ React.createElement("span", null, "All Don't Care")
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", fontSize: "12px", fontWeight: "800" } }, /* @__PURE__ */ React.createElement("span", { className: "badge badge-present" }, "P: ", presentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-absent" }, "A: ", absentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-dontcare" }, "DC: ", dontCareCount)))),
+    /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "270px" } }, "Attendance Status"), /* @__PURE__ */ React.createElement("th", null, "Remarks / Reason"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "5", style: { textAlign: "center", padding: "36px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 24, style: { color: "#94a3b8", margin: "0 auto 8px auto", display: "block" } }), "No enrolled students found for ", /* @__PURE__ */ React.createElement("strong", null, selectedDept, " \u2022 ", sem, " \u2022 ", division, " (", academicYear, ")"), ".", /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "6px" } }, "Tip: Add or upload student rosters to this class in the ", /* @__PURE__ */ React.createElement("strong", null, "Admin Panel \u2192 Classes"), " module."))) : filteredStudents.map((st) => {
+      const currentStatus = records[st.id] || "present";
+      return /* @__PURE__ */ React.createElement("tr", { key: st.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#0f172a" } }, st.rollNo), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#1e293b" } }, st.name), st.email && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, st.email)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12px", color: "#64748b", fontFamily: "monospace" } }, st.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "attendance-toggle-group" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${currentStatus === "present" ? "active-present" : ""}`,
+          onClick: () => handleStatusChange(st.id, "present")
+        },
+        "Present"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${currentStatus === "absent" ? "active-absent" : ""}`,
+          onClick: () => handleStatusChange(st.id, "absent")
+        },
+        "Absent"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${currentStatus === "dont_care" || currentStatus === "od" ? "active-dontcare" : ""}`,
+          onClick: () => handleStatusChange(st.id, "dont_care"),
+          title: "Don't Care / Neutral Exemption"
+        },
+        "Don't Care"
+      ))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "text",
+          className: "form-control",
+          placeholder: "Optional remark...",
+          value: remarks[st.id] || "",
+          onChange: (e) => handleRemarkChange(st.id, e.target.value),
+          style: { height: "32px", fontSize: "12px" }
+        }
+      )));
+    })))),
+    /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px", display: "flex", justifyContent: "flex-end", gap: "12px" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "submit",
+        className: "btn btn-primary",
+        disabled: classStudents.length === 0,
+        style: { padding: "12px 32px", fontSize: "15px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }
+      },
+      /* @__PURE__ */ React.createElement(Save, { size: 18 }),
+      /* @__PURE__ */ React.createElement("span", null, "Save Attendance Session")
+    ))
+  ))), activeSubTab === "history" && /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "24px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Edit3, { size: 22, style: { color: "#2563eb" } }), "Recorded Attendance Sessions"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "3px 0 0 0" } }, "Sessions recorded by ", /* @__PURE__ */ React.createElement("strong", null, currentFaculty.name), ". Reopen any session to modify topic or student statuses (Present / Absent / Don't Care).")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "input-with-icon", style: { width: "220px" } }, /* @__PURE__ */ React.createElement(Search, { className: "input-icon", size: 14 }), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "Search topic or date...",
+        value: historySearchQuery,
+        onChange: (e) => setHistorySearchQuery(e.target.value),
+        style: { height: "36px", fontSize: "13px" }
+      }
+    )), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: historySubjectFilter,
+        onChange: (e) => setHistorySubjectFilter(e.target.value),
+        style: { width: "200px", height: "36px", fontSize: "13px", fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Subjects"),
+      allSubjects.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.code, " - ", s.name))
+    ))),
+    /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Time Slot"), /* @__PURE__ */ React.createElement("th", null, "Class"), /* @__PURE__ */ React.createElement("th", null, "Subject"), /* @__PURE__ */ React.createElement("th", null, "Topic Covered"), /* @__PURE__ */ React.createElement("th", null, "Breakdown (P / A / DC)"), /* @__PURE__ */ React.createElement("th", null, "Session %"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredHistorySessions.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "8", style: { textAlign: "center", padding: "36px", color: "#64748b" } }, "No attendance records found for this filter.")) : filteredHistorySessions.map((sess) => {
+      const subj = getSubjectObj(sess.subjectId);
+      const recs = Object.values(sess.records || {});
+      const total = recs.length;
+      const pCount = recs.filter((s) => s === "present").length;
+      const aCount = recs.filter((s) => s === "absent").length;
+      const dcCount = recs.filter((s) => s === "dont_care" || s === "od").length;
+      const lateCount = recs.filter((s) => s === "late").length;
+      const effectivePresent = pCount + lateCount * 0.8;
+      const gradedTotal = total - dcCount;
+      const pct = gradedTotal > 0 ? (effectivePresent / gradedTotal * 100).toFixed(1) : total > 0 ? "100.0" : 0;
+      return /* @__PURE__ */ React.createElement("tr", { key: sess.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", whiteSpace: "nowrap" } }, sess.date), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12px", color: "#64748b" } }, sess.timeSlot || "-"), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "#0f172a", fontWeight: "700" } }, sess.sem || "3rd Sem", " \u2022 ", sess.division || "Div 1")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "700" } }, subj.code)), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600", maxWidth: "240px" } }, sess.topic || /* @__PURE__ */ React.createElement("em", { style: { color: "#94a3b8" } }, "No topic specified")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "4px", fontSize: "11px", fontWeight: "700" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#059669" } }, pCount, " P"), /* @__PURE__ */ React.createElement("span", { style: { color: "#cbd5e1" } }, "/"), /* @__PURE__ */ React.createElement("span", { style: { color: "#e11d48" } }, aCount, " A"), dcCount > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "#cbd5e1" } }, "/"), /* @__PURE__ */ React.createElement("span", { style: { color: "#475569" } }, dcCount, " DC")))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: `badge ${parseFloat(pct) >= 75 ? "badge-present" : "badge-absent"}` }, pct, "%")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-secondary btn-sm",
+          onClick: () => setViewingSession(sess),
+          title: "View Details"
+        },
+        /* @__PURE__ */ React.createElement(Eye, { size: 14 })
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-secondary btn-sm",
+          onClick: () => handleStartEditSession(sess),
+          title: "Edit Session & Attendance",
+          style: { color: "#2563eb", borderColor: "#bfdbfe" }
+        },
+        /* @__PURE__ */ React.createElement(Edit3, { size: 14 }),
+        /* @__PURE__ */ React.createElement("span", null, "Edit")
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-danger btn-sm",
+          onClick: () => setDeletingSessionId(sess.id),
+          title: "Delete Record"
+        },
+        /* @__PURE__ */ React.createElement(Trash2, { size: 14 })
+      ))));
+    }))))
+  ), activeSubTab === "timetable" && /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "24px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 22, style: { color: "#2563eb" } }), "Weekly Timetable for ", currentFaculty.name), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "3px 0 0 0" } }, "Centralized academic timetable synchronized live from Admin Panel. Click any lecture slot to take attendance for it.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "800" } }, "Total Allocations: ", facultyEntries.length, " Slots"))),
+    /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "130px" } }, "Day \\ Time"), TIME_SLOTS.map((slot, sIdx) => /* @__PURE__ */ React.createElement("th", { key: sIdx, style: { textAlign: "center", minWidth: "130px" } }, slot)))), /* @__PURE__ */ React.createElement("tbody", null, TIMETABLE_DAYS.map((dayName2) => /* @__PURE__ */ React.createElement("tr", { key: dayName2 }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#0f172a", backgroundColor: "#f8fafc" } }, dayName2), TIME_SLOTS.map((time, tIdx) => {
+      const slotData = facultyTimetableGrid[dayName2]?.[time];
+      const isLunch = time.includes("12:40");
+      if (isLunch) {
+        return /* @__PURE__ */ React.createElement("td", { key: tIdx, style: { backgroundColor: "#f1f5f9", color: "#94a3b8", textAlign: "center", fontSize: "11px", fontWeight: "700" } }, "LUNCH");
+      }
+      if (!slotData || !slotData.subject && !slotData.subjectName) {
+        return /* @__PURE__ */ React.createElement("td", { key: tIdx, style: { textAlign: "center", color: "#cbd5e1" } }, "-");
+      }
+      const subjLabel = slotData.subject || slotData.subjectName;
+      const semLabel = slotData.sem || slotData.semId || "3rd Sem";
+      const divLabel = slotData.div || slotData.divId || "Div 1";
+      return /* @__PURE__ */ React.createElement(
+        "td",
+        {
+          key: tIdx,
+          style: { padding: "6px" },
+          onClick: () => {
+            handleSelectLecture({
+              time,
+              room: slotData.room,
+              sem: semLabel,
+              div: divLabel,
+              subjectId: slotData.subjectId || subjLabel,
+              departmentId: slotData.departmentId
+            });
+            setActiveSubTab("take");
+            if (showToast) showToast(`Loaded ${subjLabel} (${semLabel} ${divLabel}) into Take Attendance!`);
+          }
+        },
+        /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            style: {
+              backgroundColor: "#f0fdf4",
+              border: "1px solid #86efac",
+              borderRadius: "6px",
+              padding: "6px 8px",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
+            },
+            title: "Click to take attendance for this slot"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#166534", fontSize: "12px" } }, subjLabel),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: "#15803d", marginTop: "2px" } }, semLabel, " \u2022 ", divLabel),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: "#64748b", marginTop: "2px" } }, slotData.room || "TBD")
+        )
+      );
+    }))))))
+  ), activeSubTab === "roster" && /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        backgroundColor: "#ffffff",
+        borderRadius: "12px",
+        border: "1px solid #e2e8f0",
+        padding: "24px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Users, { size: 22, style: { color: "#2563eb" } }), "Class Roster: ", selectedDept, " \u2022 ", sem, " \u2022 ", division), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "3px 0 0 0" } }, "Enrolled students loaded live from the Admin Panel Class module.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: selectedDept,
+        onChange: (e) => setSelectedDept(e.target.value),
+        style: { width: "180px", height: "36px", fontSize: "13px", fontWeight: "700" }
+      },
+      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.code, value: d.name }, d.name))
+    ), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: sem,
+        onChange: (e) => setSem(e.target.value),
+        style: { width: "140px", height: "36px", fontSize: "13px", fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "1st Sem" }, "1st Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "2nd Sem" }, "2nd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "3rd Sem" }, "3rd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "4th Sem" }, "4th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "5th Sem" }, "5th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "6th Sem" }, "6th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "7th Sem" }, "7th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "8th Sem" }, "8th Semester")
+    ), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: division,
+        onChange: (e) => setDivision(e.target.value),
+        style: { width: "110px", height: "36px", fontSize: "13px", fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "Div 1" }, "Div 1"),
+      /* @__PURE__ */ React.createElement("option", { value: "Div 2" }, "Div 2"),
+      /* @__PURE__ */ React.createElement("option", { value: "Div 3" }, "Div 3")
+    ))),
+    /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", null, "Email Address"), /* @__PURE__ */ React.createElement("th", null, "Assigned Class ID"))), /* @__PURE__ */ React.createElement("tbody", null, classStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "5", style: { textAlign: "center", padding: "36px", color: "#64748b" } }, "No students enrolled in this class. Add students in Admin Panel \u2192 Classes.")) : classStudents.map((st) => /* @__PURE__ */ React.createElement("tr", { key: st.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#0f172a" } }, st.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700", color: "#1e293b" } }, st.name), /* @__PURE__ */ React.createElement("td", { style: { fontFamily: "monospace", color: "#64748b" } }, st.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { color: "#64748b" } }, st.email || "-"), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "11px", color: "#94a3b8" } }, st.classId || activeClass?.id || "-"))))))
+  )), editingSession && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", style: { zIndex: 1e3 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "850px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(Edit3, { size: 20, style: { color: "#2563eb" } }), "Edit Attendance Record"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: () => setEditingSession(null)
+    },
+    /* @__PURE__ */ React.createElement(X, { size: 16 })
+  )), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: "14px", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Date"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "date",
+      className: "form-control",
+      value: editDate,
+      onChange: (e) => setEditDate(e.target.value),
+      required: true
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Time Slot"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editTimeSlot,
+      onChange: (e) => setEditTimeSlot(e.target.value)
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Lecture Topic Covered *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editTopic,
+      onChange: (e) => setEditTopic(e.target.value),
+      required: true
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14px", margin: 0, color: "#0f172a", fontWeight: "800" } }, "Student Attendance Status & Remarks"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || [];
+        const targetList = sList.length > 0 ? sList : classStudents;
+        targetList.forEach((s) => {
+          updated[s.id] = "present";
+        });
+        setEditRecords(updated);
+      }
+    },
+    "All Present"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || [];
+        const targetList = sList.length > 0 ? sList : classStudents;
+        targetList.forEach((s) => {
+          updated[s.id] = "absent";
+        });
+        setEditRecords(updated);
+      }
+    },
+    "All Absent"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      style: { fontSize: "11px", padding: "4px 10px" },
+      onClick: () => {
+        const updated = { ...editRecords };
+        const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || [];
+        const targetList = sList.length > 0 ? sList : classStudents;
+        targetList.forEach((s) => {
+          updated[s.id] = "dont_care";
+        });
+        setEditRecords(updated);
+      }
+    },
+    "All Don't Care"
+  ))), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "360px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "70px" } }, "Roll"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "260px" } }, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || [];
+    const targetList = sList.length > 0 ? sList : classStudents;
+    if (targetList.length === 0) {
+      return /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "4", style: { textAlign: "center", color: "#64748b", padding: "20px" } }, "No enrolled students found for this class."));
+    }
+    return targetList.map((s) => {
+      const cur = editRecords[s.id] || "present";
+      return /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800" } }, s.rollNo), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700" } }, s.name), s.enrollmentNo && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, s.enrollmentNo)), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "attendance-toggle-group" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${cur === "present" ? "active-present" : ""}`,
+          onClick: () => setEditRecords({ ...editRecords, [s.id]: "present" })
+        },
+        "Present"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${cur === "absent" ? "active-absent" : ""}`,
+          onClick: () => setEditRecords({ ...editRecords, [s.id]: "absent" })
+        },
+        "Absent"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: `toggle-option ${cur === "dont_care" || cur === "od" ? "active-dontcare" : ""}`,
+          onClick: () => setEditRecords({ ...editRecords, [s.id]: "dont_care" }),
+          title: "Don't Care / Neutral Exemption"
+        },
+        "Don't Care"
+      ))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "text",
+          className: "form-control",
+          value: editRemarks[s.id] || "",
+          onChange: (e) => setEditRemarks({ ...editRemarks, [s.id]: e.target.value }),
+          style: { height: "32px", fontSize: "12px" }
+        }
+      )));
+    });
+  })())))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setEditingSession(null)
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary",
+      onClick: handleSaveEditSession,
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(Save, { size: 16 }),
+    " Save Changes"
+  )))), viewingSession && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", style: { zIndex: 1e3 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "650px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { margin: 0 } }, "Session Details: ", viewingSession.date), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: () => setViewingSession(null)
+    },
+    /* @__PURE__ */ React.createElement(X, { size: 16 })
+  )), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "14px", backgroundColor: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 6px 0", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("strong", null, "Subject:"), " ", getSubjectObj(viewingSession.subjectId).name, " (", getSubjectObj(viewingSession.subjectId).code, ")"), /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 6px 0", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("strong", null, "Topic Covered:"), " ", viewingSession.topic || "N/A"), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "13px" } }, /* @__PURE__ */ React.createElement("strong", null, "Faculty:"), " ", viewingSession.facultyName || currentFaculty.name)), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "350px", overflowY: "auto" }, className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Status"), /* @__PURE__ */ React.createElement("th", null, "Remark"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const sList = (viewingSession.classId ? getStudentsByClassId(viewingSession.classId) : []) || [];
+    const targetList = sList.length > 0 ? sList : classStudents;
+    return targetList.map((s) => {
+      const st = viewingSession.records ? viewingSession.records[s.id] : "absent";
+      const rem = viewingSession.remarks ? viewingSession.remarks[s.id] : "";
+      const isDC = st === "dont_care" || st === "od";
+      return /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800" } }, s.rollNo), /* @__PURE__ */ React.createElement("td", null, s.name), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("span", { className: `badge ${isDC ? "badge-dontcare" : `badge-${st}`}` }, isDC ? "Don't Care" : st)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12px", color: "#64748b" } }, rem || "-"));
+    });
+  })())))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setViewingSession(null)
+    },
+    "Close"
+  )))), deletingSessionId && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", style: { zIndex: 1e3 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "420px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { color: "#e11d48", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 20 }), " Delete Attendance Session")), /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#475569" } }, "Are you sure you want to delete this recorded attendance session? This operation cannot be undone.")), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setDeletingSessionId(null)
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-danger",
+      onClick: handleConfirmDelete,
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 16 }),
+    " Delete Record"
+  )))));
+}
 function App() {
-  const [activeTab, setActiveTab] = useState("manage");
+  const [activeTab, setActiveTab] = useState("faculty");
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(true);
@@ -8912,13 +10116,15 @@ function App() {
       setActiveTab(tabId);
     }
   };
-  const handleAdminExit = () => {
+  const handleAdminExit = (target = "faculty") => {
     setIsAdminUnlocked(false);
-    setActiveTab("dashboard");
-    showToast("Logged out of Admin Panel.");
+    setActiveTab(target);
+    showToast(target === "faculty" ? "Switched to Faculty Panel." : "Logged out of Admin Panel.");
   };
   const renderActiveView = () => {
     switch (activeTab) {
+      case "faculty":
+        return /* @__PURE__ */ React.createElement(FacultyPanel, { showToast, onRequestAdminAccess: () => requestAdminAccess(() => setActiveTab("manage")) });
       case "dashboard":
         return /* @__PURE__ */ React.createElement(Dashboard, { setActiveTab: handleTabChange });
       case "enter":
@@ -8936,7 +10142,7 @@ function App() {
       case "manage":
         return /* @__PURE__ */ React.createElement(AdminPanel, { showToast, onExit: handleAdminExit });
       default:
-        return /* @__PURE__ */ React.createElement(Dashboard, { setActiveTab: handleTabChange });
+        return /* @__PURE__ */ React.createElement(FacultyPanel, { showToast, onRequestAdminAccess: () => requestAdminAccess(() => setActiveTab("manage")) });
     }
   };
   return /* @__PURE__ */ React.createElement("div", { className: `app-container ${activeTab === "manage" ? "in-admin-mode" : ""}` }, activeTab !== "manage" && /* @__PURE__ */ React.createElement(
@@ -8946,7 +10152,7 @@ function App() {
       setActiveTab: handleTabChange,
       onResetData: handleResetData
     }
-  ), /* @__PURE__ */ React.createElement("div", { className: "main-wrapper", style: activeTab === "manage" ? { width: "100%", maxWidth: "100%" } : {} }, activeTab !== "manage" && /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "main-wrapper", style: activeTab === "manage" ? { width: "100%", maxWidth: "100%" } : {} }, activeTab !== "manage" && activeTab !== "faculty" && /* @__PURE__ */ React.createElement(
     Header,
     {
       searchQuery,
@@ -8963,7 +10169,7 @@ function App() {
         }
       }
     }
-  ), /* @__PURE__ */ React.createElement("main", { className: activeTab === "manage" ? "content-area-admin" : "content-area" }, renderActiveView())), showPinModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "400px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 20 }), "Admin Security PIN Required"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowPinModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinSubmit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" } }, "Please enter the Admin Security PIN to access sensitive management features."), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Security PIN Code (Default: 1234)"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("main", { className: activeTab === "manage" || activeTab === "faculty" ? "content-area-admin" : "content-area" }, renderActiveView())), showPinModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "400px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 20 }), "Admin Security PIN Required"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowPinModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinSubmit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body" }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "var(--text-muted)", marginBottom: "16px" } }, "Please enter the Admin Security PIN to access sensitive management features."), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", null, "Security PIN Code (Default: 1234)"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "password",

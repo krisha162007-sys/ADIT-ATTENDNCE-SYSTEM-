@@ -13,6 +13,7 @@ export default function Header({ searchQuery, setSearchQuery, activeTab, isUnloc
 
   const getTabTitle = () => {
     switch (activeTab) {
+      case 'faculty': return 'Faculty Attendance Portal';
       case 'dashboard': return 'Dashboard & Overview';
       case 'enter': return 'Enter Attendance Session';
       case 'list': return 'View, Edit & Delete Attendance';

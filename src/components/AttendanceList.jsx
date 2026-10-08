@@ -14,7 +14,7 @@ import {
   Table2,
   List
 } from 'lucide-react';
-import { getSessions, getSubjects, getStudents, saveSession, deleteSession } from '../services/attendanceStorage';
+import { getSessions, getSubjects, getStudents, getStudentsByClassId, saveSession, deleteSession } from '../services/attendanceStorage';
 import AttendanceSheetView from './AttendanceSheetView';
 
 export default function AttendanceList({ searchQuery, showToast }) {
@@ -176,8 +176,10 @@ export default function AttendanceList({ searchQuery, showToast }) {
                 const total = recs.length;
                 const present = recs.filter(st => st === 'present').length;
                 const late = recs.filter(st => st === 'late').length;
+                const dontCare = recs.filter(st => st === 'dont_care' || st === 'od').length;
                 const effectivePresent = present + (late * 0.8);
-                const pct = total > 0 ? ((effectivePresent / total) * 100).toFixed(1) : 0;
+                const gradedTotal = total - dontCare;
+                const pct = gradedTotal > 0 ? ((effectivePresent / gradedTotal) * 100).toFixed(1) : (total > 0 ? '100.0' : 0);
 
                 return (
                   <tr key={sess.id}>
@@ -199,6 +201,7 @@ export default function AttendanceList({ searchQuery, showToast }) {
                       <span style={{ fontWeight: '700' }}>{present}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}> / {total}</span>
                       {late > 0 && <span style={{ fontSize: '11px', color: 'var(--status-late)', marginLeft: '4px' }}>({late} late)</span>}
+                      {dontCare > 0 && <span style={{ fontSize: '11px', color: '#475569', marginLeft: '4px', fontWeight: '700' }}>({dontCare} DC)</span>}
                     </td>
                     <td>
                       <span className={`badge ${pct >= 75 ? 'badge-present' : 'badge-absent'}`}>
@@ -277,9 +280,55 @@ export default function AttendanceList({ searchQuery, showToast }) {
                 </div>
               </div>
 
-              <h4 style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--navy-dark)' }}>
-                Student Attendance & Remarks
-              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <h4 style={{ fontSize: '14px', margin: 0, color: 'var(--navy-dark)' }}>
+                  Student Attendance & Remarks
+                </h4>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                    onClick={() => {
+                      const updated = { ...editRecords };
+                      const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+                      const activeSList = sList.length > 0 ? sList : students;
+                      activeSList.forEach(s => { updated[s.id] = 'present'; });
+                      setEditRecords(updated);
+                    }}
+                  >
+                    All Present
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                    onClick={() => {
+                      const updated = { ...editRecords };
+                      const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+                      const activeSList = sList.length > 0 ? sList : students;
+                      activeSList.forEach(s => { updated[s.id] = 'absent'; });
+                      setEditRecords(updated);
+                    }}
+                  >
+                    All Absent
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                    onClick={() => {
+                      const updated = { ...editRecords };
+                      const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+                      const activeSList = sList.length > 0 ? sList : students;
+                      activeSList.forEach(s => { updated[s.id] = 'dont_care'; });
+                      setEditRecords(updated);
+                    }}
+                  >
+                    All Don't Care
+                  </button>
+                </div>
+              </div>
 
               <div style={{ maxHeight: '340px', overflowY: 'auto' }} className="table-responsive">
                 <table className="data-table">
@@ -292,33 +341,41 @@ export default function AttendanceList({ searchQuery, showToast }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map(s => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: '700' }}>{s.rollNo}</td>
-                        <td>{s.name}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <select
-                            className="form-control"
-                            value={editRecords[s.id] || 'present'}
-                            onChange={(e) => setEditRecords({ ...editRecords, [s.id]: e.target.value })}
-                            style={{ height: '32px', fontSize: '12px', padding: '4px 8px' }}
-                          >
-                            <option value="present">Present</option>
-                            <option value="absent">Absent</option>
-                            <option value="late">Late</option>
-                          </select>
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={editRemarks[s.id] || ''}
-                            onChange={(e) => setEditRemarks({ ...editRemarks, [s.id]: e.target.value })}
-                            style={{ height: '32px', fontSize: '12px' }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      const sList = (editingSession.classId ? getStudentsByClassId(editingSession.classId) : []) || students;
+                      const activeSList = sList.length > 0 ? sList : students;
+                      return activeSList.map(s => (
+                        <tr key={s.id}>
+                          <td style={{ fontWeight: '700' }}>{s.rollNo}</td>
+                          <td>
+                            <div>{s.name}</div>
+                            {s.enrollmentNo && <span style={{ fontSize: '11px', color: '#64748b' }}>{s.enrollmentNo}</span>}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <select
+                              className="form-control"
+                              value={editRecords[s.id] || 'present'}
+                              onChange={(e) => setEditRecords({ ...editRecords, [s.id]: e.target.value })}
+                              style={{ height: '32px', fontSize: '12px', padding: '4px 8px', fontWeight: '700' }}
+                            >
+                              <option value="present">Present</option>
+                              <option value="absent">Absent</option>
+                              <option value="dont_care">Don't Care</option>
+                              <option value="late">Late</option>
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={editRemarks[s.id] || ''}
+                              onChange={(e) => setEditRemarks({ ...editRemarks, [s.id]: e.target.value })}
+                              style={{ height: '32px', fontSize: '12px' }}
+                            />
+                          </td>
+                        </tr>
+                      ));
+                    })()}
                   </tbody>
                 </table>
               </div>
@@ -349,6 +406,7 @@ export default function AttendanceList({ searchQuery, showToast }) {
               <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'var(--blue-light)', borderRadius: 'var(--radius-md)' }}>
                 <p><strong>Subject:</strong> {getSubjectObj(viewingSession.subjectId).name} ({getSubjectObj(viewingSession.subjectId).code})</p>
                 <p><strong>Topic Covered:</strong> {viewingSession.topic || 'N/A'}</p>
+                {viewingSession.facultyName && <p><strong>Faculty:</strong> {viewingSession.facultyName}</p>}
               </div>
 
               <div style={{ maxHeight: '350px', overflowY: 'auto' }} className="table-responsive">
@@ -362,20 +420,27 @@ export default function AttendanceList({ searchQuery, showToast }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {students.map(s => {
-                      const st = viewingSession.records ? viewingSession.records[s.id] : 'absent';
-                      const rem = viewingSession.remarks ? viewingSession.remarks[s.id] : '';
-                      return (
-                        <tr key={s.id}>
-                          <td>{s.rollNo}</td>
-                          <td>{s.name}</td>
-                          <td>
-                            <span className={`badge badge-${st}`}>{st}</span>
-                          </td>
-                          <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{rem || '-'}</td>
-                        </tr>
-                      );
-                    })}
+                    {(() => {
+                      const sList = (viewingSession.classId ? getStudentsByClassId(viewingSession.classId) : []) || students;
+                      const activeSList = sList.length > 0 ? sList : students;
+                      return activeSList.map(s => {
+                        const st = viewingSession.records ? viewingSession.records[s.id] : 'absent';
+                        const rem = viewingSession.remarks ? viewingSession.remarks[s.id] : '';
+                        const isDC = st === 'dont_care' || st === 'od';
+                        return (
+                          <tr key={s.id}>
+                            <td>{s.rollNo}</td>
+                            <td>{s.name}</td>
+                            <td>
+                              <span className={`badge ${isDC ? 'badge-dontcare' : `badge-${st}`}`}>
+                                {isDC ? "Don't Care" : st}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{rem || '-'}</td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>

@@ -25,7 +25,8 @@ import {
   ArrowRight,
   UserPlus,
   BookPlus,
-  ArrowLeft
+  ArrowLeft,
+  UserCheck
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -260,8 +261,21 @@ export default function AdminPanel({ showToast, onExit }) {
         <div className="admin-sidebar-footer">
           <button 
             className="admin-logout-btn"
+            style={{ marginBottom: '8px', backgroundColor: '#0284c7', borderColor: '#38bdf8', color: '#ffffff', fontWeight: '700' }}
             onClick={() => {
-              if (onExit) onExit();
+              if (onExit) onExit('faculty');
+              else window.location.reload();
+            }}
+            title="Open Faculty Attendance Portal"
+          >
+            <UserCheck size={16} />
+            <span>Faculty Panel</span>
+          </button>
+
+          <button 
+            className="admin-logout-btn"
+            onClick={() => {
+              if (onExit) onExit('faculty');
               else window.location.reload();
             }}
             title="Return to Attendance Portal"
