@@ -25,8 +25,7 @@ import {
   ArrowRight,
   UserPlus,
   BookPlus,
-  ArrowLeft,
-  UserCheck
+  ArrowLeft
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -52,8 +51,7 @@ import {
   resetToDefault,
   getCollegeName,
   setCollegeName,
-  getClasses,
-  setActiveFacultyId
+  getClasses
 } from '../services/attendanceStorage';
 import { 
   getAllFacultyTimetables, 
@@ -65,7 +63,6 @@ import {
   notifyTimetableSync,
   getTimetableEntries
 } from '../services/timetableStorage';
-import FacultyTimetablePanel from './FacultyTimetablePanel';
 import ClassTimetablePanel from './ClassTimetablePanel';
 import ClassManagementPanel from './ClassManagementPanel';
 import TimetableUploadModal from './TimetableUploadModal';
@@ -73,8 +70,8 @@ import DepartmentAdminPanel from './DepartmentAdminPanel';
 
 export default function AdminPanel({ showToast, onExit }) {
   // Navigation inside Admin Panel
-  // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
-  const [adminTab, setAdminTab] = useState('faculty');
+  // Options: 'dashboard' (default), 'class-timetables', 'classes', 'subjects', 'departments', 'settings'
+  const [adminTab, setAdminTab] = useState('dashboard');
 
   // Master data states
   const [departments, setDepartments] = useState(getDepartments());
@@ -105,7 +102,6 @@ export default function AdminPanel({ showToast, onExit }) {
   // Sidebar Menu Items
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'faculty', label: 'Faculty Timetables', icon: Users },
     { id: 'class-timetables', label: 'Class Timetables', icon: Layers },
     { id: 'classes', label: 'Classes', icon: GraduationCap },
     { id: 'subjects', label: 'Subjects', icon: BookOpen },
@@ -262,21 +258,8 @@ export default function AdminPanel({ showToast, onExit }) {
         <div className="admin-sidebar-footer">
           <button 
             className="admin-logout-btn"
-            style={{ marginBottom: '8px', backgroundColor: '#0284c7', borderColor: '#38bdf8', color: '#ffffff', fontWeight: '700' }}
             onClick={() => {
-              if (onExit) onExit('faculty');
-              else window.location.reload();
-            }}
-            title="Open Faculty Attendance Portal"
-          >
-            <UserCheck size={16} />
-            <span>Faculty Panel</span>
-          </button>
-
-          <button 
-            className="admin-logout-btn"
-            onClick={() => {
-              if (onExit) onExit('faculty');
+              if (onExit) onExit();
               else window.location.reload();
             }}
             title="Return to Attendance Portal"
@@ -292,29 +275,12 @@ export default function AdminPanel({ showToast, onExit }) {
           =================================================================== */}
       <div className="admin-main-viewport">
         
-        {/* VIEW 1: FACULTY TIMETABLES (Primary View from User Screenshot) */}
-        {adminTab === 'faculty' && (
-          <FacultyTimetablePanel
-            departments={departments}
-            faculties={faculties}
-            subjects={subjects}
-            onSaveFaculty={handleSaveFaculty}
-            onSwitchToClassTimetable={() => setAdminTab('class-timetables')}
-            onOpenFacultyPortal={(facId) => {
-              if (facId) setActiveFacultyId(facId);
-              if (onExit) onExit('faculty');
-            }}
-            showToast={showToast}
-          />
-        )}
-
         {/* VIEW: CLASS TIMETABLES (Division/Class-wise Weekly Schedule & Sync) */}
         {adminTab === 'class-timetables' && (
           <ClassTimetablePanel
             departments={departments}
             faculties={faculties}
             subjects={subjects}
-            onSwitchToFacultyTimetable={() => setAdminTab('faculty')}
             showToast={showToast}
           />
         )}
@@ -420,10 +386,10 @@ export default function AdminPanel({ showToast, onExit }) {
                 </h3>
                 <button 
                   className="btn btn-primary btn-sm"
-                  onClick={() => setAdminTab('faculty')}
+                  onClick={() => setAdminTab('class-timetables')}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <span>Open Faculty Timetables</span>
+                  <span>Open Class Timetables</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -465,7 +431,7 @@ export default function AdminPanel({ showToast, onExit }) {
                         type="button"
                         onClick={() => {
                           setActiveDept(d.name);
-                          setAdminTab('faculty');
+                          setAdminTab('class-timetables');
                         }}
                         style={{
                           marginTop: '16px',
@@ -509,9 +475,9 @@ export default function AdminPanel({ showToast, onExit }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => setAdminTab('faculty')}
+                  onClick={() => setAdminTab('class-timetables')}
                 >
-                  <Users size={14} /> Individual Faculty Timetables
+                  <Layers size={14} /> Class Timetables
                 </button>
                 <button
                   className="btn btn-primary btn-sm"
@@ -619,10 +585,10 @@ export default function AdminPanel({ showToast, onExit }) {
                   selectedFaculty={faculties[0]}
                   departmentName={activeDept}
                   semesterName={activeSem}
-                  onClose={() => setAdminTab('faculty')}
+                  onClose={() => setAdminTab('class-timetables')}
                   onTimetableUpdated={() => {
                     if (showToast) showToast('Timetable successfully loaded!');
-                    setAdminTab('faculty');
+                    setAdminTab('class-timetables');
                   }}
                   showToast={showToast}
                 />
@@ -739,7 +705,7 @@ export default function AdminPanel({ showToast, onExit }) {
         {/* VIEW 6: DEPARTMENT ADMINISTRATION PANEL */}
         {adminTab === 'departments' && (
           <DepartmentAdminPanel
-            onOpenFacultyTimetable={() => setAdminTab('faculty')}
+            onOpenFacultyTimetable={() => setAdminTab('class-timetables')}
             showToast={showToast}
           />
         )}

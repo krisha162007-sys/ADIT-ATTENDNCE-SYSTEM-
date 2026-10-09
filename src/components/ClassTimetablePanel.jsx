@@ -44,7 +44,6 @@ export default function ClassTimetablePanel({
   departments = [],
   faculties = [],
   subjects = [],
-  onSwitchToFacultyTimetable,
   showToast
 }) {
   // Department, Semester & Division filters
@@ -303,31 +302,7 @@ export default function ClassTimetablePanel({
           </div>
         </div>
 
-        {/* Quick Nav: Switch to Faculty Timetables */}
-        {onSwitchToFacultyTimetable && (
-          <button
-            type="button"
-            onClick={onSwitchToFacultyTimetable}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid #bfdbfe',
-              backgroundColor: '#eff6ff',
-              color: '#2563eb',
-              fontWeight: '700',
-              fontSize: '13px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Users size={15} />
-            <span>Switch to Faculty Timetables</span>
-            <ArrowRight size={14} />
-          </button>
-        )}
+
       </div>
 
       {/* ===================================================================

@@ -379,42 +379,12 @@ export const setCollegeName = (name) => {
 };
 
 export const getFacultyName = () => {
-  return localStorage.getItem('adit_faculty_name') || 'Prof. Priya Shah';
+  return localStorage.getItem('adit_faculty_name') || 'Prof. R. K. Patel';
 };
 
 export const setFacultyName = (name) => {
   localStorage.setItem('adit_faculty_name', name);
   return name;
-};
-
-export const getActiveFacultyId = () => {
-  return localStorage.getItem('adit_active_faculty_id') || 'FAC_PS';
-};
-
-export const setActiveFacultyId = (id) => {
-  localStorage.setItem('adit_active_faculty_id', id);
-  const faculties = getFaculties();
-  const f = faculties.find(fac => fac.id === id);
-  if (f) {
-    setFacultyName(f.name);
-  }
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('adit-active-faculty-changed', { detail: { facultyId: id } }));
-  }
-  return id;
-};
-
-export const getActiveFaculty = () => {
-  const faculties = getFaculties();
-  const activeId = getActiveFacultyId();
-  return faculties.find(f => f.id === activeId) || faculties[0] || {
-    id: 'FAC_PS',
-    name: 'Prof. Priya Shah',
-    dept: 'AI & Data Science',
-    designation: 'Assistant Professor',
-    email: 'priya.shah@adit.ac.in',
-    subjects: 'DBMS, Data Structures'
-  };
 };
 
 // Initial Seed Data aligned with College ERP Reference Sheet
@@ -1248,16 +1218,6 @@ export const getLastSubjectDates = (subjectId) => {
 
 export const saveSession = (session) => {
   const sessions = getSessions();
-  // Ensure faculty metadata is recorded
-  if (!session.facultyName) {
-    session.facultyName = getFacultyName();
-  }
-  if (!session.facultyId) {
-    session.facultyId = getActiveFacultyId();
-  }
-  if (!session.createdAt) {
-    session.createdAt = new Date().toISOString();
-  }
   if (session.id) {
     const idx = sessions.findIndex(s => s.id === session.id);
     if (idx !== -1) {
@@ -1270,18 +1230,12 @@ export const saveSession = (session) => {
     sessions.push(session);
   }
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
-  }
   return sessions;
 };
 
 export const deleteSession = (sessionId) => {
   const sessions = getSessions().filter(s => s.id !== sessionId);
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
-  }
   return sessions;
 };
 
@@ -1326,35 +1280,24 @@ export const calculateAnalytics = (targetSubjectId = null) => {
     let attended = 0;
     let totalAssigned = 0;
     let odCount = 0;
-    let dontCareCount = 0;
 
     sessions.forEach(sess => {
       if (sess.records && sess.records[student.id] !== undefined) {
+        totalAssigned++;
         const status = sess.records[student.id];
-        if (status === 'present') {
-          attended += 1;
-          totalAssigned++;
-        } else if (status === 'late') {
-          attended += 0.8;
-          totalAssigned++;
-        } else if (status === 'absent') {
-          totalAssigned++;
-        } else if (status === 'dont_care' || status === 'od') {
-          odCount += 1;
-          dontCareCount += 1;
-          // Neutral: Exempt/on-duty, does not penalize student
-        }
+        if (status === 'present') attended += 1;
+        else if (status === 'late') attended += 0.8;
+        else if (status === 'od') odCount += 1;
       }
     });
 
-    const percentage = totalAssigned > 0 ? ((attended / totalAssigned) * 100).toFixed(2) : '100.00';
+    const percentage = totalAssigned > 0 ? ((attended / totalAssigned) * 100).toFixed(2) : '0.00';
     const percentageDC = totalAssigned > 0 ? ((odCount / totalAssigned) * 100).toFixed(2) : '0.00';
 
     return {
       ...student,
       attended,
       odCount,
-      dontCareCount,
       totalAssigned,
       percentage: parseFloat(percentage),
       percentageDC: parseFloat(percentageDC),
@@ -1372,16 +1315,9 @@ export const calculateAnalytics = (targetSubjectId = null) => {
 
     subjSessions.forEach(sess => {
       Object.values(sess.records || {}).forEach(status => {
-        if (status === 'present') {
-          totalPresent += 1;
-          totalPossible++;
-        } else if (status === 'late') {
-          totalPresent += 0.8;
-          totalPossible++;
-        } else if (status === 'absent') {
-          totalPossible++;
-        }
-        // dont_care is neutral exemption
+        totalPossible++;
+        if (status === 'present') totalPresent += 1;
+        else if (status === 'late') totalPresent += 0.8;
       });
     });
 

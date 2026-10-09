@@ -10,12 +10,11 @@ import AnalyticsView from './components/AnalyticsView';
 import PrintView from './components/PrintView';
 import ManageMaster from './components/ManageMaster';
 import AdminPanel from './components/AdminPanel';
-import FacultyPanel from './components/FacultyPanel';
 import { initializeStorage, resetToDefault, verifyAdminPin } from './services/attendanceStorage';
 import { CheckCircle, ShieldCheck, Lock, X, KeyRound } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('faculty');
+  const [activeTab, setActiveTab] = useState('manage');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
@@ -79,16 +78,14 @@ export default function App() {
     }
   };
 
-  const handleAdminExit = (target = 'faculty') => {
+  const handleAdminExit = () => {
     setIsAdminUnlocked(false);
-    setActiveTab(target);
-    showToast(target === 'faculty' ? 'Switched to Faculty Panel.' : 'Logged out of Admin Panel.');
+    setActiveTab('dashboard');
+    showToast('Logged out of Admin Panel.');
   };
 
   const renderActiveView = () => {
     switch (activeTab) {
-      case 'faculty':
-        return <FacultyPanel showToast={showToast} onRequestAdminAccess={() => requestAdminAccess(() => setActiveTab('manage'))} />;
       case 'dashboard':
         return <Dashboard setActiveTab={handleTabChange} />;
       case 'enter':
@@ -106,7 +103,7 @@ export default function App() {
       case 'manage':
         return <AdminPanel showToast={showToast} onExit={handleAdminExit} />;
       default:
-        return <FacultyPanel showToast={showToast} onRequestAdminAccess={() => requestAdminAccess(() => setActiveTab('manage'))} />;
+        return <Dashboard setActiveTab={handleTabChange} />;
     }
   };
 
@@ -123,7 +120,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="main-wrapper" style={activeTab === 'manage' ? { width: '100%', maxWidth: '100%' } : {}}>
-        {activeTab !== 'manage' && activeTab !== 'faculty' && (
+        {activeTab !== 'manage' && (
           <Header 
             searchQuery={searchQuery} 
             setSearchQuery={setSearchQuery} 
@@ -140,7 +137,7 @@ export default function App() {
           />
         )}
 
-        <main className={activeTab === 'manage' || activeTab === 'faculty' ? 'content-area-admin' : 'content-area'}>
+        <main className={activeTab === 'manage' ? 'content-area-admin' : 'content-area'}>
           {renderActiveView()}
         </main>
       </div>

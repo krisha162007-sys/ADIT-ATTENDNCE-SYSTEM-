@@ -436,7 +436,7 @@ export default function DepartmentAdminPanel({
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
           >
-            <Calendar size={14} /> Open Faculty Timetables
+            <Calendar size={14} /> Open Class Timetables
           </button>
         </div>
       </div>

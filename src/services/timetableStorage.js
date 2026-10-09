@@ -821,21 +821,14 @@ export const saveTimetable = (timetableData, fileInfo = null) => {
   return timetableData;
 };
 
-export const getScheduledLecturesForDate = (dateStr, facultyId = null) => {
+export const getScheduledLecturesForDate = (dateStr) => {
   if (!dateStr) return { dayName: '', lectures: [] };
   const d = new Date(dateStr + 'T00:00:00');
   const dayName = DAYS[d.getDay()];
   const entries = getTimetableEntries();
-  const dayEntries = entries.filter(e => {
-    if (e.day !== dayName) return false;
-    if (facultyId) {
-      return e.facultyId === facultyId || (e.facultyName && facultyId.length > 6 && e.facultyName.toLowerCase().includes(facultyId.toLowerCase()));
-    }
-    return true;
-  });
+  const dayEntries = entries.filter(e => e.day === dayName);
   if (dayEntries.length > 0) {
     const lectures = dayEntries.map(e => ({
-      id: e.id,
       time: e.timeSlot,
       subjectId: e.subjectId,
       subjectName: e.subjectName || e.subjectFullName || e.subjectId,
@@ -845,16 +838,12 @@ export const getScheduledLecturesForDate = (dateStr, facultyId = null) => {
       div: e.divId || e.div,
       departmentId: e.departmentId,
       room: e.room,
-      type: e.type || 'Lecture',
-      color: e.color
+      type: e.type || 'Lecture'
     }));
     return { dayName, lectures };
   }
   const timetable = getTimetable();
-  const rawLectures = timetable[dayName] || [];
-  const lectures = facultyId 
-    ? rawLectures.filter(l => l.facultyId === facultyId || (l.faculty && l.faculty.toLowerCase().includes(facultyId.toLowerCase())))
-    : rawLectures;
+  const lectures = timetable[dayName] || [];
   return { dayName, lectures };
 };
 

@@ -14,7 +14,6 @@ import {
 
 export default function Sidebar({ activeTab, setActiveTab, onResetData }) {
   const menuItems = [
-    { id: 'faculty', label: 'Faculty Panel', icon: UserCheck },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'enter', label: 'Enter Attendance', icon: UserCheck },
     { id: 'list', label: 'View & Edit Attendance', icon: FileText },

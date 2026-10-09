@@ -45,15 +45,12 @@ def build():
         'src/components/AnalyticsView.jsx',
         'src/components/PrintView.jsx',
         'src/components/ManageMaster.jsx',
-        'src/components/FacultyEditModal.jsx',
         'src/components/SlotEditModal.jsx',
         'src/components/TimetableUploadModal.jsx',
-        'src/components/FacultyTimetablePanel.jsx',
         'src/components/ClassTimetablePanel.jsx',
         'src/components/ClassManagementPanel.jsx',
         'src/components/DepartmentAdminPanel.jsx',
         'src/components/AdminPanel.jsx',
-        'src/components/FacultyPanel.jsx',
         'src/App.jsx',
     ]
 
