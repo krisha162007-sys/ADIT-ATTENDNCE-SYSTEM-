@@ -63,6 +63,7 @@ import {
   notifyTimetableSync,
   getTimetableEntries
 } from '../services/timetableStorage';
+import FacultyTimetablePanel from './FacultyTimetablePanel';
 import ClassTimetablePanel from './ClassTimetablePanel';
 import ClassManagementPanel from './ClassManagementPanel';
 import TimetableUploadModal from './TimetableUploadModal';
@@ -70,8 +71,8 @@ import DepartmentAdminPanel from './DepartmentAdminPanel';
 
 export default function AdminPanel({ showToast, onExit }) {
   // Navigation inside Admin Panel
-  // Options: 'dashboard' (default), 'class-timetables', 'classes', 'subjects', 'departments', 'settings'
-  const [adminTab, setAdminTab] = useState('dashboard');
+  // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
+  const [adminTab, setAdminTab] = useState('faculty');
 
   // Master data states
   const [departments, setDepartments] = useState(getDepartments());
@@ -102,6 +103,7 @@ export default function AdminPanel({ showToast, onExit }) {
   // Sidebar Menu Items
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'faculty', label: 'Faculty Timetables', icon: Users },
     { id: 'class-timetables', label: 'Class Timetables', icon: Layers },
     { id: 'classes', label: 'Classes', icon: GraduationCap },
     { id: 'subjects', label: 'Subjects', icon: BookOpen },
@@ -275,12 +277,25 @@ export default function AdminPanel({ showToast, onExit }) {
           =================================================================== */}
       <div className="admin-main-viewport">
         
+        {/* VIEW 1: FACULTY TIMETABLES (Primary View from User Screenshot) */}
+        {adminTab === 'faculty' && (
+          <FacultyTimetablePanel
+            departments={departments}
+            faculties={faculties}
+            subjects={subjects}
+            onSaveFaculty={handleSaveFaculty}
+            onSwitchToClassTimetable={() => setAdminTab('class-timetables')}
+            showToast={showToast}
+          />
+        )}
+
         {/* VIEW: CLASS TIMETABLES (Division/Class-wise Weekly Schedule & Sync) */}
         {adminTab === 'class-timetables' && (
           <ClassTimetablePanel
             departments={departments}
             faculties={faculties}
             subjects={subjects}
+            onSwitchToFacultyTimetable={() => setAdminTab('faculty')}
             showToast={showToast}
           />
         )}
@@ -386,10 +401,10 @@ export default function AdminPanel({ showToast, onExit }) {
                 </h3>
                 <button 
                   className="btn btn-primary btn-sm"
-                  onClick={() => setAdminTab('class-timetables')}
+                  onClick={() => setAdminTab('faculty')}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <span>Open Class Timetables</span>
+                  <span>Open Faculty Timetables</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -431,7 +446,7 @@ export default function AdminPanel({ showToast, onExit }) {
                         type="button"
                         onClick={() => {
                           setActiveDept(d.name);
-                          setAdminTab('class-timetables');
+                          setAdminTab('faculty');
                         }}
                         style={{
                           marginTop: '16px',
@@ -475,9 +490,9 @@ export default function AdminPanel({ showToast, onExit }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   className="btn btn-secondary btn-sm"
-                  onClick={() => setAdminTab('class-timetables')}
+                  onClick={() => setAdminTab('faculty')}
                 >
-                  <Layers size={14} /> Class Timetables
+                  <Users size={14} /> Individual Faculty Timetables
                 </button>
                 <button
                   className="btn btn-primary btn-sm"
@@ -585,10 +600,10 @@ export default function AdminPanel({ showToast, onExit }) {
                   selectedFaculty={faculties[0]}
                   departmentName={activeDept}
                   semesterName={activeSem}
-                  onClose={() => setAdminTab('class-timetables')}
+                  onClose={() => setAdminTab('faculty')}
                   onTimetableUpdated={() => {
                     if (showToast) showToast('Timetable successfully loaded!');
-                    setAdminTab('class-timetables');
+                    setAdminTab('faculty');
                   }}
                   showToast={showToast}
                 />
@@ -705,7 +720,7 @@ export default function AdminPanel({ showToast, onExit }) {
         {/* VIEW 6: DEPARTMENT ADMINISTRATION PANEL */}
         {adminTab === 'departments' && (
           <DepartmentAdminPanel
-            onOpenFacultyTimetable={() => setAdminTab('class-timetables')}
+            onOpenFacultyTimetable={() => setAdminTab('faculty')}
             showToast={showToast}
           />
         )}

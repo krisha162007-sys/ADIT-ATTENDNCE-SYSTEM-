@@ -4577,6 +4577,85 @@ function ManageMaster({ showToast }) {
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Save, { size: 16 }), " Save Subject"))))));
 }
+function FacultyEditModal({ faculty, departments, onClose, onSave, showToast }) {
+  const [formData, setFormData] = useState({
+    id: faculty?.id || "",
+    name: faculty?.name || "",
+    dept: faculty?.dept || (departments[0]?.name || "AI & Data Science"),
+    designation: faculty?.designation || "Associate Professor",
+    email: faculty?.email || "",
+    phone: faculty?.phone || "",
+    subjects: faculty?.subjects || ""
+  });
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      alert("Faculty name is required.");
+      return;
+    }
+    onSave(formData);
+    if (showToast) showToast(`Faculty details updated for ${formData.name}`);
+    onClose();
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "520px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 20 }), faculty?.id ? "Edit Faculty Details" : "Add Faculty Member"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 14, style: { color: "var(--blue-primary)" } }), "Faculty Name *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. Prof. Priya Shah",
+      value: formData.name,
+      onChange: (e) => setFormData({ ...formData, name: e.target.value }),
+      required: true
+    }
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Department"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: formData.dept,
+      onChange: (e) => setFormData({ ...formData, dept: e.target.value })
+    },
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Briefcase, { size: 14, style: { color: "var(--blue-primary)" } }), "Designation"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: formData.designation,
+      onChange: (e) => setFormData({ ...formData, designation: e.target.value })
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "Professor & HOD" }, "Professor & HOD"),
+    /* @__PURE__ */ React.createElement("option", { value: "Professor" }, "Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Associate Professor" }, "Associate Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Assistant Professor" }, "Assistant Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Adjunct Faculty" }, "Adjunct Faculty")
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Mail, { size: 14, style: { color: "var(--blue-primary)" } }), "Official Email"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "email",
+      className: "form-control",
+      placeholder: "e.g. priya.shah@adit.ac.in",
+      value: formData.email,
+      onChange: (e) => setFormData({ ...formData, email: e.target.value })
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Phone, { size: 14, style: { color: "var(--blue-primary)" } }), "Contact Phone"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. 9825011111",
+      value: formData.phone,
+      onChange: (e) => setFormData({ ...formData, phone: e.target.value })
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "var(--blue-primary)" } }), "Subjects Handled (comma-separated)"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. DBMS, Data Structures, Python",
+      value: formData.subjects,
+      onChange: (e) => setFormData({ ...formData, subjects: e.target.value })
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " ", formData.id ? "Save Changes" : "Save Faculty")))));
+}
 function SlotEditModal({
   day: initialDay,
   timeSlot: initialTimeSlot,
@@ -5161,10 +5240,981 @@ function TimetableUploadModal({
     " Apply & Sync Timetable"
   ))));
 }
+function FacultyTimetablePanel({
+  departments,
+  faculties,
+  subjects,
+  onSaveFaculty,
+  onSwitchToClassTimetable,
+  showToast
+}) {
+  const [selectedDept, setSelectedDept] = useState("AI & Data Science");
+  const [selectedSem, setSelectedSem] = useState("3rd Semester");
+  const [selectedWeek, setSelectedWeek] = useState("Current Week");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFacultyId, setSelectedFacultyId] = useState("FAC_PS");
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditFacultyModal, setShowEditFacultyModal] = useState(false);
+  const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [activeSlotData, setActiveSlotData] = useState(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copyTargetFacultyId, setCopyTargetFacultyId] = useState("");
+  const [showUploadDropdown, setShowUploadDropdown] = useState(false);
+  const [showWeekDropdown, setShowWeekDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const deptFaculties = useMemo(() => {
+    return faculties.filter((f) => {
+      const matchDept = !f.dept || f.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4));
+      const q = searchQuery.toLowerCase().trim();
+      const matchQuery = !q || f.name.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.email && f.email.toLowerCase().includes(q);
+      return matchDept && matchQuery;
+    });
+  }, [faculties, selectedDept, searchQuery]);
+  const currentFaculty = useMemo(() => {
+    return deptFaculties.find((f) => f.id === selectedFacultyId) || faculties.find((f) => f.id === selectedFacultyId) || deptFaculties[0] || faculties[0] || {
+      id: "FAC_PS",
+      name: "Prof. Priya Shah",
+      dept: "AI & Data Science",
+      email: "priya.shah@adit.ac.in",
+      subjects: "DBMS, Data Structures"
+    };
+  }, [deptFaculties, faculties, selectedFacultyId]);
+  const [timetable, setTimetable] = useState(() => getFacultyTimetable(currentFaculty?.id || "FAC_PS"));
+  React.useEffect(() => {
+    if (currentFaculty?.id) {
+      setTimetable(getFacultyTimetable(currentFaculty.id));
+    }
+  }, [currentFaculty?.id]);
+  React.useEffect(() => {
+    const handleSync = () => {
+      if (currentFaculty?.id) {
+        setTimetable(getFacultyTimetable(currentFaculty.id));
+      }
+    };
+    window.addEventListener("adit-timetable-synced", handleSync);
+    return () => {
+      window.removeEventListener("adit-timetable-synced", handleSync);
+    };
+  }, [currentFaculty?.id]);
+  const summary = useMemo(() => {
+    return calculateTimetableSummary(timetable);
+  }, [timetable]);
+  const departmentSubjects = useMemo(() => {
+    return subjects.filter((s) => {
+      const matchDept = !s.dept || s.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4));
+      return matchDept;
+    });
+  }, [subjects, selectedDept]);
+  const getInitials = (name) => {
+    if (!name) return "FC";
+    const parts = name.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  };
+  const handleCellClick = (day, timeSlot) => {
+    const existing = timetable[day]?.[timeSlot] || null;
+    setActiveSlotData({ day, timeSlot, existingSlot: existing });
+    setShowSlotModal(true);
+  };
+  const handleSaveSlot = (day, timeSlot, slotData) => {
+    const updated = updateFacultySlot(currentFaculty.id, day, timeSlot, slotData);
+    setTimetable({ ...updated });
+    if (showToast) showToast(`Saved ${slotData.subject} for ${day} ${timeSlot}`);
+    setShowSlotModal(false);
+  };
+  const handleClearSlot = (day, timeSlot) => {
+    const updated = clearFacultySlot(currentFaculty.id, day, timeSlot);
+    setTimetable({ ...updated });
+  };
+  const handleExecuteCopy = () => {
+    if (!copyTargetFacultyId) {
+      alert("Please select a target faculty to copy this timetable to.");
+      return;
+    }
+    copyFacultyTimetable(currentFaculty.id, copyTargetFacultyId);
+    const targetFac = faculties.find((f) => f.id === copyTargetFacultyId);
+    if (showToast) showToast(`Timetable copied to ${targetFac?.name || "faculty"}!`);
+    setShowCopyModal(false);
+  };
+  const handlePrint = () => {
+    window.print();
+  };
+  const renderSlotCard = (slot) => {
+    if (!slot || !slot.subject) return "-";
+    const color = slot.color || getSubjectColor(slot.subject);
+    const colorStyles = {
+      purple: { bg: "#f3e8ff", border: "#e9d5ff", text: "#581c87", subText: "#6b21a8" },
+      // DBMS
+      green: { bg: "#dcfce7", border: "#bbf7d0", text: "#14532d", subText: "#15803d" },
+      // DS
+      coral: { bg: "#ffe4e6", border: "#fecdd3", text: "#881337", subText: "#9f1239" },
+      // Python
+      blue: { bg: "#e0f2fe", border: "#bae6fd", text: "#075985", subText: "#0369a1" },
+      // Seminar
+      amber: { bg: "#fef3c7", border: "#fde68a", text: "#78350f", subText: "#b45309" },
+      // Math
+      cyan: { bg: "#cffafe", border: "#a5f3fc", text: "#164e63", subText: "#0e7490" },
+      indigo: { bg: "#e0e7ff", border: "#c7d2fe", text: "#312e81", subText: "#4338ca" }
+    };
+    const style = colorStyles[color] || colorStyles.blue;
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          backgroundColor: style.bg,
+          border: `1px solid ${style.border}`,
+          borderRadius: "8px",
+          padding: "6px 8px",
+          textAlign: "center",
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+        },
+        className: "timetable-cell-badge"
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", fontSize: "13px", color: style.text, lineHeight: 1.2 } }, slot.subject),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px" } }, slot.sem || "3rd Sem", " \u2022 ", slot.div || "Div 1"),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, opacity: 0.85, marginTop: "1px" } }, slot.room || "Room 201")
+    );
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "faculty-timetables-view" }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "12px",
+        paddingBottom: "20px",
+        borderBottom: "1px solid #e2e8f0",
+        marginBottom: "24px"
+      },
+      className: "no-print"
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: {
+      display: "flex",
+      alignItems: "center",
+      backgroundColor: "white",
+      borderRadius: "9999px",
+      border: "1px solid #cbd5e1",
+      padding: "6px 16px",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+    } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", color: "#64748b", fontWeight: "600", marginRight: "6px" } }, "Department:"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        value: selectedDept,
+        onChange: (e) => {
+          setSelectedDept(e.target.value);
+          const facInDept = faculties.filter((f) => f.dept?.toLowerCase().includes(e.target.value.toLowerCase().slice(0, 4)));
+          if (facInDept.length > 0) setSelectedFacultyId(facInDept[0].id);
+        },
+        style: {
+          border: "none",
+          background: "transparent",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          color: "#0f172a",
+          cursor: "pointer",
+          outline: "none"
+        }
+      },
+      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
+    )), /* @__PURE__ */ React.createElement("div", { style: {
+      display: "flex",
+      alignItems: "center",
+      backgroundColor: "white",
+      borderRadius: "9999px",
+      border: "1px solid #cbd5e1",
+      padding: "6px 16px",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+    } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", color: "#64748b", fontWeight: "600", marginRight: "6px" } }, "Semester:"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        value: selectedSem,
+        onChange: (e) => setSelectedSem(e.target.value),
+        style: {
+          border: "none",
+          background: "transparent",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          color: "#0f172a",
+          cursor: "pointer",
+          outline: "none"
+        }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "1st Semester" }, "1st Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "2nd Semester" }, "2nd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "3rd Semester" }, "3rd Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "4th Semester" }, "4th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "5th Semester" }, "5th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "6th Semester" }, "6th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "7th Semester" }, "7th Semester"),
+      /* @__PURE__ */ React.createElement("option", { value: "8th Semester" }, "8th Semester")
+    ))),
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px" } }, onSwitchToClassTimetable && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onSwitchToClassTimetable,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "7px 15px",
+          borderRadius: "8px",
+          border: "1px solid #bfdbfe",
+          backgroundColor: "#eff6ff",
+          color: "#2563eb",
+          fontWeight: "700",
+          fontSize: "13px",
+          cursor: "pointer",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Calendar, { size: 14 }),
+      /* @__PURE__ */ React.createElement("span", null, "Switch to Class Timetable"),
+      /* @__PURE__ */ React.createElement(ArrowRight, { size: 14 })
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        style: {
+          position: "relative",
+          background: "white",
+          border: "1px solid #e2e8f0",
+          borderRadius: "50%",
+          width: "40px",
+          height: "40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          color: "#475569"
+        },
+        title: "Notifications"
+      },
+      /* @__PURE__ */ React.createElement(Bell, { size: 18 }),
+      /* @__PURE__ */ React.createElement(
+        "span",
+        {
+          style: {
+            position: "absolute",
+            top: "7px",
+            right: "7px",
+            width: "8px",
+            height: "8px",
+            backgroundColor: "#ef4444",
+            borderRadius: "50%",
+            border: "2px solid white"
+          }
+        }
+      )
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          backgroundColor: "white",
+          border: "1px solid #e2e8f0",
+          borderRadius: "9999px",
+          padding: "4px 14px 4px 6px",
+          cursor: "pointer"
+        }
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            backgroundColor: "#93c5fd",
+            color: "#1e3a8a",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "800",
+            fontSize: "14px"
+          }
+        },
+        "A"
+      ),
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13.5px", fontWeight: "700", color: "#1e293b" } }, "Admin"),
+      /* @__PURE__ */ React.createElement(ChevronDown, { size: 14, style: { color: "#64748b" } })
+    ))
+  ), /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        flexWrap: "wrap",
+        gap: "16px",
+        marginBottom: "24px"
+      },
+      className: "no-print"
+    },
+    /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", letterSpacing: "-0.02em" } }, "Faculty Timetables"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "View, edit and manage individual faculty timetables.")),
+    /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: () => setShowUploadModal(true),
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          backgroundColor: "#2563eb",
+          color: "white",
+          borderRadius: "8px",
+          padding: "10px 18px",
+          fontWeight: "700",
+          fontSize: "13.5px",
+          border: "none",
+          boxShadow: "0 2px 6px rgba(37, 99, 235, 0.35)"
+        }
+      },
+      /* @__PURE__ */ React.createElement(UploadCloud, { size: 16 }),
+      /* @__PURE__ */ React.createElement("span", null, "Upload Timetable"),
+      /* @__PURE__ */ React.createElement(ChevronDown, { size: 14, style: { marginLeft: "4px" } })
+    ))
+  ), /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "310px minmax(0, 1fr)",
+        gap: "24px",
+        alignItems: "start"
+      },
+      className: "faculty-grid-layout"
+    },
+    /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          backgroundColor: "white",
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          padding: "20px 16px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+        },
+        className: "no-print"
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { position: "relative", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement(
+        Search,
+        {
+          size: 16,
+          style: {
+            position: "absolute",
+            left: "12px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#94a3b8"
+          }
+        }
+      ), /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "text",
+          placeholder: "Search faculty...",
+          value: searchQuery,
+          onChange: (e) => setSearchQuery(e.target.value),
+          style: {
+            width: "100%",
+            padding: "9px 12px 9px 36px",
+            borderRadius: "8px",
+            border: "1px solid #e2e8f0",
+            fontSize: "13px",
+            outline: "none",
+            backgroundColor: "#f8fafc",
+            transition: "all 0.2s ease"
+          }
+        }
+      )),
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px", maxHeight: "680px", overflowY: "auto" } }, deptFaculties.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "36px 14px", color: "#64748b", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("div", { style: {
+        width: "44px",
+        height: "44px",
+        borderRadius: "50%",
+        backgroundColor: "#f1f5f9",
+        color: "#64748b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        margin: "0 auto 12px auto"
+      } }, /* @__PURE__ */ React.createElement(Users, { size: 22 })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: "#334155", marginBottom: "4px" } }, "No faculty member found"), searchQuery ? /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#94a3b8", marginBottom: "14px" } }, 'No results matching "', searchQuery, '"') : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#94a3b8", marginBottom: "14px" } }, "No faculty found in ", selectedDept), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-primary btn-sm",
+          onClick: () => setShowAddFacultyModal(true),
+          style: {
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            margin: "4px auto 0 auto",
+            fontWeight: "700",
+            padding: "8px 16px",
+            borderRadius: "8px",
+            backgroundColor: "#2563eb",
+            color: "white",
+            boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)"
+          }
+        },
+        /* @__PURE__ */ React.createElement(Plus, { size: 15 }),
+        /* @__PURE__ */ React.createElement("span", null, "Add Faculty")
+      )) : deptFaculties.map((fac) => {
+        const isSelected = fac.id === currentFaculty.id;
+        const initials = getInitials(fac.name);
+        return /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            key: fac.id,
+            onClick: () => setSelectedFacultyId(fac.id),
+            style: {
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: isSelected ? "1.5px solid #2563eb" : "1px solid #f1f5f9",
+              backgroundColor: isSelected ? "#eff6ff" : "white",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+              boxShadow: isSelected ? "0 2px 6px rgba(37, 99, 235, 0.08)" : "none"
+            },
+            className: "faculty-list-item"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", minWidth: 0 } }, /* @__PURE__ */ React.createElement(
+            "div",
+            {
+              style: {
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                backgroundColor: isSelected ? "#dbeafe" : "#e2e8f0",
+                color: isSelected ? "#1d4ed8" : "#475569",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "800",
+                fontSize: "13.5px",
+                flexShrink: 0
+              }
+            },
+            initials
+          ), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: {
+            fontSize: "13.5px",
+            fontWeight: "700",
+            color: "#0f172a",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis"
+          } }, fac.name), /* @__PURE__ */ React.createElement("div", { style: {
+            fontSize: "11.5px",
+            color: "#64748b",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            marginTop: "2px"
+          } }, fac.subjects || fac.designation || "Faculty"))),
+          /* @__PURE__ */ React.createElement(
+            "button",
+            {
+              type: "button",
+              style: {
+                padding: "4px 12px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                fontWeight: "700",
+                border: isSelected ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
+                backgroundColor: isSelected ? "white" : "#f8fafc",
+                color: isSelected ? "#2563eb" : "#475569",
+                cursor: "pointer"
+              }
+            },
+            "View"
+          )
+        );
+      }))
+    ),
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "20px", minWidth: 0 } }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          backgroundColor: "white",
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          padding: "24px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+        }
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "16px" } }, /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            width: "60px",
+            height: "60px",
+            borderRadius: "50%",
+            backgroundColor: "#dbeafe",
+            color: "#1e40af",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "800",
+            fontSize: "20px"
+          }
+        },
+        getInitials(currentFaculty.name)
+      ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "20px", fontWeight: "800", color: "#0f172a" } }, currentFaculty.name), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", color: "#64748b" } }, currentFaculty.designation || "Faculty Member"))), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "btn btn-secondary btn-sm no-print",
+          onClick: () => setShowEditFacultyModal(true),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            borderRadius: "8px",
+            padding: "7px 14px",
+            fontSize: "12.5px",
+            fontWeight: "700",
+            color: "#1e293b"
+          }
+        },
+        /* @__PURE__ */ React.createElement(Edit3, { size: 14 }),
+        " Edit Details"
+      )),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "16px",
+            marginTop: "20px",
+            paddingTop: "16px",
+            borderTop: "1px solid #f1f5f9"
+          }
+        },
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Department"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.dept || selectedDept))),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Subjects"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.subjects || "DBMS, Data Structures"))),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Mail, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Email"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.email || `${currentFaculty.name.toLowerCase().replace(/[^a-z]/g, "")}@adit.ac.in`)))
+      )
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          backgroundColor: "white",
+          borderRadius: "16px",
+          border: "1px solid #e2e8f0",
+          padding: "24px",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+        }
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+            marginBottom: "18px"
+          }
+        },
+        /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, "Timetable"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Click on a cell to edit.")),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" }, className: "no-print" }, /* @__PURE__ */ React.createElement("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          backgroundColor: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: "8px",
+          padding: "3px"
+        } }, /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "btn-icon",
+            style: { background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: "#64748b" }
+          },
+          /* @__PURE__ */ React.createElement(ChevronLeft, { size: 16 })
+        ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "0 8px", color: "#1e293b" } }, selectedWeek), /* @__PURE__ */ React.createElement(ChevronDown, { size: 13, style: { color: "#94a3b8", marginRight: "4px" } }), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            className: "btn-icon",
+            style: { background: "none", border: "none", padding: "4px 8px", cursor: "pointer", color: "#64748b" }
+          },
+          /* @__PURE__ */ React.createElement(ChevronRight, { size: 16 })
+        )), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: handlePrint,
+            className: "btn btn-secondary btn-sm",
+            style: {
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              borderRadius: "8px",
+              padding: "7px 14px",
+              fontSize: "12.5px",
+              fontWeight: "700"
+            }
+          },
+          /* @__PURE__ */ React.createElement(Printer, { size: 14 }),
+          " Print"
+        ))
+      ),
+      /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((slotTime) => {
+        const isLunch = slotTime === "12:40 - 1:25";
+        if (isLunch) {
+          return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b", whiteSpace: "nowrap" } }, slotTime), /* @__PURE__ */ React.createElement(
+            "td",
+            {
+              colSpan: 6,
+              style: {
+                padding: "8px",
+                letterSpacing: "0.1em",
+                fontWeight: "800",
+                color: "#64748b",
+                textTransform: "uppercase",
+                fontSize: "11.5px",
+                backgroundColor: "#e2e8f0"
+              }
+            },
+            "LUNCH BREAK"
+          ));
+        }
+        return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: {
+          padding: "10px 14px",
+          textAlign: "left",
+          fontWeight: "700",
+          color: "#475569",
+          whiteSpace: "nowrap",
+          backgroundColor: "#fcfdfe",
+          borderRight: "1px solid #f1f5f9"
+        } }, slotTime), TIMETABLE_DAYS.map((day) => {
+          const slot = timetable[day]?.[slotTime];
+          return /* @__PURE__ */ React.createElement(
+            "td",
+            {
+              key: day,
+              onClick: () => handleCellClick(day, slotTime),
+              style: {
+                padding: "6px",
+                borderRight: "1px solid #f1f5f9",
+                height: "62px",
+                verticalAlign: "middle",
+                cursor: "pointer",
+                transition: "background-color 0.15s ease",
+                width: "14.6%"
+              },
+              className: "timetable-cell-interactive",
+              title: `Click to edit ${day} at ${slotTime}`
+            },
+            slot ? renderSlotCard(slot) : /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8", fontWeight: "500" } }, "-")
+          );
+        }));
+      }))))
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          gap: "20px",
+          alignItems: "stretch"
+        },
+        className: "no-print timetable-bottom-widgets"
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            backgroundColor: "white",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            padding: "20px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+          }
+        },
+        /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14px", fontWeight: "800", color: "#0f172a", marginBottom: "14px" } }, "Quick Actions"),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: () => {
+              setActiveSlotData({ day: "Monday", timeSlot: "9:00 - 9:55", existingSlot: null });
+              setShowSlotModal(true);
+            },
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "12px 6px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "white",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
+            },
+            className: "quick-action-btn"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: {
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          } }, /* @__PURE__ */ React.createElement(Plus, { size: 16 })),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Add Lecture")
+        ), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: () => setShowCopyModal(true),
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "12px 6px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "white",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
+            },
+            className: "quick-action-btn"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: {
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          } }, /* @__PURE__ */ React.createElement(Copy, { size: 15 })),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Copy Timetable")
+        ), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: () => {
+              const daysWithSlots = TIMETABLE_DAYS.filter((d) => Object.keys(timetable[d] || {}).length > 0);
+              if (daysWithSlots.length === 0) {
+                alert("Timetable is already empty.");
+                return;
+              }
+              if (window.confirm(`Clear all scheduled slots for ${currentFaculty.name}?`)) {
+                saveFacultyTimetable(currentFaculty.id, {});
+                setTimetable({});
+                if (showToast) showToast("All slots cleared for " + currentFaculty.name);
+              }
+            },
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "12px 6px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "white",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
+            },
+            className: "quick-action-btn"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: {
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            backgroundColor: "#fff1f2",
+            color: "#e11d48",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          } }, /* @__PURE__ */ React.createElement(Trash2, { size: 15 })),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Clear Slot")
+        ), /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onClick: handlePrint,
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "12px 6px",
+              borderRadius: "10px",
+              border: "1px solid #e2e8f0",
+              backgroundColor: "white",
+              cursor: "pointer",
+              transition: "all 0.15s ease"
+            },
+            className: "quick-action-btn"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: {
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          } }, /* @__PURE__ */ React.createElement(Download, { size: 15 })),
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Download PDF")
+        ))
+      ),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          style: {
+            backgroundColor: "white",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            padding: "20px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.03)"
+          }
+        },
+        /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14px", fontWeight: "800", color: "#0f172a", marginBottom: "14px" } }, "Summary"),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: {
+          padding: "12px 8px",
+          borderRadius: "10px",
+          border: "1px solid #e2e8f0",
+          textAlign: "center",
+          backgroundColor: "#f8fafc"
+        } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18, style: { color: "#2563eb", margin: "0 auto 4px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, summary.subjectCount), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "600" } }, "Subjects")), /* @__PURE__ */ React.createElement("div", { style: {
+          padding: "12px 8px",
+          borderRadius: "10px",
+          border: "1px solid #e2e8f0",
+          textAlign: "center",
+          backgroundColor: "#f8fafc"
+        } }, /* @__PURE__ */ React.createElement(Layers, { size: 18, style: { color: "#2563eb", margin: "0 auto 4px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, summary.totalLectures), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "600" } }, "Total Lectures")), /* @__PURE__ */ React.createElement("div", { style: {
+          padding: "12px 8px",
+          borderRadius: "10px",
+          border: "1px solid #e2e8f0",
+          textAlign: "center",
+          backgroundColor: "#f8fafc"
+        } }, /* @__PURE__ */ React.createElement(Calendar, { size: 18, style: { color: "#2563eb", margin: "0 auto 4px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, summary.activeDays), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "600" } }, "Active Days")))
+      )
+    ))
+  ), showUploadModal && /* @__PURE__ */ React.createElement(
+    TimetableUploadModal,
+    {
+      selectedFaculty: currentFaculty,
+      departmentName: selectedDept,
+      semesterName: selectedSem,
+      onClose: () => setShowUploadModal(false),
+      onTimetableUpdated: (newTt, uploadedFacultyId) => {
+        const targetId = uploadedFacultyId || currentFaculty.id;
+        const refreshed = getFacultyTimetable(targetId);
+        setTimetable({ ...refreshed });
+        if (uploadedFacultyId && uploadedFacultyId !== selectedFacultyId) {
+          setSelectedFacultyId(uploadedFacultyId);
+        }
+      },
+      showToast
+    }
+  ), showEditFacultyModal && /* @__PURE__ */ React.createElement(
+    FacultyEditModal,
+    {
+      faculty: currentFaculty,
+      departments,
+      onClose: () => setShowEditFacultyModal(false),
+      onSave: (updatedData) => {
+        onSaveFaculty(updatedData);
+      },
+      showToast
+    }
+  ), showAddFacultyModal && /* @__PURE__ */ React.createElement(
+    FacultyEditModal,
+    {
+      faculty: {
+        name: searchQuery.trim(),
+        dept: selectedDept,
+        designation: "Assistant Professor",
+        email: "",
+        phone: "",
+        subjects: ""
+      },
+      departments,
+      onClose: () => setShowAddFacultyModal(false),
+      onSave: (formData) => {
+        const updatedFacs = saveFaculty(formData);
+        const newlyCreated = updatedFacs.find((f) => f.name.toLowerCase() === formData.name.toLowerCase()) || updatedFacs[updatedFacs.length - 1];
+        if (onSaveFaculty) {
+          onSaveFaculty(newlyCreated || formData);
+        }
+        if (newlyCreated?.id) {
+          setSelectedFacultyId(newlyCreated.id);
+        }
+        setSearchQuery(formData.name);
+        setShowAddFacultyModal(false);
+        if (showToast) showToast(`Faculty "${formData.name}" added successfully!`);
+      },
+      showToast
+    }
+  ), showSlotModal && activeSlotData && /* @__PURE__ */ React.createElement(
+    SlotEditModal,
+    {
+      day: activeSlotData.day,
+      timeSlot: activeSlotData.timeSlot,
+      existingSlot: activeSlotData.existingSlot,
+      availableSubjects: departmentSubjects,
+      availableFaculties: deptFaculties,
+      departmentName: selectedDept,
+      semesterName: selectedSem,
+      onClose: () => setShowSlotModal(false),
+      onSave: handleSaveSlot,
+      onClear: handleClearSlot,
+      showToast
+    }
+  ), showCopyModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "440px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(Copy, { size: 18 }), "Copy Timetable"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowCopyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b" } }, "Copy the complete weekly schedule of ", /* @__PURE__ */ React.createElement("strong", null, currentFaculty.name), " (", summary.totalLectures, " lectures) to another faculty:"), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Target Faculty Member"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: copyTargetFacultyId,
+      onChange: (e) => setCopyTargetFacultyId(e.target.value)
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Choose Target Faculty --"),
+    faculties.filter((f) => f.id !== currentFaculty.id).map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id }, f.name, " (", f.dept, ")"))
+  ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowCopyModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary",
+      onClick: handleExecuteCopy,
+      disabled: !copyTargetFacultyId
+    },
+    /* @__PURE__ */ React.createElement(Check, { size: 16 }),
+    " Copy Timetable"
+  )))));
+}
 function ClassTimetablePanel({
   departments = [],
   faculties = [],
   subjects = [],
+  onSwitchToFacultyTimetable,
   showToast
 }) {
   const [selectedDept, setSelectedDept] = useState("AI & Data Science");
@@ -5358,7 +6408,31 @@ function ClassTimetablePanel({
         },
         divOption
       );
-    })))
+    }))),
+    onSwitchToFacultyTimetable && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: onSwitchToFacultyTimetable,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          border: "1px solid #bfdbfe",
+          backgroundColor: "#eff6ff",
+          color: "#2563eb",
+          fontWeight: "700",
+          fontSize: "13px",
+          cursor: "pointer",
+          transition: "all 0.15s ease"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Users, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "Switch to Faculty Timetables"),
+      /* @__PURE__ */ React.createElement(ArrowRight, { size: 14 })
+    )
   ), /* @__PURE__ */ React.createElement(
     "div",
     {
@@ -6829,7 +7903,7 @@ function DepartmentAdminPanel({
         style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700" }
       },
       /* @__PURE__ */ React.createElement(Calendar, { size: 14 }),
-      " Open Class Timetables"
+      " Open Faculty Timetables"
     ))
   ), /* @__PURE__ */ React.createElement(
     "div",
@@ -7363,7 +8437,7 @@ function DepartmentAdminPanel({
   ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowAddLabModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Laboratory"))))));
 }
 function AdminPanel({ showToast, onExit }) {
-  const [adminTab, setAdminTab] = useState("dashboard");
+  const [adminTab, setAdminTab] = useState("faculty");
   const [departments, setDepartments] = useState(getDepartments());
   const [subjects, setSubjects] = useState(getSubjects());
   const [faculties, setFaculties] = useState(getFaculties());
@@ -7382,6 +8456,7 @@ function AdminPanel({ showToast, onExit }) {
   const [pinChangeMsg, setPinChangeMsg] = useState("");
   const adminMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "faculty", label: "Faculty Timetables", icon: Users },
     { id: "class-timetables", label: "Class Timetables", icon: Layers },
     { id: "classes", label: "Classes", icon: GraduationCap },
     { id: "subjects", label: "Subjects", icon: BookOpen },
@@ -7503,12 +8578,23 @@ function AdminPanel({ showToast, onExit }) {
     },
     /* @__PURE__ */ React.createElement(LogOut, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Logout")
-  ))), /* @__PURE__ */ React.createElement("div", { className: "admin-main-viewport" }, adminTab === "class-timetables" && /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { className: "admin-main-viewport" }, adminTab === "faculty" && /* @__PURE__ */ React.createElement(
+    FacultyTimetablePanel,
+    {
+      departments,
+      faculties,
+      subjects,
+      onSaveFaculty: handleSaveFaculty,
+      onSwitchToClassTimetable: () => setAdminTab("class-timetables"),
+      showToast
+    }
+  ), adminTab === "class-timetables" && /* @__PURE__ */ React.createElement(
     ClassTimetablePanel,
     {
       departments,
       faculties,
       subjects,
+      onSwitchToFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
   ), adminTab === "classes" && /* @__PURE__ */ React.createElement(
@@ -7532,10 +8618,10 @@ function AdminPanel({ showToast, onExit }) {
     "button",
     {
       className: "btn btn-primary btn-sm",
-      onClick: () => setAdminTab("class-timetables"),
+      onClick: () => setAdminTab("faculty"),
       style: { display: "flex", alignItems: "center", gap: "6px" }
     },
-    /* @__PURE__ */ React.createElement("span", null, "Open Class Timetables"),
+    /* @__PURE__ */ React.createElement("span", null, "Open Faculty Timetables"),
     /* @__PURE__ */ React.createElement(ArrowRight, { size: 14 })
   )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" } }, departments.map((d) => {
     const facCount = faculties.filter((f) => f.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
@@ -7561,7 +8647,7 @@ function AdminPanel({ showToast, onExit }) {
           type: "button",
           onClick: () => {
             setActiveDept(d.name);
-            setAdminTab("class-timetables");
+            setAdminTab("faculty");
           },
           style: {
             marginTop: "16px",
@@ -7586,10 +8672,10 @@ function AdminPanel({ showToast, onExit }) {
     "button",
     {
       className: "btn btn-secondary btn-sm",
-      onClick: () => setAdminTab("class-timetables")
+      onClick: () => setAdminTab("faculty")
     },
-    /* @__PURE__ */ React.createElement(Layers, { size: 14 }),
-    " Class Timetables"
+    /* @__PURE__ */ React.createElement(Users, { size: 14 }),
+    " Individual Faculty Timetables"
   ), /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -7634,10 +8720,10 @@ function AdminPanel({ showToast, onExit }) {
       selectedFaculty: faculties[0],
       departmentName: activeDept,
       semesterName: activeSem,
-      onClose: () => setAdminTab("class-timetables"),
+      onClose: () => setAdminTab("faculty"),
       onTimetableUpdated: () => {
         if (showToast) showToast("Timetable successfully loaded!");
-        setAdminTab("class-timetables");
+        setAdminTab("faculty");
       },
       showToast
     }
@@ -7678,7 +8764,7 @@ function AdminPanel({ showToast, onExit }) {
   ))))))))), adminTab === "departments" && /* @__PURE__ */ React.createElement(
     DepartmentAdminPanel,
     {
-      onOpenFacultyTimetable: () => setAdminTab("class-timetables"),
+      onOpenFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
   ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 18, style: { color: "#2563eb" } }), "Change Admin Security PIN"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Default PIN code is ", /* @__PURE__ */ React.createElement("strong", null, "1234"), "."), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinUpdate, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Current PIN"), /* @__PURE__ */ React.createElement(
