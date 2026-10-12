@@ -76,6 +76,7 @@ export const saveTimetableEntry = (entry) => {
     entries.push(entry);
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
   return entry;
 };
 
@@ -83,6 +84,7 @@ export const deleteTimetableEntry = (id) => {
   let entries = getTimetableEntries();
   entries = entries.filter(e => e.id !== id);
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
 };
 
 export const clearAllEntries = () => {
@@ -120,6 +122,7 @@ export const replaceFacultyInEntries = (oldFacultyId, newFacultyId, newFacultyNa
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 
@@ -134,6 +137,7 @@ export const updateFacultyNameInEntries = (facultyId, newName) => {
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 
@@ -149,6 +153,7 @@ export const updateSubjectInEntries = (subjectId, updates) => {
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 
@@ -157,6 +162,7 @@ export const deleteEntriesForFaculty = (facultyId) => {
   const filtered = entries.filter(e => e.facultyId !== facultyId);
   if (filtered.length !== entries.length) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+    notifyTimetableSync();
   }
 };
 
@@ -165,6 +171,7 @@ export const deleteEntriesForSubject = (subjectId) => {
   const filtered = entries.filter(e => e.subjectId !== subjectId);
   if (filtered.length !== entries.length) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+    notifyTimetableSync();
   }
 };
 

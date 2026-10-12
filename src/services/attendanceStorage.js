@@ -11,6 +11,8 @@ const STORAGE_KEYS = {
   FACULTIES: 'adit_attendance_faculties',
   DEPARTMENTS: 'adit_attendance_departments',
   ALLOCATIONS: 'adit_attendance_allocations',
+  EXCEPTIONS: 'adit_attendance_exceptions',
+  EXCEPTION_POLICY: 'adit_exception_policy',
 };
 
 // Academic Years Master
@@ -1698,4 +1700,298 @@ export const bulkImportStudents = (newStudentsList, sem, dept, division) => {
   });
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
   return students;
+};
+
+// =========================================================================
+// ATTENDANCE EXCEPTION MANAGEMENT MODULE
+// =========================================================================
+
+export const EXCEPTION_CATEGORIES = [
+  'Sports Tournament',
+  'Technical Competition',
+  'Seminar or Workshop',
+  'Cultural Event',
+  'Official College Duty',
+  'Other Approved Activity'
+];
+
+export const INSTITUTIONAL_POLICIES = {
+  COUNT_ELIGIBLE: 'COUNT_ELIGIBLE',       // Policy B: Approved exceptions count toward attendance eligibility (GTU standard)
+  EXCLUDE_EXCEPTION: 'EXCLUDE_EXCEPTION', // Policy A: Approved exceptions excluded from denominator
+  SEPARATE_ONLY: 'SEPARATE_ONLY'          // Policy C: Exceptions tracked separately, physically present only for percentage
+};
+
+export const DEFAULT_EXCEPTION_POLICY = INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE;
+
+export const DEFAULT_EXCEPTIONS = [
+  {
+    id: 'EXC_SPORT_001',
+    studentId: 'S_AI_02',
+    studentName: 'Bhavya Patel',
+    enrollmentNo: '125020405002',
+    departmentId: 'DEP_AI',
+    departmentName: 'AI & Data Science',
+    semester: '3rd Sem',
+    division: 'Div 1',
+    activityName: 'GTU Inter-College Basketball Championship 2026',
+    category: 'Sports Tournament',
+    startDate: '2026-10-12',
+    endDate: '2026-10-14',
+    reason: 'Selected as Captain for ADIT College Basketball Team for GTU State Level Championship.',
+    documentName: 'gtu_basketball_permission_letter.pdf',
+    documentSize: '1.4 MB',
+    status: 'Approved',
+    submittedBy: 'Prof. Priya Shah',
+    submittedByRole: 'faculty',
+    submittedAt: '2026-10-10T09:30:00.000Z',
+    reviewedBy: 'Administrator',
+    reviewedAt: '2026-10-11T11:00:00.000Z',
+    reviewerRemarks: 'Verified official GTU circular and Principal authorization order attached.',
+    affectedLecturesCount: 4
+  },
+  {
+    id: 'EXC_HACK_002',
+    studentId: 'S_AI_03',
+    studentName: 'Meet Patel',
+    enrollmentNo: '125020405003',
+    departmentId: 'DEP_AI',
+    departmentName: 'AI & Data Science',
+    semester: '3rd Sem',
+    division: 'Div 1',
+    activityName: 'Smart India Hackathon 2026 Grand Finale',
+    category: 'Technical Competition',
+    startDate: '2026-10-15',
+    endDate: '2026-10-17',
+    reason: 'Finalist team representing ADIT in AI & IoT track at nodal center.',
+    documentName: 'sih2026_selection_letter.pdf',
+    documentSize: '2.1 MB',
+    status: 'Pending',
+    submittedBy: 'Prof. Priya Shah',
+    submittedByRole: 'faculty',
+    submittedAt: '2026-10-11T14:15:00.000Z',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewerRemarks: '',
+    affectedLecturesCount: 3
+  }
+];
+
+export const notifyExceptionsSync = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-exceptions-updated'));
+  }
+};
+
+export const getInstitutionalExceptionPolicy = () => {
+  if (typeof localStorage === 'undefined') return DEFAULT_EXCEPTION_POLICY;
+  return localStorage.getItem(STORAGE_KEYS.EXCEPTION_POLICY) || DEFAULT_EXCEPTION_POLICY;
+};
+
+export const setInstitutionalExceptionPolicy = (policy) => {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.EXCEPTION_POLICY, policy);
+  }
+  notifyExceptionsSync();
+  return policy;
+};
+
+export const getExceptions = () => {
+  if (typeof localStorage === 'undefined') return DEFAULT_EXCEPTIONS;
+  const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error('Error parsing exceptions:', e);
+    }
+  }
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(DEFAULT_EXCEPTIONS));
+  return DEFAULT_EXCEPTIONS;
+};
+
+export const calculateOverlappingLectures = (sem, div, deptId, startDateStr, endDateStr) => {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('adit_timetable_entries') : null;
+    const entries = raw ? JSON.parse(raw) : [];
+    const normSem = normalizeSem(sem);
+    const normDiv = normalizeDiv(div);
+    const classEntries = entries.filter(e => {
+      const semMatch = normalizeSem(e.semId || e.sem) === normSem;
+      const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
+      const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
+      return semMatch && divMatch && deptMatch;
+    });
+
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+    
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const affected = [];
+    const curr = new Date(start);
+    let safety = 0;
+    while (curr <= end && safety < 60) {
+      safety++;
+      const dayName = dayNames[curr.getDay()];
+      const dateStr = curr.toISOString().split('T')[0];
+      if (dayName !== 'Sunday') {
+        const dayLectures = classEntries.filter(e => e.day === dayName);
+        dayLectures.forEach(lec => {
+          affected.push({
+            date: dateStr,
+            day: dayName,
+            timeSlot: lec.timeSlot,
+            subjectId: lec.subjectId || lec.subject,
+            subjectName: lec.subjectName || lec.subjectFullName || lec.subject,
+            facultyName: lec.facultyName || 'Faculty',
+            room: lec.room || 'Classroom',
+            entryId: lec.id
+          });
+        });
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return affected;
+  } catch (err) {
+    console.error('Error calculating overlapping lectures:', err);
+    return [];
+  }
+};
+
+export const saveException = (exceptionData, currentUser = null) => {
+  const exceptions = getExceptions();
+  const overlapping = calculateOverlappingLectures(
+    exceptionData.semester,
+    exceptionData.division,
+    exceptionData.departmentId,
+    exceptionData.startDate,
+    exceptionData.endDate
+  );
+
+  const newRecord = {
+    ...exceptionData,
+    id: exceptionData.id || ('EXC_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+    status: exceptionData.status || (currentUser?.role === 'admin' ? 'Approved' : 'Pending'),
+    submittedBy: exceptionData.submittedBy || currentUser?.name || 'Faculty Member',
+    submittedByRole: exceptionData.submittedByRole || currentUser?.role || 'faculty',
+    submittedAt: exceptionData.submittedAt || new Date().toISOString(),
+    overlappingLectures: overlapping,
+    affectedLecturesCount: overlapping.length
+  };
+
+  const idx = exceptions.findIndex(e => e.id === newRecord.id);
+  if (idx !== -1) {
+    exceptions[idx] = newRecord;
+  } else {
+    exceptions.unshift(newRecord);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true, exception: newRecord };
+};
+
+export const updateExceptionStatus = (exceptionId, newStatus, reviewerUser = null, remarks = '') => {
+  // Security check: Only administrators can approve or reject exceptions
+  const userRole = reviewerUser?.role || 'admin';
+  if (userRole !== 'admin') {
+    return {
+      success: false,
+      error: 'Security Error: Only authorized administrators can approve or reject attendance exceptions.'
+    };
+  }
+
+  const exceptions = getExceptions();
+  const idx = exceptions.findIndex(e => e.id === exceptionId);
+  if (idx === -1) {
+    return { success: false, error: 'Exception record not found.' };
+  }
+
+  exceptions[idx].status = newStatus;
+  exceptions[idx].reviewedBy = reviewerUser?.name || 'Administrator';
+  exceptions[idx].reviewedAt = new Date().toISOString();
+  exceptions[idx].reviewerRemarks = remarks || (newStatus === 'Approved' ? 'Approved by Academic Office' : 'Rejected');
+
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true, exception: exceptions[idx] };
+};
+
+export const deleteException = (exceptionId, currentUser = null) => {
+  let exceptions = getExceptions();
+  exceptions = exceptions.filter(e => e.id !== exceptionId);
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true };
+};
+
+export const getExceptionsByStudent = (studentIdOrEnrollment) => {
+  const exceptions = getExceptions();
+  return exceptions.filter(e => 
+    e.studentId === studentIdOrEnrollment || 
+    e.enrollmentNo === String(studentIdOrEnrollment)
+  );
+};
+
+export const isStudentExcusedForSession = (studentId, sessionDate, timeSlot = null, subjectId = null) => {
+  if (!studentId || !sessionDate) return { isExcused: false, exception: null };
+  const exceptions = getExceptions();
+  const approved = exceptions.filter(e => e.status === 'Approved' && e.studentId === studentId);
+  
+  for (const exc of approved) {
+    if (sessionDate >= exc.startDate && sessionDate <= exc.endDate) {
+      return { isExcused: true, exception: exc };
+    }
+  }
+  return { isExcused: false, exception: null };
+};
+
+export const calculateStudentAttendanceWithPolicy = (studentId, classSessions = [], policyOverride = null) => {
+  const policy = policyOverride || getInstitutionalExceptionPolicy();
+  const totalSessions = classSessions.length;
+  let regularPresent = 0;
+  let regularAbsent = 0;
+  let approvedExceptions = 0;
+
+  classSessions.forEach(session => {
+    const rawStatus = (session.records && session.records[studentId]) || (session.students && session.students[studentId]);
+    const isExcusedCheck = isStudentExcusedForSession(studentId, session.date, session.timeSlot || session.time, session.subjectId);
+    
+    if (rawStatus === 'present' || rawStatus === 'late') {
+      regularPresent++;
+    } else if (rawStatus === 'od' || rawStatus === 'exception' || isExcusedCheck.isExcused) {
+      approvedExceptions++;
+    } else if (rawStatus === 'absent') {
+      regularAbsent++;
+    }
+  });
+
+  let percentage = 0;
+  if (totalSessions > 0) {
+    if (policy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
+      // Policy B: Approved exceptions count towards attendance eligibility
+      percentage = Math.min(100, ((regularPresent + approvedExceptions) / totalSessions) * 100);
+    } else if (policy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
+      // Policy A: Approved exceptions are deducted from denominator
+      const effectiveTotal = Math.max(0, totalSessions - approvedExceptions);
+      percentage = effectiveTotal > 0 ? Math.min(100, (regularPresent / effectiveTotal) * 100) : 100;
+    } else {
+      // Policy C: Only regular present counted for percentage; exceptions reported separately
+      percentage = Math.min(100, (regularPresent / totalSessions) * 100);
+    }
+  } else {
+    percentage = 100;
+  }
+
+  const roundedPct = Number(percentage.toFixed(1));
+  return {
+    studentId,
+    totalSessions,
+    regularPresent,
+    regularAbsent,
+    approvedExceptions,
+    percentage: roundedPct,
+    isEligible: roundedPct >= 75,
+    policy
+  };
 };

@@ -8,7 +8,9 @@ const STORAGE_KEYS = {
   DEPARTMENT: "adit_department_name",
   FACULTIES: "adit_attendance_faculties",
   DEPARTMENTS: "adit_attendance_departments",
-  ALLOCATIONS: "adit_attendance_allocations"
+  ALLOCATIONS: "adit_attendance_allocations",
+  EXCEPTIONS: "adit_attendance_exceptions",
+  EXCEPTION_POLICY: "adit_exception_policy"
 };
 const DEFAULT_ACADEMIC_YEAR = "2026-27";
 const ACADEMIC_YEARS = ["2024-25", "2025-26", "2026-27", "2027-28", "2028-29"];
@@ -1486,6 +1488,266 @@ const bulkImportStudents = (newStudentsList, sem, dept, division) => {
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
   return students;
 };
+const EXCEPTION_CATEGORIES = [
+  "Sports Tournament",
+  "Technical Competition",
+  "Seminar or Workshop",
+  "Cultural Event",
+  "Official College Duty",
+  "Other Approved Activity"
+];
+const INSTITUTIONAL_POLICIES = {
+  COUNT_ELIGIBLE: "COUNT_ELIGIBLE",
+  // Policy B: Approved exceptions count toward attendance eligibility (GTU standard)
+  EXCLUDE_EXCEPTION: "EXCLUDE_EXCEPTION",
+  // Policy A: Approved exceptions excluded from denominator
+  SEPARATE_ONLY: "SEPARATE_ONLY"
+  // Policy C: Exceptions tracked separately, physically present only for percentage
+};
+const DEFAULT_EXCEPTION_POLICY = INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE;
+const DEFAULT_EXCEPTIONS = [
+  {
+    id: "EXC_SPORT_001",
+    studentId: "S_AI_02",
+    studentName: "Bhavya Patel",
+    enrollmentNo: "125020405002",
+    departmentId: "DEP_AI",
+    departmentName: "AI & Data Science",
+    semester: "3rd Sem",
+    division: "Div 1",
+    activityName: "GTU Inter-College Basketball Championship 2026",
+    category: "Sports Tournament",
+    startDate: "2026-10-12",
+    endDate: "2026-10-14",
+    reason: "Selected as Captain for ADIT College Basketball Team for GTU State Level Championship.",
+    documentName: "gtu_basketball_permission_letter.pdf",
+    documentSize: "1.4 MB",
+    status: "Approved",
+    submittedBy: "Prof. Priya Shah",
+    submittedByRole: "faculty",
+    submittedAt: "2026-10-10T09:30:00.000Z",
+    reviewedBy: "Administrator",
+    reviewedAt: "2026-10-11T11:00:00.000Z",
+    reviewerRemarks: "Verified official GTU circular and Principal authorization order attached.",
+    affectedLecturesCount: 4
+  },
+  {
+    id: "EXC_HACK_002",
+    studentId: "S_AI_03",
+    studentName: "Meet Patel",
+    enrollmentNo: "125020405003",
+    departmentId: "DEP_AI",
+    departmentName: "AI & Data Science",
+    semester: "3rd Sem",
+    division: "Div 1",
+    activityName: "Smart India Hackathon 2026 Grand Finale",
+    category: "Technical Competition",
+    startDate: "2026-10-15",
+    endDate: "2026-10-17",
+    reason: "Finalist team representing ADIT in AI & IoT track at nodal center.",
+    documentName: "sih2026_selection_letter.pdf",
+    documentSize: "2.1 MB",
+    status: "Pending",
+    submittedBy: "Prof. Priya Shah",
+    submittedByRole: "faculty",
+    submittedAt: "2026-10-11T14:15:00.000Z",
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewerRemarks: "",
+    affectedLecturesCount: 3
+  }
+];
+const notifyExceptionsSync = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-exceptions-updated"));
+  }
+};
+const getInstitutionalExceptionPolicy = () => {
+  if (typeof localStorage === "undefined") return DEFAULT_EXCEPTION_POLICY;
+  return localStorage.getItem(STORAGE_KEYS.EXCEPTION_POLICY) || DEFAULT_EXCEPTION_POLICY;
+};
+const setInstitutionalExceptionPolicy = (policy) => {
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.EXCEPTION_POLICY, policy);
+  }
+  notifyExceptionsSync();
+  return policy;
+};
+const getExceptions = () => {
+  if (typeof localStorage === "undefined") return DEFAULT_EXCEPTIONS;
+  const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error("Error parsing exceptions:", e);
+    }
+  }
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(DEFAULT_EXCEPTIONS));
+  return DEFAULT_EXCEPTIONS;
+};
+const calculateOverlappingLectures = (sem, div, deptId, startDateStr, endDateStr) => {
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("adit_timetable_entries") : null;
+    const entries = raw ? JSON.parse(raw) : [];
+    const normSem = normalizeSem(sem);
+    const normDiv = normalizeDiv(div);
+    const classEntries = entries.filter((e) => {
+      const semMatch = normalizeSem(e.semId || e.sem) === normSem;
+      const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
+      const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
+      return semMatch && divMatch && deptMatch;
+    });
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const affected = [];
+    const curr = new Date(start);
+    let safety = 0;
+    while (curr <= end && safety < 60) {
+      safety++;
+      const dayName = dayNames[curr.getDay()];
+      const dateStr = curr.toISOString().split("T")[0];
+      if (dayName !== "Sunday") {
+        const dayLectures = classEntries.filter((e) => e.day === dayName);
+        dayLectures.forEach((lec) => {
+          affected.push({
+            date: dateStr,
+            day: dayName,
+            timeSlot: lec.timeSlot,
+            subjectId: lec.subjectId || lec.subject,
+            subjectName: lec.subjectName || lec.subjectFullName || lec.subject,
+            facultyName: lec.facultyName || "Faculty",
+            room: lec.room || "Classroom",
+            entryId: lec.id
+          });
+        });
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return affected;
+  } catch (err) {
+    console.error("Error calculating overlapping lectures:", err);
+    return [];
+  }
+};
+const saveException = (exceptionData, currentUser = null) => {
+  const exceptions = getExceptions();
+  const overlapping = calculateOverlappingLectures(
+    exceptionData.semester,
+    exceptionData.division,
+    exceptionData.departmentId,
+    exceptionData.startDate,
+    exceptionData.endDate
+  );
+  const newRecord = {
+    ...exceptionData,
+    id: exceptionData.id || "EXC_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6),
+    status: exceptionData.status || (currentUser?.role === "admin" ? "Approved" : "Pending"),
+    submittedBy: exceptionData.submittedBy || currentUser?.name || "Faculty Member",
+    submittedByRole: exceptionData.submittedByRole || currentUser?.role || "faculty",
+    submittedAt: exceptionData.submittedAt || (/* @__PURE__ */ new Date()).toISOString(),
+    overlappingLectures: overlapping,
+    affectedLecturesCount: overlapping.length
+  };
+  const idx = exceptions.findIndex((e) => e.id === newRecord.id);
+  if (idx !== -1) {
+    exceptions[idx] = newRecord;
+  } else {
+    exceptions.unshift(newRecord);
+  }
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true, exception: newRecord };
+};
+const updateExceptionStatus = (exceptionId, newStatus, reviewerUser = null, remarks = "") => {
+  const userRole = reviewerUser?.role || "admin";
+  if (userRole !== "admin") {
+    return {
+      success: false,
+      error: "Security Error: Only authorized administrators can approve or reject attendance exceptions."
+    };
+  }
+  const exceptions = getExceptions();
+  const idx = exceptions.findIndex((e) => e.id === exceptionId);
+  if (idx === -1) {
+    return { success: false, error: "Exception record not found." };
+  }
+  exceptions[idx].status = newStatus;
+  exceptions[idx].reviewedBy = reviewerUser?.name || "Administrator";
+  exceptions[idx].reviewedAt = (/* @__PURE__ */ new Date()).toISOString();
+  exceptions[idx].reviewerRemarks = remarks || (newStatus === "Approved" ? "Approved by Academic Office" : "Rejected");
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true, exception: exceptions[idx] };
+};
+const deleteException = (exceptionId, currentUser = null) => {
+  let exceptions = getExceptions();
+  exceptions = exceptions.filter((e) => e.id !== exceptionId);
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
+  notifyExceptionsSync();
+  return { success: true };
+};
+const getExceptionsByStudent = (studentIdOrEnrollment) => {
+  const exceptions = getExceptions();
+  return exceptions.filter(
+    (e) => e.studentId === studentIdOrEnrollment || e.enrollmentNo === String(studentIdOrEnrollment)
+  );
+};
+const isStudentExcusedForSession = (studentId, sessionDate, timeSlot = null, subjectId = null) => {
+  if (!studentId || !sessionDate) return { isExcused: false, exception: null };
+  const exceptions = getExceptions();
+  const approved = exceptions.filter((e) => e.status === "Approved" && e.studentId === studentId);
+  for (const exc of approved) {
+    if (sessionDate >= exc.startDate && sessionDate <= exc.endDate) {
+      return { isExcused: true, exception: exc };
+    }
+  }
+  return { isExcused: false, exception: null };
+};
+const calculateStudentAttendanceWithPolicy = (studentId, classSessions = [], policyOverride = null) => {
+  const policy = policyOverride || getInstitutionalExceptionPolicy();
+  const totalSessions = classSessions.length;
+  let regularPresent = 0;
+  let regularAbsent = 0;
+  let approvedExceptions = 0;
+  classSessions.forEach((session) => {
+    const rawStatus = session.records && session.records[studentId] || session.students && session.students[studentId];
+    const isExcusedCheck = isStudentExcusedForSession(studentId, session.date, session.timeSlot || session.time, session.subjectId);
+    if (rawStatus === "present" || rawStatus === "late") {
+      regularPresent++;
+    } else if (rawStatus === "od" || rawStatus === "exception" || isExcusedCheck.isExcused) {
+      approvedExceptions++;
+    } else if (rawStatus === "absent") {
+      regularAbsent++;
+    }
+  });
+  let percentage = 0;
+  if (totalSessions > 0) {
+    if (policy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
+      percentage = Math.min(100, (regularPresent + approvedExceptions) / totalSessions * 100);
+    } else if (policy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
+      const effectiveTotal = Math.max(0, totalSessions - approvedExceptions);
+      percentage = effectiveTotal > 0 ? Math.min(100, regularPresent / effectiveTotal * 100) : 100;
+    } else {
+      percentage = Math.min(100, regularPresent / totalSessions * 100);
+    }
+  } else {
+    percentage = 100;
+  }
+  const roundedPct = Number(percentage.toFixed(1));
+  return {
+    studentId,
+    totalSessions,
+    regularPresent,
+    regularAbsent,
+    approvedExceptions,
+    percentage: roundedPct,
+    isEligible: roundedPct >= 75,
+    policy
+  };
+};
 const TT_STORAGE_KEYS = {
   TIMETABLE: "adit_attendance_timetable",
   TIMETABLE_ENTRIES: "adit_timetable_entries",
@@ -1551,12 +1813,14 @@ const saveTimetableEntry = (entry) => {
     entries.push(entry);
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
   return entry;
 };
 const deleteTimetableEntry = (id) => {
   let entries = getTimetableEntries();
   entries = entries.filter((e) => e.id !== id);
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
 };
 const clearAllEntries = () => {
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
@@ -1588,6 +1852,7 @@ const replaceFacultyInEntries = (oldFacultyId, newFacultyId, newFacultyName) => 
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 const updateFacultyNameInEntries = (facultyId, newName) => {
@@ -1601,6 +1866,7 @@ const updateFacultyNameInEntries = (facultyId, newName) => {
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 const updateSubjectInEntries = (subjectId, updates) => {
@@ -1615,6 +1881,7 @@ const updateSubjectInEntries = (subjectId, updates) => {
   });
   if (changed) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
   }
 };
 const deleteEntriesForFaculty = (facultyId) => {
@@ -1622,6 +1889,7 @@ const deleteEntriesForFaculty = (facultyId) => {
   const filtered = entries.filter((e) => e.facultyId !== facultyId);
   if (filtered.length !== entries.length) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+    notifyTimetableSync();
   }
 };
 const deleteEntriesForSubject = (subjectId) => {
@@ -1629,6 +1897,7 @@ const deleteEntriesForSubject = (subjectId) => {
   const filtered = entries.filter((e) => e.subjectId !== subjectId);
   if (filtered.length !== entries.length) {
     localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+    notifyTimetableSync();
   }
 };
 const checkConflicts = (entry, excludeId = null) => {
@@ -8709,6 +8978,14 @@ function AdminPanel({ showToast, onExit }) {
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [pinChangeMsg, setPinChangeMsg] = useState("");
+  const [adminExceptions, setAdminExceptions] = useState(getExceptions());
+  const [adminExcPolicy, setAdminExcPolicy] = useState(getInstitutionalExceptionPolicy());
+  const [adminExcFilterStatus, setAdminExcFilterStatus] = useState("All");
+  const [adminExcFilterCat, setAdminExcFilterCat] = useState("All");
+  const [adminExcSearch, setAdminExcSearch] = useState("");
+  const [adminExcDept, setAdminExcDept] = useState("All");
+  const [reviewRemarksModal, setReviewRemarksModal] = useState(null);
+  const [viewLecturesModal, setViewLecturesModal] = useState(null);
   const adminMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "faculty", label: "Faculty Timetables", icon: Users },
@@ -8716,6 +8993,7 @@ function AdminPanel({ showToast, onExit }) {
     { id: "classes", label: "Classes", icon: GraduationCap },
     { id: "subjects", label: "Subjects", icon: BookOpen },
     { id: "departments", label: "Departments", icon: Building2 },
+    { id: "exceptions", label: "Attendance Exceptions", icon: Award },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
   const refreshState = () => {
@@ -8724,16 +9002,51 @@ function AdminPanel({ showToast, onExit }) {
     setFaculties(getFaculties());
     setStudents(getStudents());
     setAllocations(getAllocations());
+    setAdminExceptions(getExceptions());
+    setAdminExcPolicy(getInstitutionalExceptionPolicy());
   };
   React.useEffect(() => {
     const handleFacultyUpdated = () => {
       setFaculties([...getFaculties()]);
     };
+    const handleTimetableSynced = () => {
+      setAllocations(getAllocations());
+    };
+    const handleExceptionsUpdated = () => {
+      setAdminExceptions(getExceptions());
+      setAdminExcPolicy(getInstitutionalExceptionPolicy());
+    };
     window.addEventListener("adit-faculty-updated", handleFacultyUpdated);
+    window.addEventListener("adit-timetable-synced", handleTimetableSynced);
+    window.addEventListener("adit-exceptions-updated", handleExceptionsUpdated);
     return () => {
       window.removeEventListener("adit-faculty-updated", handleFacultyUpdated);
+      window.removeEventListener("adit-timetable-synced", handleTimetableSynced);
+      window.removeEventListener("adit-exceptions-updated", handleExceptionsUpdated);
     };
   }, []);
+  const handleReviewException = (exc, newStatus, defaultRemarks = "") => {
+    setReviewRemarksModal({
+      exc,
+      newStatus,
+      remarks: defaultRemarks || (newStatus === "Approved" ? "Verified official documentation. Approved by Principal." : "Documentation incomplete or event not authorized.")
+    });
+  };
+  const handleReviewExceptionConfirm = () => {
+    if (!reviewRemarksModal) return;
+    const res = updateExceptionStatus(
+      reviewRemarksModal.exc.id,
+      reviewRemarksModal.newStatus,
+      { role: "admin", name: "Administrator" },
+      reviewRemarksModal.remarks
+    );
+    if (res.success) {
+      if (showToast) showToast(`Exception ${reviewRemarksModal.newStatus} for ${reviewRemarksModal.exc.studentName}`);
+      setReviewRemarksModal(null);
+    } else {
+      alert(res.error || "Failed to update status.");
+    }
+  };
   const handleSaveFaculty = (facultyData) => {
     const updated = saveFaculty(facultyData);
     updateFacultyNameInEntries(facultyData.id, facultyData.name);
@@ -9022,7 +9335,299 @@ function AdminPanel({ showToast, onExit }) {
       onOpenFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
-  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 18, style: { color: "#2563eb" } }), "Change Admin Security PIN"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Default PIN code is ", /* @__PURE__ */ React.createElement("strong", null, "1234"), "."), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinUpdate, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Current PIN"), /* @__PURE__ */ React.createElement(
+  ), adminTab === "exceptions" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "1400px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" } }, "Official Attendance Exceptions & Approvals"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", margin: 0 } }, "Review, approve, and manage official sports, hackathon, and college duty attendance exceptions.")), /* @__PURE__ */ React.createElement("div", { style: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #bfdbfe",
+    borderRadius: "12px",
+    padding: "12px 18px",
+    boxShadow: "0 2px 6px rgba(37,99,235,0.06)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Award, { size: 18, color: "#2563eb" }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "800", color: "#1e3a8a", textTransform: "uppercase" } }, "Institutional Attendance Policy")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => {
+        setInstitutionalExceptionPolicy(INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE);
+        setAdminExcPolicy(INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE);
+        if (showToast) showToast("Policy Updated: Approved exceptions count towards attendance eligibility.");
+      },
+      style: {
+        padding: "5px 12px",
+        borderRadius: "6px",
+        fontSize: "11.5px",
+        fontWeight: "700",
+        border: "1px solid",
+        cursor: "pointer",
+        backgroundColor: adminExcPolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? "#2563eb" : "#f8fafc",
+        color: adminExcPolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? "#ffffff" : "#475569",
+        borderColor: adminExcPolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? "#2563eb" : "#cbd5e1"
+      },
+      title: "GTU Standard: Approved exceptions count towards 75% attendance threshold"
+    },
+    "Count Toward Eligibility (Default)"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => {
+        setInstitutionalExceptionPolicy(INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION);
+        setAdminExcPolicy(INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION);
+        if (showToast) showToast("Policy Updated: Approved exceptions deducted from denominator.");
+      },
+      style: {
+        padding: "5px 12px",
+        borderRadius: "6px",
+        fontSize: "11.5px",
+        fontWeight: "700",
+        border: "1px solid",
+        cursor: "pointer",
+        backgroundColor: adminExcPolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? "#2563eb" : "#f8fafc",
+        color: adminExcPolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? "#ffffff" : "#475569",
+        borderColor: adminExcPolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? "#2563eb" : "#cbd5e1"
+      },
+      title: "Exclude exception sessions from total denominator"
+    },
+    "Exclude from Denominator"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => {
+        setInstitutionalExceptionPolicy(INSTITUTIONAL_POLICIES.SEPARATE_ONLY);
+        setAdminExcPolicy(INSTITUTIONAL_POLICIES.SEPARATE_ONLY);
+        if (showToast) showToast("Policy Updated: Exceptions recorded separately, physical presence only for percentage.");
+      },
+      style: {
+        padding: "5px 12px",
+        borderRadius: "6px",
+        fontSize: "11.5px",
+        fontWeight: "700",
+        border: "1px solid",
+        cursor: "pointer",
+        backgroundColor: adminExcPolicy === INSTITUTIONAL_POLICIES.SEPARATE_ONLY ? "#2563eb" : "#f8fafc",
+        color: adminExcPolicy === INSTITUTIONAL_POLICIES.SEPARATE_ONLY ? "#ffffff" : "#475569",
+        borderColor: adminExcPolicy === INSTITUTIONAL_POLICIES.SEPARATE_ONLY ? "#2563eb" : "#cbd5e1"
+      },
+      title: "Exceptions reported separately without modifying presence percentage"
+    },
+    "Separate Report Only"
+  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "12px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" } }, "Total Requests"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "4px" } }, adminExceptions.length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "12px", border: "1px solid #bbf7d0", backgroundColor: "#f0fdf4" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#166534", textTransform: "uppercase" } }, "Approved Exceptions"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#15803d", marginTop: "4px" } }, adminExceptions.filter((e) => e.status === "Approved").length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "12px", border: "1px solid #fef08a", backgroundColor: "#fefce8" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#854d0e", textTransform: "uppercase" } }, "Pending Review"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#ca8a04", marginTop: "4px" } }, adminExceptions.filter((e) => e.status === "Pending").length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "12px", border: "1px solid #fecdd3", backgroundColor: "#fff1f2" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#9f1239", textTransform: "uppercase" } }, "Rejected"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#e11d48", marginTop: "4px" } }, adminExceptions.filter((e) => e.status === "Rejected").length))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 22px", borderRadius: "14px", marginBottom: "20px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "280px" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: "100%", maxWidth: "360px" } }, /* @__PURE__ */ React.createElement(Search, { size: 16, style: { position: "absolute", left: "12px", top: "12px", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "Search student, enrollment, activity...",
+      value: adminExcSearch,
+      onChange: (e) => setAdminExcSearch(e.target.value),
+      style: { paddingLeft: "36px", height: "38px", fontSize: "13px" }
+    }
+  )), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: adminExcFilterStatus,
+      onChange: (e) => setAdminExcFilterStatus(e.target.value),
+      style: { height: "38px", width: "150px", fontSize: "13px", fontWeight: "600" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Statuses"),
+    /* @__PURE__ */ React.createElement("option", { value: "Pending" }, "Pending Only"),
+    /* @__PURE__ */ React.createElement("option", { value: "Approved" }, "Approved Only"),
+    /* @__PURE__ */ React.createElement("option", { value: "Rejected" }, "Rejected Only")
+  ), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: adminExcFilterCat,
+      onChange: (e) => setAdminExcFilterCat(e.target.value),
+      style: { height: "38px", width: "190px", fontSize: "13px", fontWeight: "600" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Categories"),
+    EXCEPTION_CATEGORIES.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat, value: cat }, cat))
+  )), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: () => {
+        setAdminExcSearch("");
+        setAdminExcFilterStatus("All");
+        setAdminExcFilterCat("All");
+        setAdminExcDept("All");
+      }
+    },
+    /* @__PURE__ */ React.createElement(RotateCcw, { size: 14 }),
+    /* @__PURE__ */ React.createElement("span", null, "Reset Filters")
+  ))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "0", borderRadius: "14px", border: "1px solid #e2e8f0", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { width: "100%", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc" } }, /* @__PURE__ */ React.createElement("th", { style: { width: "40px" } }, "#"), /* @__PURE__ */ React.createElement("th", null, "Student & Class"), /* @__PURE__ */ React.createElement("th", null, "Activity / Event"), /* @__PURE__ */ React.createElement("th", null, "Category"), /* @__PURE__ */ React.createElement("th", null, "Date Range"), /* @__PURE__ */ React.createElement("th", null, "Affected Lectures"), /* @__PURE__ */ React.createElement("th", null, "Status"), /* @__PURE__ */ React.createElement("th", null, "Audit Trail"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "right", minWidth: "180px" } }, "Admin Actions"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const filtered = adminExceptions.filter((exc) => {
+      const q = adminExcSearch.toLowerCase();
+      const matchQ = !q || exc.studentName.toLowerCase().includes(q) || exc.enrollmentNo.includes(q) || exc.activityName.toLowerCase().includes(q);
+      const matchStatus = adminExcFilterStatus === "All" || exc.status === adminExcFilterStatus;
+      const matchCat = adminExcFilterCat === "All" || exc.category === adminExcFilterCat;
+      return matchQ && matchStatus && matchCat;
+    });
+    if (filtered.length === 0) {
+      return /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 9, style: { textAlign: "center", padding: "40px 20px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(Award, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", fontSize: "14px", color: "#334155" } }, "No attendance exception requests found"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#94a3b8", marginTop: "4px" } }, "Requests submitted by faculty members or administrators will be displayed here.")));
+    }
+    return filtered.map((exc, index) => {
+      const isPending = exc.status === "Pending";
+      const isApproved = exc.status === "Approved";
+      const isRejected = exc.status === "Rejected";
+      return /* @__PURE__ */ React.createElement("tr", { key: exc.id }, /* @__PURE__ */ React.createElement("td", null, index + 1), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a" } }, exc.studentName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#2563eb", fontWeight: "600" } }, exc.enrollmentNo), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b" } }, exc.departmentName, " \u2022 ", exc.semester, " ", exc.division)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#1e3a8a" } }, exc.activityName), exc.reason && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: exc.reason }, "Reason: ", exc.reason), exc.documentName && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: "#059669", fontWeight: "700", marginTop: "2px" } }, "\u{1F4CE} ", exc.documentName, " ", exc.documentSize ? `(${exc.documentSize})` : "")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: {
+        padding: "3px 8px",
+        borderRadius: "6px",
+        fontSize: "11px",
+        fontWeight: "700",
+        backgroundColor: exc.category === "Sports Tournament" ? "#f0fdf4" : exc.category === "Technical Competition" ? "#faf5ff" : "#eff6ff",
+        color: exc.category === "Sports Tournament" ? "#166534" : exc.category === "Technical Competition" ? "#6b21a8" : "#1e40af",
+        border: "1px solid rgba(0,0,0,0.06)"
+      } }, exc.category)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#334155", fontSize: "12px" } }, exc.startDate, " to ", exc.endDate)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setViewLecturesModal(exc),
+          style: {
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "700",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            border: "1px solid #bfdbfe",
+            cursor: "pointer"
+          }
+        },
+        exc.affectedLecturesCount || exc.overlappingLectures && exc.overlappingLectures.length || 0,
+        " Lectures \u2192"
+      )), /* @__PURE__ */ React.createElement("td", null, isApproved && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#dcfce7", color: "#15803d" } }, "Approved"), isPending && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#fef9c3", color: "#854d0e" } }, "Pending Review"), isRejected && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#ffe4e6", color: "#be123c" } }, "Rejected")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b" } }, "By: ", /* @__PURE__ */ React.createElement("b", null, exc.submittedBy || "Faculty")), exc.reviewedBy && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: "#0f172a", marginTop: "2px" } }, "Reviewed: ", /* @__PURE__ */ React.createElement("b", null, exc.reviewedBy)), exc.reviewerRemarks && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: "#475569", fontStyle: "italic", maxWidth: "180px" }, title: exc.reviewerRemarks }, '"', exc.reviewerRemarks, '"')), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" } }, isPending ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setReviewRemarksModal({ exc, newStatus: "Approved", remarks: "Verified official documentation. Approved by Principal." }),
+          style: {
+            padding: "5px 10px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "700",
+            backgroundColor: "#16a34a",
+            color: "#ffffff",
+            border: "none",
+            cursor: "pointer"
+          }
+        },
+        "Approve"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setReviewRemarksModal({ exc, newStatus: "Rejected", remarks: "Documentation incomplete or event not authorized by GTU." }),
+          style: {
+            padding: "5px 10px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "700",
+            backgroundColor: "#dc2626",
+            color: "#ffffff",
+            border: "none",
+            cursor: "pointer"
+          }
+        },
+        "Reject"
+      )) : /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setReviewRemarksModal({
+            exc,
+            newStatus: isApproved ? "Rejected" : "Approved",
+            remarks: isApproved ? "Revoked after re-review." : "Re-approved upon submitting valid certificate."
+          }),
+          style: {
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11px",
+            fontWeight: "600",
+            backgroundColor: "#f1f5f9",
+            color: "#475569",
+            border: "1px solid #cbd5e1",
+            cursor: "pointer"
+          }
+        },
+        "Change to ",
+        isApproved ? "Reject" : "Approve"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => {
+            if (window.confirm(`Delete attendance exception for ${exc.studentName}?`)) {
+              deleteException(exc.id);
+              if (showToast) showToast("Exception request deleted.");
+            }
+          },
+          style: {
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11px",
+            backgroundColor: "#fff1f2",
+            color: "#e11d48",
+            border: "1px solid #fecdd3",
+            cursor: "pointer"
+          },
+          title: "Delete Record"
+        },
+        /* @__PURE__ */ React.createElement(Trash2, { size: 13 })
+      ))));
+    });
+  })())))), reviewRemarksModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "480px", width: "90%", borderRadius: "16px", padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header", style: { marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, reviewRemarksModal.newStatus === "Approved" ? "Approve" : "Reject", " Attendance Exception")), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#475569", margin: "0 0 12px" } }, "Student: ", /* @__PURE__ */ React.createElement("b", null, reviewRemarksModal.exc.studentName), " (", reviewRemarksModal.exc.enrollmentNo, ")", /* @__PURE__ */ React.createElement("br", null), "Activity: ", /* @__PURE__ */ React.createElement("b", null, reviewRemarksModal.exc.activityName), " (", reviewRemarksModal.exc.startDate, " to ", reviewRemarksModal.exc.endDate, ")"), /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Reviewer Remarks / Reason *"), /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      className: "form-control",
+      rows: 3,
+      value: reviewRemarksModal.remarks,
+      onChange: (e) => setReviewRemarksModal({ ...reviewRemarksModal, remarks: e.target.value }),
+      placeholder: "Enter verification comments, circular reference, or reason...",
+      required: true
+    }
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setReviewRemarksModal(null)
+    },
+    "Cancel"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: `btn ${reviewRemarksModal.newStatus === "Approved" ? "btn-success" : "btn-danger"}`,
+      style: {
+        backgroundColor: reviewRemarksModal.newStatus === "Approved" ? "#16a34a" : "#dc2626",
+        color: "#ffffff"
+      },
+      onClick: handleReviewExceptionConfirm
+    },
+    "Confirm ",
+    reviewRemarksModal.newStatus
+  )))), viewLecturesModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "650px", width: "92%", borderRadius: "16px", padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header", style: { marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Affected Scheduled Lectures"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#64748b", margin: "2px 0 0" } }, viewLecturesModal.studentName, " (", viewLecturesModal.semester, " ", viewLecturesModal.division, ") \u2022 ", viewLecturesModal.startDate, " to ", viewLecturesModal.endDate)), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setViewLecturesModal(null),
+      style: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }
+    },
+    "\u2715"
+  )), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "360px", overflowY: "auto", marginBottom: "20px" } }, viewLecturesModal.overlappingLectures && viewLecturesModal.overlappingLectures.length > 0 ? /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { width: "100%", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc" } }, /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Day"), /* @__PURE__ */ React.createElement("th", null, "Time Slot"), /* @__PURE__ */ React.createElement("th", null, "Subject"), /* @__PURE__ */ React.createElement("th", null, "Faculty"), /* @__PURE__ */ React.createElement("th", null, "Room"))), /* @__PURE__ */ React.createElement("tbody", null, viewLecturesModal.overlappingLectures.map((lec, i) => /* @__PURE__ */ React.createElement("tr", { key: i }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700", color: "#0f172a" } }, lec.date), /* @__PURE__ */ React.createElement("td", null, lec.day), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { backgroundColor: "#eff6ff", color: "#1e3a8a", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" } }, lec.timeSlot)), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, lec.subjectName), /* @__PURE__ */ React.createElement("td", null, lec.facultyName), /* @__PURE__ */ React.createElement("td", null, lec.room))))) : /* @__PURE__ */ React.createElement("div", { style: { padding: "20px", textAlign: "center", color: "#64748b", backgroundColor: "#f8fafc", borderRadius: "8px" } }, "No timetable lecture conflicts found for this class during the selected date range.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setViewLecturesModal(null)
+    },
+    "Close"
+  ))))), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 18, style: { color: "#2563eb" } }), "Change Admin Security PIN"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Default PIN code is ", /* @__PURE__ */ React.createElement("strong", null, "1234"), "."), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinUpdate, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Current PIN"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "password",
@@ -9129,23 +9734,27 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
   const [timetableSyncTick, setTimetableSyncTick] = useState(0);
   const [studentsTick, setStudentsTick] = useState(0);
   const [classesTick, setClassesTick] = useState(0);
+  const [exceptionsTick, setExceptionsTick] = useState(0);
   useEffect(() => {
     const handleSync = () => setTimetableSyncTick((t) => t + 1);
     const handleFacultyUpdate = () => setFacultiesList(getFaculties());
     const handleStudentsUpdate = () => setStudentsTick((t) => t + 1);
     const handleClassesUpdate = () => setClassesTick((t) => t + 1);
     const handleSessionsUpdate = () => setAllSessions(getSessions());
+    const handleExceptionsUpdate = () => setExceptionsTick((t) => t + 1);
     window.addEventListener("adit-timetable-synced", handleSync);
     window.addEventListener("adit-faculty-updated", handleFacultyUpdate);
     window.addEventListener("adit-students-updated", handleStudentsUpdate);
     window.addEventListener("adit-classes-updated", handleClassesUpdate);
     window.addEventListener("adit-sessions-updated", handleSessionsUpdate);
+    window.addEventListener("adit-exceptions-updated", handleExceptionsUpdate);
     return () => {
       window.removeEventListener("adit-timetable-synced", handleSync);
       window.removeEventListener("adit-faculty-updated", handleFacultyUpdate);
       window.removeEventListener("adit-students-updated", handleStudentsUpdate);
       window.removeEventListener("adit-classes-updated", handleClassesUpdate);
       window.removeEventListener("adit-sessions-updated", handleSessionsUpdate);
+      window.removeEventListener("adit-exceptions-updated", handleExceptionsUpdate);
     };
   }, []);
   const facultyTimetableGrid = useMemo(() => {
@@ -9157,7 +9766,25 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     return TIMETABLE_DAYS.includes(dName) ? dName : "Monday";
   }, []);
   const [selectedTimetableDay, setSelectedTimetableDay] = useState(todayDayName);
-  const [isWeeklyGridView, setIsWeeklyGridView] = useState(false);
+  const [isWeeklyGridView, setIsWeeklyGridView] = useState(true);
+  const [selectedLectureDetail, setSelectedLectureDetail] = useState(null);
+  const exceptionsList = useMemo(() => getExceptions(), [exceptionsTick]);
+  const activePolicy = useMemo(() => getInstitutionalExceptionPolicy(), [exceptionsTick]);
+  const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [selectedExceptionView, setSelectedExceptionView] = useState(null);
+  const [excFilterStatus, setExcFilterStatus] = useState("All");
+  const [excFilterCategory, setExcFilterCategory] = useState("All");
+  const [excSearchQuery, setExcSearchQuery] = useState("");
+  const [excStudentSearch, setExcStudentSearch] = useState("");
+  const [excSelectedStudent, setExcSelectedStudent] = useState(null);
+  const [excActivityName, setExcActivityName] = useState("");
+  const [excCategory, setExcCategory] = useState("Sports Tournament");
+  const [excStartDate, setExcStartDate] = useState((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+  const [excEndDate, setExcEndDate] = useState((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+  const [excReason, setExcReason] = useState("");
+  const [excDocName, setExcDocName] = useState("");
+  const [excDocSize, setExcDocSize] = useState("");
+  const [excDocError, setExcDocError] = useState("");
   const [allSessions, setAllSessions] = useState(getSessions());
   const reloadSessions = () => setAllSessions(getSessions());
   const facultySessions = useMemo(() => {
@@ -9230,23 +9857,50 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     const initialRecords = {};
     const initialRemarks = {};
     classStudents.forEach((st) => {
-      initialRecords[st.id] = "present";
-      initialRemarks[st.id] = "";
+      const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
+      if (excCheck && excCheck.isExcused) {
+        initialRecords[st.id] = "od";
+        initialRemarks[st.id] = `Approved Exception: ${excCheck.exception.category || "Official College Duty"}`;
+      } else {
+        initialRecords[st.id] = "present";
+        initialRemarks[st.id] = "";
+      }
     });
     setAttRecords(initialRecords);
     setAttRemarks(initialRemarks);
-  }, [classStudents]);
+  }, [classStudents, attDate, attTimeSlot, attSubjectId, exceptionsTick]);
   const presentCount = useMemo(() => {
     return classStudents.filter((s) => (attRecords[s.id] || "present") === "present").length;
   }, [classStudents, attRecords]);
   const absentCount = useMemo(() => {
     return classStudents.filter((s) => attRecords[s.id] === "absent").length;
   }, [classStudents, attRecords]);
-  const attendancePct = classStudents.length > 0 ? (presentCount / classStudents.length * 100).toFixed(1) : "0.0";
+  const exceptionCount = useMemo(() => {
+    return classStudents.filter((s) => {
+      const stStatus = attRecords[s.id];
+      const excCheck = isStudentExcusedForSession(s.id, attDate, attTimeSlot, attSubjectId);
+      return stStatus === "od" || stStatus === "exception" || excCheck.isExcused;
+    }).length;
+  }, [classStudents, attRecords, attDate, attTimeSlot, attSubjectId, exceptionsTick]);
+  const attendancePct = useMemo(() => {
+    if (classStudents.length === 0) return "0.0";
+    if (activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
+      return ((presentCount + exceptionCount) / classStudents.length * 100).toFixed(1);
+    } else if (activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
+      const eff = Math.max(0, classStudents.length - exceptionCount);
+      return eff > 0 ? (presentCount / eff * 100).toFixed(1) : "100.0";
+    }
+    return (presentCount / classStudents.length * 100).toFixed(1);
+  }, [classStudents.length, presentCount, exceptionCount, activePolicy]);
   const handleMarkAllStatus = (status) => {
     const updated = {};
     classStudents.forEach((s) => {
-      updated[s.id] = status;
+      const excCheck = isStudentExcusedForSession(s.id, attDate, attTimeSlot, attSubjectId);
+      if (excCheck && excCheck.isExcused && status === "absent") {
+        updated[s.id] = "od";
+      } else {
+        updated[s.id] = status;
+      }
     });
     setAttRecords(updated);
     if (showToast) showToast(`All ${classStudents.length} students marked as ${status.toUpperCase()}`);
@@ -9293,13 +9947,14 @@ Do you want to update/overwrite the existing record?`
       totalStudents: classStudents.length,
       presentCount,
       absentCount,
+      exceptionCount,
       percentage: attendancePct,
       submittedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     saveSession(sessionPayload);
     reloadSessions();
     if (showToast) {
-      showToast(`Attendance saved! (${presentCount} Present, ${absentCount} Absent)`);
+      showToast(`Attendance saved! (${presentCount} Present, ${absentCount} Absent${exceptionCount > 0 ? `, ${exceptionCount} Excused` : ""})`);
     }
     if (activeClass?.id) setRegClassId(activeClass.id);
     if (attSubjectId) setRegSubjectId(attSubjectId);
@@ -9623,15 +10278,27 @@ Do you want to update/overwrite the existing record?`
     return classStudents.filter((st) => {
       const matchSearch = !studentSearch || st.name && st.name.toLowerCase().includes(studentSearch.toLowerCase()) || st.enrollmentNo && st.enrollmentNo.toLowerCase().includes(studentSearch.toLowerCase()) || st.rollNo && String(st.rollNo).includes(studentSearch);
       const stStatus = attRecords[st.id] || "present";
-      const matchFilter = statusFilter === "all" || stStatus === statusFilter;
+      const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
+      const isExc = excCheck.isExcused || stStatus === "od" || stStatus === "exception";
+      let matchFilter = true;
+      if (statusFilter === "all") {
+        matchFilter = true;
+      } else if (statusFilter === "present") {
+        matchFilter = stStatus === "present";
+      } else if (statusFilter === "absent") {
+        matchFilter = stStatus === "absent";
+      } else if (statusFilter === "exceptions") {
+        matchFilter = isExc;
+      }
       return matchSearch && matchFilter;
     });
-  }, [classStudents, studentSearch, statusFilter, attRecords]);
+  }, [classStudents, studentSearch, statusFilter, attRecords, attDate, attTimeSlot, attSubjectId, exceptionsTick]);
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "timetable", label: "My Timetable", icon: Calendar },
     { id: "take", label: "Take Attendance", icon: UserCheck },
     { id: "register", label: "Attendance Register", icon: FileSpreadsheet },
+    { id: "exceptions", label: "Attendance Exceptions", icon: Award },
     { id: "history", label: "Attendance History", icon: FileText },
     { id: "profile", label: "My Profile", icon: User }
   ];
@@ -9966,6 +10633,14 @@ Do you want to update/overwrite the existing record?`
     "div",
     {
       className: "card",
+      style: { padding: "20px", borderRadius: "12px", cursor: "pointer", border: "1px solid #bfdbfe", backgroundColor: "#f0f7ff" },
+      onClick: () => setFacultyTab("exceptions")
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#dbeafe", color: "#1e40af", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Award, { size: 22 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "15px", fontWeight: "800", color: "#1e3a8a", margin: 0 } }, "Attendance Exceptions"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#3b82f6", margin: "2px 0 0" } }, "Sports, hackathon & official duty exemptions")))
+  ), /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: "card",
       style: { padding: "20px", borderRadius: "12px", cursor: "pointer", border: "1px solid #e2e8f0" },
       onClick: () => setFacultyTab("history")
     },
@@ -10124,40 +10799,114 @@ Do you want to update/overwrite the existing record?`
         )
       );
     }));
-  })()), isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { fontSize: "12.5px", width: "100%" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "110px" } }, "Day"), TIME_SLOTS.map((t) => /* @__PURE__ */ React.createElement("th", { key: t, style: { textAlign: "center", fontSize: "11.5px", padding: "10px 4px" } }, t)))), /* @__PURE__ */ React.createElement("tbody", null, TIMETABLE_DAYS.map((dayName) => /* @__PURE__ */ React.createElement("tr", { key: dayName }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#0f172a", backgroundColor: "#f8fafc" } }, dayName), TIME_SLOTS.map((time) => {
-    if (time.includes("12:40") || time.includes("LUNCH")) {
-      return /* @__PURE__ */ React.createElement("td", { key: time, style: { textAlign: "center", backgroundColor: "#f1f5f9", color: "#94a3b8", fontSize: "11px", fontWeight: "700" } }, "LUNCH");
+  })()), isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", boxShadow: "0 4px 16px rgba(15,23,42,0.04)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#10b981" } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#0f172a" } }, "Admin Live-Sync Active"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b" } }, "\u2022 Changes made in Admin Panel update automatically")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px", fontSize: "12px", color: "#64748b" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: "5px" } }, /* @__PURE__ */ React.createElement("span", { style: { width: "10px", height: "10px", borderRadius: "3px", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" } }), "Click card for details & class roster"), /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: "5px" } }, /* @__PURE__ */ React.createElement("span", { style: { width: "10px", height: "10px", borderRadius: "3px", backgroundColor: "#f8fafc" } }), "\u2013 No lecture"))), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #cbd5e1", borderRadius: "12px", overflowX: "auto", backgroundColor: "#ffffff" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { fontSize: "12.5px", width: "100%", minWidth: "980px", borderCollapse: "collapse" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "2px solid #cbd5e1" } }, /* @__PURE__ */ React.createElement("th", { style: { width: "130px", padding: "14px 10px", fontWeight: "800", color: "#0f172a", textAlign: "center", borderRight: "1px solid #e2e8f0" } }, "TIME / DAY"), TIMETABLE_DAYS.map((day) => {
+    const isToday = day === todayDayName;
+    return /* @__PURE__ */ React.createElement("th", { key: day, style: { textAlign: "center", padding: "14px 10px", fontWeight: "800", color: isToday ? "#2563eb" : "#0f172a", borderRight: "1px solid #e2e8f0", minWidth: "135px" } }, /* @__PURE__ */ React.createElement("div", null, day), isToday && /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", fontSize: "10px", backgroundColor: "#dbeafe", color: "#1e40af", padding: "1px 6px", borderRadius: "4px", fontWeight: "800", marginTop: "2px" } }, "Today"));
+  }))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((time) => {
+    const isLunch = time.includes("12:40") || time.includes("LUNCH");
+    if (isLunch) {
+      return /* @__PURE__ */ React.createElement("tr", { key: time, style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569", padding: "12px 8px", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), /* @__PURE__ */ React.createElement("td", { colSpan: TIMETABLE_DAYS.length, style: { textAlign: "center", padding: "12px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "800", letterSpacing: "0.08em", fontSize: "12px" } }, "\u{1F371} LUNCH RECESS (12:40 PM \u2013 1:25 PM)"));
     }
-    const slot = facultyTimetableGrid[dayName]?.[time];
-    if (!slot || !slot.subject) {
-      return /* @__PURE__ */ React.createElement("td", { key: time, style: { textAlign: "center", color: "#cbd5e1" } }, "-");
-    }
-    return /* @__PURE__ */ React.createElement(
-      "td",
-      {
-        key: time,
-        style: {
-          padding: "6px",
-          backgroundColor: "#eff6ff",
-          border: "1px solid #bfdbfe",
-          cursor: "pointer",
-          borderRadius: "6px"
+    return /* @__PURE__ */ React.createElement("tr", { key: time, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#1e3a8a", padding: "12px 8px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), TIMETABLE_DAYS.map((dayName) => {
+      const slot = facultyTimetableGrid[dayName]?.[time];
+      if (!slot || !slot.subject) {
+        return /* @__PURE__ */ React.createElement("td", { key: dayName, style: { textAlign: "center", color: "#cbd5e1", padding: "14px 8px", borderRight: "1px solid #e2e8f0", backgroundColor: "#ffffff" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "16px", color: "#94a3b8" } }, "\u2013"));
+      }
+      return /* @__PURE__ */ React.createElement(
+        "td",
+        {
+          key: dayName,
+          style: {
+            padding: "8px",
+            borderRight: "1px solid #e2e8f0",
+            verticalAlign: "top",
+            backgroundColor: "#ffffff"
+          }
         },
-        onClick: () => selectLectureForAttendance({
-          time,
-          subjectId: slot.subject,
-          subjectName: slot.name || slot.subject,
-          sem: slot.sem,
-          div: slot.div,
-          room: slot.room
-        }),
-        title: "Click to Take Attendance"
-      },
-      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#1e3a8a", fontSize: "12px" } }, slot.subject),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569" } }, slot.sem, " \u2022 ", slot.div),
-      slot.room && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: "#64748b" } }, slot.room)
+        /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            onClick: () => setSelectedLectureDetail({ slot, day: dayName, time }),
+            style: {
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #bfdbfe",
+              backgroundColor: "#eff6ff",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+              boxShadow: "0 2px 5px rgba(37,99,235,0.06)"
+            },
+            title: "Click to view details, class student roster, or take attendance"
+          },
+          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#1e3a8a", fontSize: "12.5px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", fontWeight: "700", color: "#0284c7", backgroundColor: "#e0f2fe", padding: "1px 5px", borderRadius: "4px" } }, time.split(" - ")[0])),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "600", marginBottom: "2px" } }, slot.sem, " \u2022 ", slot.div),
+          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "#64748b" } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F4CD} ", slot.room || "Room"), /* @__PURE__ */ React.createElement("span", { style: { color: "#2563eb", fontWeight: "700" } }, "Inspect \u2192"))
+        )
+      );
+    }));
+  }))))), selectedLectureDetail && (() => {
+    const { slot, day, time } = selectedLectureDetail;
+    const roster = getStudentsForClassCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+    const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const recordedSession = allSessions.find(
+      (s) => s.date === todayStr && s.subjectId === slot.subject && normalizeSem(s.sem) === normalizeSem(slot.sem) && normalizeDiv(s.div) === normalizeDiv(slot.div)
     );
-  })))))))), facultyTab === "take" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Record Lecture Attendance"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Take official attendance for your scheduled lecture. System verifies class roster and prevents duplicates.")), /* @__PURE__ */ React.createElement("div", { style: {
+    let presentCount2 = 0;
+    if (recordedSession?.students) {
+      presentCount2 = Object.values(recordedSession.students).filter((st) => st === "present").length;
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "640px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "90vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "800", backgroundColor: "#eff6ff", color: "#1e3a8a", padding: "2px 8px", borderRadius: "6px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "700", backgroundColor: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "6px" } }, day, " \u2022 ", time)), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, slot.name || slot.subject)), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setSelectedLectureDetail(null),
+        style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8" }
+      },
+      "\u2715"
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px", marginBottom: "16px", backgroundColor: "#f8fafc", padding: "12px", borderRadius: "10px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "700" } }, "CLASS / DIV"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a" } }, slot.sem, " \u2022 ", slot.div)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "700" } }, "CLASSROOM"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a" } }, "\u{1F4CD} ", slot.room || "Classroom")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "700" } }, "DEPARTMENT"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a" } }, slot.dept || currentFaculty.dept)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "700" } }, "FACULTY"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "800", color: "#2563eb" } }, currentFaculty.name))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px" } }, recordedSession ? /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderRadius: "8px", backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", color: "#166534", fontWeight: "700" } }, "\u2713 Attendance Recorded for Today: ", presentCount2, " / ", roster.length, " Present (", roster.length > 0 ? Math.round(presentCount2 / roster.length * 100) : 0, "%)"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#15803d", fontWeight: "800" } }, "Completed")) : /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", borderRadius: "8px", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", color: "#1e40af", fontWeight: "700" } }, "\u2139 Attendance Pending for Today (", todayStr, ")"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#2563eb", fontWeight: "800" } }, "Pending"))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minHeight: "180px", maxHeight: "280px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 12px", backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontSize: "12px", fontWeight: "800", color: "#475569", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, "Associated Class Roster"), /* @__PURE__ */ React.createElement("span", { style: { color: "#2563eb" } }, roster.length, " Enrolled Students")), roster.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "13px" } }, "No students found enrolled in ", slot.sem, " ", slot.div, ". (Add students via Admin Panel)") : /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { width: "100%", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#ffffff" } }, /* @__PURE__ */ React.createElement("th", { style: { width: "50px" } }, "Roll"), /* @__PURE__ */ React.createElement("th", null, "Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"))), /* @__PURE__ */ React.createElement("tbody", null, roster.map((st) => /* @__PURE__ */ React.createElement("tr", { key: st.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, st.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600", color: "#0f172a" } }, st.name), /* @__PURE__ */ React.createElement("td", { style: { color: "#64748b" } }, st.enrollmentNo)))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary",
+        onClick: () => setSelectedLectureDetail(null)
+      },
+      "Close"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary",
+        onClick: () => {
+          const targetClass = findClassByCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+          if (targetClass?.id) setRegClassId(targetClass.id);
+          if (slot.subject) setRegSubjectId(slot.subject);
+          setSelectedLectureDetail(null);
+          setFacultyTab("register");
+        }
+      },
+      /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "View in Register")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-primary",
+        onClick: () => {
+          selectLectureForAttendance({
+            time,
+            subjectId: slot.subject,
+            subjectName: slot.name || slot.subject,
+            sem: slot.sem,
+            div: slot.div,
+            room: slot.room
+          });
+          setSelectedLectureDetail(null);
+        }
+      },
+      /* @__PURE__ */ React.createElement(UserCheck, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "Take Attendance Now")
+    ))));
+  })()), facultyTab === "take" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Record Lecture Attendance"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Take official attendance for your scheduled lecture. System verifies class roster and prevents duplicates.")), /* @__PURE__ */ React.createElement("div", { style: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: "14px",
@@ -10273,7 +11022,7 @@ Do you want to update/overwrite the existing record?`
     },
     /* @__PURE__ */ React.createElement(XSquare, { size: 14 }),
     /* @__PURE__ */ React.createElement("span", null, "Mark All Absent")
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: {
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: {
     padding: "6px 12px",
     borderRadius: "20px",
     backgroundColor: "#ecfdf5",
@@ -10293,10 +11042,18 @@ Do you want to update/overwrite the existing record?`
     padding: "6px 12px",
     borderRadius: "20px",
     backgroundColor: "#eff6ff",
-    color: "#2563eb",
+    color: "#1e40af",
     fontSize: "12.5px",
     fontWeight: "800",
     border: "1px solid #bfdbfe"
+  } }, "Exceptions (EX): ", exceptionCount), /* @__PURE__ */ React.createElement("span", { style: {
+    padding: "6px 12px",
+    borderRadius: "20px",
+    backgroundColor: "#f8fafc",
+    color: "#334155",
+    fontSize: "12.5px",
+    fontWeight: "800",
+    border: "1px solid #cbd5e1"
   } }, "Total: ", classStudents.length, " (", attendancePct, "%)"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", marginBottom: "14px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", flex: 1, minWidth: "220px" } }, /* @__PURE__ */ React.createElement(Search, { size: 15, style: { position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -10307,42 +11064,62 @@ Do you want to update/overwrite the existing record?`
       onChange: (e) => setStudentSearch(e.target.value),
       style: { height: "36px", paddingLeft: "32px", fontSize: "13px" }
     }
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "4px" } }, ["all", "present", "absent"].map((f) => /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "4px" } }, [
+    { id: "all", label: "All" },
+    { id: "present", label: "Present" },
+    { id: "absent", label: "Absent" },
+    { id: "exceptions", label: "Exceptions (EX)" }
+  ].map((f) => /* @__PURE__ */ React.createElement(
     "button",
     {
-      key: f,
+      key: f.id,
       type: "button",
-      onClick: () => setStatusFilter(f),
+      onClick: () => setStatusFilter(f.id),
       style: {
         padding: "6px 12px",
         borderRadius: "6px",
         border: "1px solid #cbd5e1",
-        backgroundColor: statusFilter === f ? "#0f172a" : "#ffffff",
-        color: statusFilter === f ? "#ffffff" : "#475569",
+        backgroundColor: statusFilter === f.id ? "#0f172a" : "#ffffff",
+        color: statusFilter === f.id ? "#ffffff" : "#475569",
         fontSize: "12px",
         fontWeight: "700",
-        cursor: "pointer",
-        textTransform: "capitalize"
+        cursor: "pointer"
       }
     },
-    f
-  )))), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", maxHeight: "480px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", { style: { position: "sticky", top: 0, backgroundColor: "#f8fafc", zIndex: 1 } }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "220px" } }, "Attendance Status"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "4", style: { textAlign: "center", padding: "30px", color: "#64748b" } }, "No students found matching your criteria.")) : filteredStudents.map((st) => {
-    const isPresent = (attRecords[st.id] || "present") === "present";
-    return /* @__PURE__ */ React.createElement("tr", { key: st.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, st.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600", color: "#0f172a" } }, st.name), /* @__PURE__ */ React.createElement("td", { style: { color: "#64748b", fontSize: "12px" } }, st.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", gap: "4px", backgroundColor: "#f1f5f9", padding: "3px", borderRadius: "8px" } }, /* @__PURE__ */ React.createElement(
+    f.label
+  )))), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", maxHeight: "480px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", { style: { position: "sticky", top: 0, backgroundColor: "#f8fafc", zIndex: 1 } }, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "280px" } }, "Attendance Status"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "4", style: { textAlign: "center", padding: "30px", color: "#64748b" } }, "No students found matching your criteria.")) : filteredStudents.map((st) => {
+    const rawStatus = attRecords[st.id] || "present";
+    const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
+    const isExcused = excCheck.isExcused;
+    const isPresent = rawStatus === "present";
+    const isAbsent = rawStatus === "absent";
+    const isOD = rawStatus === "od" || rawStatus === "exception" || isExcused;
+    return /* @__PURE__ */ React.createElement("tr", { key: st.id, style: { backgroundColor: isExcused ? "#f8faff" : "inherit" } }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, st.rollNo), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "600", color: "#0f172a" } }, st.name), isExcused && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "3px", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
+      padding: "2px 8px",
+      borderRadius: "12px",
+      fontSize: "11px",
+      fontWeight: "800",
+      backgroundColor: "#dbeafe",
+      color: "#1e40af",
+      border: "1px solid #93c5fd"
+    } }, /* @__PURE__ */ React.createElement(Award, { size: 11 }), /* @__PURE__ */ React.createElement("span", null, "Approved Exception (", excCheck.exception?.category || "Duty", ")")), excCheck.exception?.title && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, excCheck.exception.title))), /* @__PURE__ */ React.createElement("td", { style: { color: "#64748b", fontSize: "12px" } }, st.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", gap: "4px", backgroundColor: "#f1f5f9", padding: "3px", borderRadius: "8px" } }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
         onClick: () => handleStudentStatusToggle(st.id, "present"),
         style: {
-          padding: "5px 14px",
+          padding: "5px 12px",
           borderRadius: "6px",
           border: "none",
-          backgroundColor: isPresent ? "#059669" : "transparent",
-          color: isPresent ? "#ffffff" : "#64748b",
+          backgroundColor: isPresent && !isOD ? "#059669" : "transparent",
+          color: isPresent && !isOD ? "#ffffff" : "#64748b",
           fontWeight: "700",
           fontSize: "12px",
           cursor: "pointer",
-          boxShadow: isPresent ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+          boxShadow: isPresent && !isOD ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
         }
       },
       "Present"
@@ -10352,18 +11129,37 @@ Do you want to update/overwrite the existing record?`
         type: "button",
         onClick: () => handleStudentStatusToggle(st.id, "absent"),
         style: {
-          padding: "5px 14px",
+          padding: "5px 12px",
           borderRadius: "6px",
           border: "none",
-          backgroundColor: !isPresent ? "#e11d48" : "transparent",
-          color: !isPresent ? "#ffffff" : "#64748b",
+          backgroundColor: isAbsent ? "#e11d48" : "transparent",
+          color: isAbsent ? "#ffffff" : "#64748b",
           fontWeight: "700",
           fontSize: "12px",
           cursor: "pointer",
-          boxShadow: !isPresent ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+          boxShadow: isAbsent ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
         }
       },
       "Absent"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => handleStudentStatusToggle(st.id, "od"),
+        style: {
+          padding: "5px 12px",
+          borderRadius: "6px",
+          border: "none",
+          backgroundColor: isOD ? "#2563eb" : "transparent",
+          color: isOD ? "#ffffff" : "#64748b",
+          fontWeight: "700",
+          fontSize: "12px",
+          cursor: "pointer",
+          boxShadow: isOD ? "0 1px 3px rgba(0,0,0,0.15)" : "none"
+        },
+        title: isExcused ? `Approved Exception: ${excCheck.exception?.title || excCheck.exception?.category}` : "Official College Duty / Exception"
+      },
+      "Excused (EX)"
     ))));
   })))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px", display: "flex", justifyContent: "flex-end", gap: "12px" } }, /* @__PURE__ */ React.createElement(
     "button",
@@ -10559,26 +11355,26 @@ Faculty: ${sess.facultyName || currentFaculty.name}`
       /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", fontSize: "11px", color: "#0f172a" } }, hdr.main),
       hdr.sub && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "9.5px", color: "#2563eb", fontWeight: "800" } }, hdr.sub)
     );
-  }), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#ecfdf5", color: "#059669", fontWeight: "800" } }, "Total Present"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#f1f5f9" } }, "Total Lectures"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#eff6ff", color: "#1e3a8a", fontWeight: "800" } }, "Percentage (%)"))), /* @__PURE__ */ React.createElement("tbody", null, registerStudentsFiltered.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: registerSessions.length + 6, style: { textAlign: "center", padding: "40px 20px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(Users, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#334155", fontSize: "14px" } }, registerStudents.length === 0 ? `No students enrolled in ${selectedRegClass?.departmentName || currentFaculty.dept} (${selectedRegClass?.semester || ""} ${selectedRegClass?.division || ""}) yet.` : "No students found matching your search or status filter."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#94a3b8", marginTop: "4px" } }, registerStudents.length === 0 ? "Students added or imported in the Admin Panel for this class will automatically be loaded here." : "Try adjusting your search query or attendance filter."))) : registerStudentsFiltered.map((student, idx) => {
+  }), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#ecfdf5", color: "#059669", fontWeight: "800" } }, "Total Present"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#eff6ff", color: "#1e40af", fontWeight: "800" } }, "Exceptions (EX)"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#f1f5f9" } }, "Total Lectures"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#eff6ff", color: "#1e3a8a", fontWeight: "800" } }, "Percentage (%)"))), /* @__PURE__ */ React.createElement("tbody", null, registerStudentsFiltered.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: registerSessions.length + 7, style: { textAlign: "center", padding: "40px 20px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(Users, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#334155", fontSize: "14px" } }, registerStudents.length === 0 ? `No students enrolled in ${selectedRegClass?.departmentName || currentFaculty.dept} (${selectedRegClass?.semester || ""} ${selectedRegClass?.division || ""}) yet.` : "No students found matching your search or status filter."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#94a3b8", marginTop: "4px" } }, registerStudents.length === 0 ? "Students added or imported in the Admin Panel for this class will automatically be loaded here." : "Try adjusting your search query or attendance filter."))) : registerStudentsFiltered.map((student, idx) => {
     let presentCount2 = 0;
-    let odCount = 0;
+    let exCount = 0;
     const total = registerSessions.length;
     return /* @__PURE__ */ React.createElement("tr", { key: student.id }, /* @__PURE__ */ React.createElement("td", { className: "erp-td-sticky-sr" }, idx + 1), /* @__PURE__ */ React.createElement("td", { className: "erp-td-sticky-enroll", title: `Enrollment: ${student.enrollmentNo}` }, student.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "left", paddingLeft: "12px", fontWeight: "600", color: "#0f172a" } }, /* @__PURE__ */ React.createElement("span", null, student.name), student.rollNo && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px", fontSize: "11px", color: "#64748b", fontWeight: "400" } }, "(#", student.rollNo, ")")), registerSessions.map((sess) => {
       const status = sess.records && sess.records[student.id] || "";
       let cellClass = "erp-cell-empty";
       let displayText = "-";
+      const excusedCheck = isStudentExcusedForSession(student.id, sess.date, sess.timeSlot, sess.subjectId);
       if (status === "present" || status === "late") {
         presentCount2++;
         cellClass = "erp-cell-p";
         displayText = "P";
+      } else if (excusedCheck.isExcused || status === "od" || status === "exception") {
+        exCount++;
+        cellClass = "erp-cell-ex";
+        displayText = "EX";
       } else if (status === "absent") {
         cellClass = "erp-cell-a";
         displayText = "A";
-      } else if (status === "od") {
-        odCount++;
-        presentCount2++;
-        cellClass = "erp-cell-od";
-        displayText = "O*";
       }
       return /* @__PURE__ */ React.createElement(
         "td",
@@ -10586,23 +11382,41 @@ Faculty: ${sess.facultyName || currentFaculty.name}`
           key: sess.id,
           className: `erp-attendance-cell ${cellClass}`,
           onClick: () => handleRegisterCellClick(sess, student.id),
-          title: `Click to toggle status for ${student.name} on ${sess.date} ${sess.timeSlot ? `(${sess.timeSlot})` : ""} - Current: ${status ? status.toUpperCase() : "NOT RECORDED"}`
+          title: `Click to toggle status for ${student.name} on ${sess.date} ${sess.timeSlot ? `(${sess.timeSlot})` : ""} - Status: ${displayText === "EX" ? `Approved Exception (${excusedCheck.exception?.activityName || "Authorized Activity"})` : status ? status.toUpperCase() : "NOT RECORDED"}`
         },
         displayText
       );
-    }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "800", color: "#059669", backgroundColor: "#f0fdf4" } }, presentCount2), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { color: "#475569" } }, total), /* @__PURE__ */ React.createElement(
-      "td",
-      {
-        className: "erp-td-stat",
-        style: {
-          fontWeight: "800",
-          color: total > 0 && presentCount2 / total * 100 < 75 ? "#e11d48" : "#059669",
-          backgroundColor: total > 0 && presentCount2 / total * 100 < 75 ? "#fff1f2" : "#f0fdf4"
+    }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "800", color: "#059669", backgroundColor: "#f0fdf4" } }, presentCount2), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "800", color: "#1e40af", backgroundColor: "#eff6ff" } }, exCount), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { color: "#475569" } }, total), (() => {
+      let pct = 0;
+      if (total > 0) {
+        if (activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
+          pct = Math.min(100, (presentCount2 + exCount) / total * 100);
+        } else if (activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
+          const eff = Math.max(0, total - exCount);
+          pct = eff > 0 ? Math.min(100, presentCount2 / eff * 100) : 100;
+        } else {
+          pct = Math.min(100, presentCount2 / total * 100);
         }
-      },
-      total > 0 ? (presentCount2 / total * 100).toFixed(2) : "0.00",
-      "%"
-    ));
+      } else {
+        pct = 100;
+      }
+      const rounded = Number(pct.toFixed(2));
+      const isEligible = rounded >= 75;
+      return /* @__PURE__ */ React.createElement(
+        "td",
+        {
+          className: "erp-td-stat",
+          style: {
+            fontWeight: "800",
+            color: isEligible ? "#059669" : "#e11d48",
+            backgroundColor: isEligible ? "#ecfdf5" : "#fff1f2"
+          },
+          title: `Calculation Policy: ${activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? "Approved exceptions count toward attendance eligibility" : activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? "Exceptions excluded from denominator" : "Physical presence only"}`
+        },
+        rounded.toFixed(2),
+        "%"
+      );
+    })());
   })), registerStudentsFiltered.length > 0 && registerSessions.length > 0 && /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "erp-footer-row" }, /* @__PURE__ */ React.createElement("td", { colSpan: "3", style: { textAlign: "right", paddingRight: "16px", fontWeight: "800", color: "#0f172a" } }, "Total Present in Lecture:"), registerSessions.map((sess) => {
     let count = 0;
     registerStudentsFiltered.forEach((st) => {
@@ -10621,7 +11435,354 @@ Faculty: ${sess.facultyName || currentFaculty.name}`
     alignItems: "center",
     flexWrap: "wrap",
     gap: "16px"
-  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#475569" } }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 18, color: "#059669" }), /* @__PURE__ */ React.createElement("span", null, "Official Academic Register \u2022 Click any cell to toggle ", /* @__PURE__ */ React.createElement("strong", null, "P / A / O*"), " \u2022 Live auto-saving enabled")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#eff6ff", color: "#1e3a8a" } }, "Enrolled: ", registerStudents.length, " Students"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#f1f5f9", color: "#334155" } }, "Conducted: ", registerSessions.length, " Sessions"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#ecfdf5", color: "#059669" } }, "Eligible (\u226575%): ", eligibleStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#fff1f2", color: "#e11d48" } }, "Shortage (<75%): ", shortageStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "800", padding: "5px 12px", borderRadius: "8px", backgroundColor: "#0f172a", color: "#ffffff" } }, "Class Avg: ", classAveragePct, "%"))))), facultyTab === "history" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Attendance History & Records"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Log of past attendance sessions recorded by ", currentFaculty.name, ".")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#475569", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 18, color: "#059669" }), /* @__PURE__ */ React.createElement("span", null, "Official Academic Register \u2022", /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px" } }, /* @__PURE__ */ React.createElement("strong", null, "LEGEND:"), " "), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "4px" } }, /* @__PURE__ */ React.createElement("b", { className: "erp-cell-p", style: { padding: "2px 6px", borderRadius: "4px" } }, "P"), " Present"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px" } }, /* @__PURE__ */ React.createElement("b", { className: "erp-cell-a", style: { padding: "2px 6px", borderRadius: "4px" } }, "A"), " Absent"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px" } }, /* @__PURE__ */ React.createElement("b", { className: "erp-cell-ex", style: { padding: "2px 6px", borderRadius: "4px" } }, "EX"), " Approved Exception (Sports/Duty)"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px" } }, /* @__PURE__ */ React.createElement("b", null, "\u2013"), " Unrecorded"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#eff6ff", color: "#1e3a8a" } }, "Enrolled: ", registerStudents.length, " Students"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#f1f5f9", color: "#334155" } }, "Conducted: ", registerSessions.length, " Sessions"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#ecfdf5", color: "#059669" } }, "Eligible (\u226575%): ", eligibleStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#fff1f2", color: "#e11d48" } }, "Shortage (<75%): ", shortageStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "800", padding: "5px 12px", borderRadius: "8px", backgroundColor: "#0f172a", color: "#ffffff" } }, "Class Avg: ", classAveragePct, "%"))))), facultyTab === "exceptions" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1400px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement(Award, { size: 24, color: "#2563eb" }), /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", margin: 0, fontFamily: "'Outfit', sans-serif" } }, "Attendance Exceptions Management")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Manage authorized exemptions for students representing ADIT in sports, technical hackathons, seminars & official college duties.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: {
+    padding: "8px 14px",
+    borderRadius: "10px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #bfdbfe",
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#1e3a8a",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px"
+  } }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 16, color: "#2563eb" }), /* @__PURE__ */ React.createElement("span", null, "Active Policy: ", activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? "Approved Exceptions Count Toward Eligibility" : activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? "Exceptions Deducted from Total" : "Tracked Separately")), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary",
+      onClick: () => {
+        setExcSelectedStudent(null);
+        setExcStudentSearch("");
+        setExcActivityName("");
+        setExcCategory("Sports Tournament");
+        setExcStartDate((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+        setExcEndDate((/* @__PURE__ */ new Date()).toISOString().split("T")[0]);
+        setExcReason("");
+        setExcDocName("");
+        setExcDocSize("");
+        setExcDocError("");
+        setShowExceptionModal(true);
+      },
+      style: { display: "flex", alignItems: "center", gap: "8px", padding: "10px 18px", fontWeight: "700" }
+    },
+    /* @__PURE__ */ React.createElement(Award, { size: 16 }),
+    /* @__PURE__ */ React.createElement("span", null, "+ Request New Exception")
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "14px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" } }, "Total Requests"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "4px" } }, exceptionsList.length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "14px", border: "1px solid #bbf7d0", backgroundColor: "#f0fdf4" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#166534", textTransform: "uppercase" } }, "Approved Exceptions"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#15803d", marginTop: "4px" } }, exceptionsList.filter((e) => e.status === "Approved").length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "14px", border: "1px solid #fef08a", backgroundColor: "#fefce8" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#854d0e", textTransform: "uppercase" } }, "Pending Admin Review"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#ca8a04", marginTop: "4px" } }, exceptionsList.filter((e) => e.status === "Pending").length)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px", borderRadius: "14px", border: "1px solid #fecdd3", backgroundColor: "#fff1f2" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "700", color: "#9f1239", textTransform: "uppercase" } }, "Rejected"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#e11d48", marginTop: "4px" } }, exceptionsList.filter((e) => e.status === "Rejected").length))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 22px", borderRadius: "14px", marginBottom: "20px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "280px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: "100%", maxWidth: "360px" } }, /* @__PURE__ */ React.createElement(Search, { size: 16, style: { position: "absolute", left: "12px", top: "12px", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "Search student, enrollment, event...",
+      value: excSearchQuery,
+      onChange: (e) => setExcSearchQuery(e.target.value),
+      style: { paddingLeft: "36px", height: "38px", fontSize: "13px" }
+    }
+  )), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: excFilterStatus,
+      onChange: (e) => setExcFilterStatus(e.target.value),
+      style: { height: "38px", width: "150px", fontSize: "13px", fontWeight: "600" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Statuses"),
+    /* @__PURE__ */ React.createElement("option", { value: "Pending" }, "Pending Review"),
+    /* @__PURE__ */ React.createElement("option", { value: "Approved" }, "Approved Only"),
+    /* @__PURE__ */ React.createElement("option", { value: "Rejected" }, "Rejected")
+  ), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: excFilterCategory,
+      onChange: (e) => setExcFilterCategory(e.target.value),
+      style: { height: "38px", width: "190px", fontSize: "13px", fontWeight: "600" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Categories"),
+    EXCEPTION_CATEGORIES.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat, value: cat }, cat))
+  )), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: () => {
+        setExcSearchQuery("");
+        setExcFilterStatus("All");
+        setExcFilterCategory("All");
+      }
+    },
+    /* @__PURE__ */ React.createElement(RotateCcw, { size: 14 }),
+    /* @__PURE__ */ React.createElement("span", null, "Reset Filters")
+  ))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "0", borderRadius: "14px", border: "1px solid #e2e8f0", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { width: "100%", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc" } }, /* @__PURE__ */ React.createElement("th", { style: { width: "40px" } }, "#"), /* @__PURE__ */ React.createElement("th", null, "Student & Class"), /* @__PURE__ */ React.createElement("th", null, "Activity / Competition"), /* @__PURE__ */ React.createElement("th", null, "Category"), /* @__PURE__ */ React.createElement("th", null, "Event Dates"), /* @__PURE__ */ React.createElement("th", null, "Affected Lectures"), /* @__PURE__ */ React.createElement("th", null, "Approval Status"), /* @__PURE__ */ React.createElement("th", null, "Reviewer Remarks"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "right" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const filtered = exceptionsList.filter((exc) => {
+      const q = excSearchQuery.toLowerCase();
+      const matchQ = !q || exc.studentName.toLowerCase().includes(q) || exc.enrollmentNo.includes(q) || exc.activityName.toLowerCase().includes(q);
+      const matchStatus = excFilterStatus === "All" || exc.status === excFilterStatus;
+      const matchCat = excFilterCategory === "All" || exc.category === excFilterCategory;
+      return matchQ && matchStatus && matchCat;
+    });
+    if (filtered.length === 0) {
+      return /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 9, style: { textAlign: "center", padding: "40px 20px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(Award, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", fontSize: "14px", color: "#334155" } }, "No attendance exceptions found"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#94a3b8", marginTop: "4px" } }, 'Click "+ Request New Exception" to create an attendance exemption for sports tournaments, hackathons or college duty.')));
+    }
+    return filtered.map((exc, index) => {
+      const isApproved = exc.status === "Approved";
+      const isPending = exc.status === "Pending";
+      const isRejected = exc.status === "Rejected";
+      return /* @__PURE__ */ React.createElement("tr", { key: exc.id }, /* @__PURE__ */ React.createElement("td", null, index + 1), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a" } }, exc.studentName), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#2563eb", fontWeight: "600" } }, exc.enrollmentNo), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b" } }, exc.departmentName, " \u2022 ", exc.semester, " ", exc.division)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#1e3a8a" } }, exc.activityName), exc.reason && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: exc.reason }, "Reason: ", exc.reason), exc.documentName && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: "#059669", fontWeight: "700", marginTop: "2px" } }, "\u{1F4CE} ", exc.documentName, " ", exc.documentSize ? `(${exc.documentSize})` : "")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: {
+        padding: "3px 8px",
+        borderRadius: "6px",
+        fontSize: "11px",
+        fontWeight: "700",
+        backgroundColor: exc.category === "Sports Tournament" ? "#f0fdf4" : exc.category === "Technical Competition" ? "#faf5ff" : "#eff6ff",
+        color: exc.category === "Sports Tournament" ? "#166534" : exc.category === "Technical Competition" ? "#6b21a8" : "#1e40af",
+        border: "1px solid rgba(0,0,0,0.06)"
+      } }, exc.category)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#334155", fontSize: "12px" } }, exc.startDate, " to ", exc.endDate)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setSelectedExceptionView(exc),
+          style: {
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11.5px",
+            fontWeight: "700",
+            backgroundColor: "#eff6ff",
+            color: "#2563eb",
+            border: "1px solid #bfdbfe",
+            cursor: "pointer"
+          }
+        },
+        exc.affectedLecturesCount || exc.overlappingLectures && exc.overlappingLectures.length || 0,
+        " Lectures \u2192"
+      )), /* @__PURE__ */ React.createElement("td", null, isApproved && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#dcfce7", color: "#15803d" } }, "\u2713 Approved"), isPending && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#fef9c3", color: "#854d0e" } }, "\u23F3 Awaiting Admin Approval"), isRejected && /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 8px", borderRadius: "6px", fontSize: "11.5px", fontWeight: "800", backgroundColor: "#ffe4e6", color: "#be123c" } }, "\u2715 Rejected")), /* @__PURE__ */ React.createElement("td", null, exc.reviewedBy ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#0f172a", fontWeight: "700" } }, "By: ", exc.reviewedBy), exc.reviewerRemarks && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: "#64748b", fontStyle: "italic", maxWidth: "200px" }, title: exc.reviewerRemarks }, '"', exc.reviewerRemarks, '"')) : /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#94a3b8" } }, "Pending review")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => setSelectedExceptionView(exc),
+          className: "btn btn-secondary btn-sm",
+          style: { padding: "4px 8px" },
+          title: "View details and affected lectures"
+        },
+        /* @__PURE__ */ React.createElement(Eye, { size: 13 })
+      ), isPending && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          onClick: () => {
+            if (window.confirm(`Cancel exception request for ${exc.studentName}?`)) {
+              deleteException(exc.id);
+              if (showToast) showToast("Request cancelled.");
+            }
+          },
+          style: {
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11px",
+            backgroundColor: "#fff1f2",
+            color: "#e11d48",
+            border: "1px solid #fecdd3",
+            cursor: "pointer"
+          },
+          title: "Cancel Request"
+        },
+        /* @__PURE__ */ React.createElement(Trash2, { size: 13 })
+      ))));
+    });
+  })())))), showExceptionModal && (() => {
+    const allStudents = getStudents();
+    const filteredStudentOptions = allStudents.filter((st) => {
+      const q = excStudentSearch.toLowerCase();
+      return !q || st.name && st.name.toLowerCase().includes(q) || st.enrollmentNo && st.enrollmentNo.includes(q) || st.rollNo && String(st.rollNo).includes(q);
+    });
+    const liveOverlapping = excSelectedStudent ? calculateOverlappingLectures(
+      excSelectedStudent.sem || "3rd Sem",
+      excSelectedStudent.class || "Div 1",
+      excSelectedStudent.dept,
+      excStartDate,
+      excEndDate
+    ) : [];
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "680px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "90vh", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Request Official Attendance Exception"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#64748b", margin: "2px 0 0" } }, "Record authorized absence for university tournaments, hackathons, seminars or college duty.")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setShowExceptionModal(false),
+        style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8" }
+      },
+      "\u2715"
+    )), /* @__PURE__ */ React.createElement("form", { onSubmit: (e) => {
+      e.preventDefault();
+      if (!excSelectedStudent) {
+        alert("Please search and select an enrolled student.");
+        return;
+      }
+      if (!excActivityName.trim()) {
+        alert("Please enter the activity or event name.");
+        return;
+      }
+      if (excStartDate > excEndDate) {
+        alert("Start date cannot be after end date.");
+        return;
+      }
+      const res = saveException({
+        studentId: excSelectedStudent.id,
+        studentName: excSelectedStudent.name,
+        enrollmentNo: excSelectedStudent.enrollmentNo,
+        departmentId: excSelectedStudent.dept,
+        departmentName: excSelectedStudent.dept || currentFaculty.dept,
+        semester: excSelectedStudent.sem || "3rd Sem",
+        division: excSelectedStudent.class ? `Div ${excSelectedStudent.class}` : "Div 1",
+        activityName: excActivityName.trim(),
+        category: excCategory,
+        startDate: excStartDate,
+        endDate: excEndDate,
+        reason: excReason.trim(),
+        documentName: excDocName || "authorization_certificate.pdf",
+        documentSize: excDocSize || "1.1 MB",
+        submittedBy: currentFaculty.name,
+        submittedByRole: "faculty"
+      }, currentUser);
+      if (res.success) {
+        if (showToast) showToast(`Exception request submitted for ${excSelectedStudent.name}. Sent for Admin Approval.`);
+        setShowExceptionModal(false);
+      }
+    } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Select Student (Search by Name or Enrollment) *"), !excSelectedStudent ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "Type student name or enrollment number...",
+        value: excStudentSearch,
+        onChange: (e) => setExcStudentSearch(e.target.value),
+        style: { height: "38px", fontSize: "13px" }
+      }
+    ), excStudentSearch && /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "160px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", marginTop: "4px", backgroundColor: "#ffffff", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" } }, filteredStudentOptions.slice(0, 10).map((st) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: st.id,
+        onClick: () => {
+          setExcSelectedStudent(st);
+          setExcStudentSearch("");
+        },
+        style: { padding: "8px 12px", borderBottom: "1px solid #f1f5f9", cursor: "pointer", fontSize: "12.5px" },
+        onMouseEnter: (e) => e.currentTarget.style.backgroundColor = "#eff6ff",
+        onMouseLeave: (e) => e.currentTarget.style.backgroundColor = "#ffffff"
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#0f172a" } }, st.name),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b" } }, st.enrollmentNo, " \u2022 ", st.dept, " \u2022 ", st.sem, " ", st.class ? `Div ${st.class}` : "")
+    )))) : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderRadius: "10px", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#1e3a8a", fontSize: "14px" } }, excSelectedStudent.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#334155", marginTop: "2px" } }, "Enrollment: ", /* @__PURE__ */ React.createElement("b", null, excSelectedStudent.enrollmentNo), " \u2022 ", excSelectedStudent.dept, " \u2022 ", excSelectedStudent.sem, " ", excSelectedStudent.class ? `Div ${excSelectedStudent.class}` : "Div 1")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => setExcSelectedStudent(null),
+        className: "btn btn-secondary btn-sm",
+        style: { fontSize: "11px" }
+      },
+      "Change Student"
+    ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Activity / Event Name *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "e.g. GTU University Basketball Tournament",
+        value: excActivityName,
+        onChange: (e) => setExcActivityName(e.target.value),
+        required: true,
+        style: { height: "38px", fontSize: "13px" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Activity Category *"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: excCategory,
+        onChange: (e) => setExcCategory(e.target.value),
+        required: true,
+        style: { height: "38px", fontSize: "13px", fontWeight: "600" }
+      },
+      EXCEPTION_CATEGORIES.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat, value: cat }, cat))
+    ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Event Start Date *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        className: "form-control",
+        value: excStartDate,
+        onChange: (e) => setExcStartDate(e.target.value),
+        required: true,
+        style: { height: "38px", fontSize: "13px" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Event End Date *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        className: "form-control",
+        value: excEndDate,
+        onChange: (e) => setExcEndDate(e.target.value),
+        required: true,
+        style: { height: "38px", fontSize: "13px" }
+      }
+    ))), excSelectedStudent && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", backgroundColor: "#f8fafc", padding: "12px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "800", color: "#1e3a8a", marginBottom: "6px", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, "Scheduled Lectures Affected (", liveOverlapping.length, ")"), /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b", fontWeight: "600" } }, "Checked against Class Timetable")), liveOverlapping.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", fontStyle: "italic" } }, "No timetable lectures scheduled for ", excSelectedStudent.sem, " during ", excStartDate, " to ", excEndDate, ".") : /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "110px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", fontSize: "11px", borderCollapse: "collapse" } }, /* @__PURE__ */ React.createElement("tbody", null, liveOverlapping.map((ov, idx) => /* @__PURE__ */ React.createElement("tr", { key: idx, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "3px 0", fontWeight: "700", color: "#0f172a" } }, ov.date, " (", ov.day, ")"), /* @__PURE__ */ React.createElement("td", { style: { padding: "3px 0", color: "#2563eb", fontWeight: "700" } }, ov.timeSlot), /* @__PURE__ */ React.createElement("td", { style: { padding: "3px 0", fontWeight: "600" } }, ov.subjectName), /* @__PURE__ */ React.createElement("td", { style: { padding: "3px 0", color: "#64748b" } }, "\u{1F4CD} ", ov.room))))))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Reason for Exception *"), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "form-control",
+        rows: 2,
+        placeholder: "Provide details about the official activity, competition, or team selection...",
+        value: excReason,
+        onChange: (e) => setExcReason(e.target.value),
+        required: true
+      }
+    )), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" } }, "Supporting Document / Permission Certificate (PDF, PNG, JPG)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "file",
+        accept: ".pdf,.png,.jpg,.jpeg",
+        onChange: (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+              setExcDocError("File size exceeds 5MB limit.");
+              return;
+            }
+            setExcDocError("");
+            setExcDocName(file.name);
+            setExcDocSize(`${(file.size / (1024 * 1024)).toFixed(1)} MB`);
+          }
+        },
+        className: "form-control",
+        style: { height: "38px", fontSize: "12.5px" }
+      }
+    ), excDocError && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#dc2626", marginTop: "4px" } }, excDocError), excDocName && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#059669", marginTop: "4px", fontWeight: "700" } }, "\u2713 Selected: ", excDocName, " (", excDocSize, ")")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary",
+        onClick: () => setShowExceptionModal(false)
+      },
+      "Cancel"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "submit",
+        className: "btn btn-primary",
+        style: { fontWeight: "700" }
+      },
+      "Submit Exception Request"
+    )))));
+  })(), selectedExceptionView && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "640px", width: "92%", borderRadius: "16px", padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Affected Timetable Lectures"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#64748b", margin: "2px 0 0" } }, selectedExceptionView.studentName, " (", selectedExceptionView.semester, " ", selectedExceptionView.division, ") \u2022 ", selectedExceptionView.startDate, " to ", selectedExceptionView.endDate)), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setSelectedExceptionView(null),
+      style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8" }
+    },
+    "\u2715"
+  )), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "320px", overflowY: "auto", marginBottom: "20px" } }, selectedExceptionView.overlappingLectures && selectedExceptionView.overlappingLectures.length > 0 ? /* @__PURE__ */ React.createElement("table", { className: "data-table", style: { width: "100%", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc" } }, /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Day"), /* @__PURE__ */ React.createElement("th", null, "Time Slot"), /* @__PURE__ */ React.createElement("th", null, "Subject"), /* @__PURE__ */ React.createElement("th", null, "Faculty"), /* @__PURE__ */ React.createElement("th", null, "Room"))), /* @__PURE__ */ React.createElement("tbody", null, selectedExceptionView.overlappingLectures.map((lec, i) => /* @__PURE__ */ React.createElement("tr", { key: i }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700", color: "#0f172a" } }, lec.date), /* @__PURE__ */ React.createElement("td", null, lec.day), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { backgroundColor: "#eff6ff", color: "#1e3a8a", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" } }, lec.timeSlot)), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, lec.subjectName), /* @__PURE__ */ React.createElement("td", null, lec.facultyName), /* @__PURE__ */ React.createElement("td", null, lec.room))))) : /* @__PURE__ */ React.createElement("div", { style: { padding: "24px", textAlign: "center", color: "#64748b", backgroundColor: "#f8fafc", borderRadius: "8px" } }, "No class timetable conflicts found during this date range.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: () => setSelectedExceptionView(null)
+    },
+    "Close"
+  ))))), facultyTab === "history" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Attendance History & Records"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Log of past attendance sessions recorded by ", currentFaculty.name, ".")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",

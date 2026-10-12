@@ -758,6 +758,13 @@ h1, h2, h3, h4, h5, h6 {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  .erp-cell-ex {
+    background-color: #dbeafe !important;
+    color: #1e40af !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
 
 /* ==========================================================================
@@ -911,6 +918,13 @@ h1, h2, h3, h4, h5, h6 {
 .erp-cell-od {
   background-color: #fff3e0 !important;
   color: #b45309 !important;
+}
+
+/* Light blue/indigo cell for Approved Attendance Exception */
+.erp-cell-ex {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  font-weight: 800;
 }
 
 .erp-cell-empty {
