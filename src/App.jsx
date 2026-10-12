@@ -10,15 +10,25 @@ import AnalyticsView from './components/AnalyticsView';
 import PrintView from './components/PrintView';
 import ManageMaster from './components/ManageMaster';
 import AdminPanel from './components/AdminPanel';
-import { initializeStorage, resetToDefault, verifyAdminPin } from './services/attendanceStorage';
-import { CheckCircle, ShieldCheck, Lock, X, KeyRound } from 'lucide-react';
+import FacultyPanel from './components/FacultyPanel';
+import LoginView from './components/LoginView';
+import { 
+  initializeStorage, 
+  resetToDefault, 
+  verifyAdminPin,
+  getCurrentUser,
+  logoutUser,
+  setCurrentUser as persistCurrentUser
+} from './services/attendanceStorage';
+import { CheckCircle, ShieldCheck, Lock, X, KeyRound, LogOut, ArrowLeft } from 'lucide-react';
 
 export default function App() {
+  const [currentUser, setCurrentUserSession] = useState(() => getCurrentUser());
   const [activeTab, setActiveTab] = useState('manage');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState('');
 
-  // Security state
+  // Security PIN modal state for administrative overrides
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(true);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -34,6 +44,21 @@ export default function App() {
     setTimeout(() => {
       setToastMessage('');
     }, 3500);
+  };
+
+  const handleLoginSuccess = (role, user) => {
+    setCurrentUserSession(user);
+    if (role === 'admin') {
+      setActiveTab('manage');
+      setIsAdminUnlocked(true);
+    }
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    setCurrentUserSession(null);
+    setIsAdminUnlocked(false);
+    showToast('Logged out of session.');
   };
 
   const requestAdminAccess = (onSuccessAction) => {
@@ -78,12 +103,45 @@ export default function App() {
     }
   };
 
-  const handleAdminExit = () => {
-    setIsAdminUnlocked(false);
-    setActiveTab('dashboard');
-    showToast('Logged out of Admin Panel.');
-  };
+  // -------------------------------------------------------------
+  // CONDITIONAL ROUTING BASED ON AUTHENTICATION & ROLE
+  // -------------------------------------------------------------
 
+  // 1. Not Authenticated -> Show Login View
+  if (!currentUser) {
+    return (
+      <>
+        <LoginView onLoginSuccess={handleLoginSuccess} showToast={showToast} />
+        {toastMessage && (
+          <div className="toast-notification">
+            <CheckCircle size={18} style={{ color: '#34d399' }} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // 2. Faculty User -> Render Dedicated Faculty Panel (Restricted from Admin Panel)
+  if (currentUser.role === 'faculty') {
+    return (
+      <>
+        <FacultyPanel 
+          currentUser={currentUser} 
+          showToast={showToast} 
+          onExit={handleLogout} 
+        />
+        {toastMessage && (
+          <div className="toast-notification">
+            <CheckCircle size={18} style={{ color: '#34d399' }} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // 3. Admin User -> Render Admin Panel or Portal View
   const renderActiveView = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -101,9 +159,9 @@ export default function App() {
       case 'print':
         return <PrintView showToast={showToast} />;
       case 'manage':
-        return <AdminPanel showToast={showToast} onExit={handleAdminExit} />;
+        return <AdminPanel showToast={showToast} onExit={handleLogout} />;
       default:
-        return <Dashboard setActiveTab={handleTabChange} />;
+        return <AdminPanel showToast={showToast} onExit={handleLogout} />;
     }
   };
 

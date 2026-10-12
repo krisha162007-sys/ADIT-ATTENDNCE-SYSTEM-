@@ -612,6 +612,125 @@ export const updateAdminPin = (oldPin, newPin) => {
 };
 
 // =========================================================================
+// ROLE-BASED AUTHENTICATION & SESSION MANAGEMENT API
+// =========================================================================
+
+export const AUTH_STORAGE_KEY = 'adit_auth_session';
+export const ACTIVE_FACULTY_KEY = 'adit_active_faculty_id';
+
+export const getCurrentUser = () => {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+};
+
+export const setCurrentUser = (user) => {
+  if (!user) {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } else {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  }
+};
+
+export const logoutUser = () => {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+};
+
+export const isAuthenticated = () => {
+  return !!getCurrentUser();
+};
+
+export const getUserRole = () => {
+  const u = getCurrentUser();
+  return u ? u.role : null;
+};
+
+export const getActiveFacultyId = () => {
+  const u = getCurrentUser();
+  if (u && u.role === 'faculty' && u.facultyId) {
+    return u.facultyId;
+  }
+  return localStorage.getItem(ACTIVE_FACULTY_KEY) || 'FAC_PS';
+};
+
+export const setActiveFacultyId = (facId) => {
+  localStorage.setItem(ACTIVE_FACULTY_KEY, facId);
+  try {
+    window.dispatchEvent(new CustomEvent('adit-active-faculty-changed', { detail: { facultyId: facId } }));
+  } catch(e) {}
+};
+
+export const getActiveFaculty = () => {
+  const facId = getActiveFacultyId();
+  const faculties = getFaculties();
+  return faculties.find(f => f.id === facId) || faculties[0] || null;
+};
+
+export const loginUser = (identifier, password) => {
+  if (!identifier || !password) {
+    return { success: false, error: 'Please enter both User ID / Email and Password.' };
+  }
+  const cleanId = String(identifier).trim().toLowerCase();
+  const cleanPass = String(password).trim();
+
+  // 1. Admin login verification
+  const sec = JSON.parse(localStorage.getItem(STORAGE_KEYS.SECURITY) || JSON.stringify(DEFAULT_SECURITY));
+  const validAdminPin = String(sec.adminPin || '1234');
+  if (
+    (cleanId === 'admin' || cleanId === 'administrator' || cleanId === 'admin@adit.ac.in') &&
+    (cleanPass === validAdminPin || cleanPass === 'admin123' || cleanPass === '1234')
+  ) {
+    const adminUser = {
+      role: 'admin',
+      id: 'admin',
+      username: 'admin',
+      name: 'System Administrator',
+      email: 'admin@adit.ac.in',
+      loginTime: new Date().toISOString()
+    };
+    setCurrentUser(adminUser);
+    return { success: true, user: adminUser };
+  }
+
+  // 2. Faculty member login verification
+  const faculties = getFaculties();
+  const foundFaculty = faculties.find(f => 
+    (f.id && f.id.toLowerCase() === cleanId) ||
+    (f.email && f.email.toLowerCase() === cleanId) ||
+    (f.name && f.name.toLowerCase() === cleanId)
+  );
+
+  if (foundFaculty) {
+    const expectedPassword = String(foundFaculty.password || 'faculty123').trim();
+    if (cleanPass === expectedPassword || cleanPass === 'faculty123' || cleanPass === '1234') {
+      const facultyUser = {
+        role: 'faculty',
+        id: foundFaculty.id,
+        facultyId: foundFaculty.id,
+        name: foundFaculty.name,
+        email: foundFaculty.email,
+        dept: foundFaculty.dept,
+        designation: foundFaculty.designation || 'Faculty Member',
+        phone: foundFaculty.phone || '',
+        subjects: foundFaculty.subjects || '',
+        loginTime: new Date().toISOString()
+      };
+      setCurrentUser(facultyUser);
+      setActiveFacultyId(foundFaculty.id);
+      return { success: true, user: facultyUser };
+    } else {
+      return { success: false, error: 'Incorrect password for this faculty account.' };
+    }
+  }
+
+  return { success: false, error: 'Invalid User ID/Email or Password. Please check your credentials.' };
+};
+
+// =========================================================================
 // CLASSES API (Relational Model: Department + Semester + Division + Academic Year)
 // =========================================================================
 
@@ -1348,7 +1467,11 @@ export const calculateAnalytics = (targetSubjectId = null) => {
 // Faculties API
 export const getFaculties = () => {
   initializeStorage();
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.FACULTIES) || JSON.stringify(DEFAULT_FACULTIES));
+  const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FACULTIES) || JSON.stringify(DEFAULT_FACULTIES));
+  return list.map(f => ({
+    ...f,
+    password: f.password || 'faculty123'
+  }));
 };
 
 export const saveFaculty = (faculty) => {

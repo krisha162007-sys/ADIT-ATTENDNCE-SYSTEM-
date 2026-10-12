@@ -847,6 +847,51 @@ export const getScheduledLecturesForDate = (dateStr) => {
   return { dayName, lectures };
 };
 
+export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
+  if (!dateStr || !facultyId) return { dayName: '', lectures: [] };
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayName = DAYS[d.getDay()];
+  const entries = getTimetableEntries();
+  const dayEntries = entries.filter(e => e.day === dayName && e.facultyId === facultyId);
+  if (dayEntries.length > 0) {
+    const lectures = dayEntries.map(e => ({
+      id: e.id,
+      time: e.timeSlot,
+      subjectId: e.subjectId,
+      subjectName: e.subjectName || e.subjectFullName || e.subjectId,
+      facultyId: e.facultyId,
+      facultyName: e.facultyName,
+      sem: e.semId || e.sem,
+      div: e.divId || e.div,
+      departmentId: e.departmentId,
+      room: e.room,
+      type: e.type || 'Lecture'
+    }));
+    return { dayName, lectures };
+  }
+  // Fallback to getFacultyTimetable
+  const grid = getFacultyTimetable(facultyId);
+  const daySlots = grid[dayName] || {};
+  const lectures = [];
+  Object.keys(daySlots).forEach(time => {
+    const s = daySlots[time];
+    if (s && s.subject) {
+      lectures.push({
+        time,
+        subjectId: s.subject,
+        subjectName: s.name || s.subject,
+        facultyId,
+        sem: s.sem,
+        div: s.div,
+        room: s.room,
+        type: s.type || 'Lecture',
+        color: s.color
+      });
+    }
+  });
+  return { dayName, lectures };
+};
+
 
 
 // =========================================================================

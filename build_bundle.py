@@ -53,6 +53,8 @@ def build():
         'src/components/ClassManagementPanel.jsx',
         'src/components/DepartmentAdminPanel.jsx',
         'src/components/AdminPanel.jsx',
+        'src/components/FacultyPanel.jsx',
+        'src/components/LoginView.jsx',
         'src/App.jsx',
     ]
 
