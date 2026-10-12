@@ -386,6 +386,13 @@ const DEFAULT_STUDENTS = [
   { id: "S_AI_04", rollNo: "4", name: "Dhwani Shah", enrollmentNo: "24AD004", email: "dhwani.shah@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   { id: "S_AI_05", rollNo: "5", name: "Kavya Patel", enrollmentNo: "24AD005", email: "kavya.patel@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   { id: "S_AI_06", rollNo: "6", name: "Neel Mistry", enrollmentNo: "24AD006", email: "neel.mistry@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  // AI & Data Science • Sem 3 • Div 2 (2026-27)
+  { id: "S_AI_07", rollNo: "1", name: "Rohan Varma", enrollmentNo: "24AD007", email: "rohan.v@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_08", rollNo: "2", name: "Sneha Dave", enrollmentNo: "24AD008", email: "sneha.d@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_09", rollNo: "3", name: "Tanmay Bhatt", enrollmentNo: "24AD009", email: "tanmay.b@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_10", rollNo: "4", name: "Urvi Solanki", enrollmentNo: "24AD010", email: "urvi.s@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_11", rollNo: "5", name: "Vivek Joshi", enrollmentNo: "24AD011", email: "vivek.j@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_12", rollNo: "6", name: "Yashvi Prajapati", enrollmentNo: "24AD012", email: "yashvi.p@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
   { id: "S_IT_01", rollNo: "1", name: "Omkar Trivedi", enrollmentNo: "24IT001", email: "omkar.t@adit.ac.in", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" },
   { id: "S_IT_02", rollNo: "2", name: "Prachi Joshi", enrollmentNo: "24IT002", email: "prachi.j@adit.ac.in", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" }
@@ -488,7 +495,58 @@ const generateDSSessions = () => {
     };
   });
 };
-const DEFAULT_SESSIONS = generateDSSessions();
+const generateDBMSSessions = () => {
+  const dates = [
+    { date: "2026-07-07", timeSlot: "9:00 - 9:55", topic: "Introduction to DBMS Architecture & Data Models" },
+    { date: "2026-07-14", timeSlot: "9:00 - 9:55", topic: "Entity-Relationship (ER) Modeling & Diagramming" },
+    { date: "2026-07-21", timeSlot: "9:00 - 9:55", topic: "Relational Model Constraints & Primary/Foreign Keys" },
+    { date: "2026-07-28", timeSlot: "9:00 - 9:55", topic: "Relational Algebra Operations: Select, Project, Join" },
+    { date: "2026-08-04", timeSlot: "9:00 - 9:55", topic: "SQL DDL, DML Statements & Integrity Constraints" },
+    { date: "2026-08-11", timeSlot: "9:00 - 9:55", topic: "Nested Queries, Group By & Aggregate Functions" },
+    { date: "2026-08-18", timeSlot: "9:00 - 9:55", topic: "Database Normalization: 1NF, 2NF, 3NF & BCNF" }
+  ];
+  const aiStudents = DEFAULT_STUDENTS.filter((s) => s.classId === "CLASS_DEP_AI_3_1_2026-27");
+  return dates.map((d, index) => {
+    const records = {};
+    const remarks = {};
+    let presentCount = 0;
+    let absentCount = 0;
+    aiStudents.forEach((st) => {
+      const isAbsent = index % 3 === 0 && st.id === "S_AI_02" || index === 2 && st.id === "S_AI_05";
+      if (isAbsent) {
+        records[st.id] = "absent";
+        remarks[st.id] = "Absent";
+        absentCount++;
+      } else {
+        records[st.id] = "present";
+        presentCount++;
+      }
+    });
+    return {
+      id: `SESS_AI_DBMS_${index + 1}`,
+      date: d.date,
+      timeSlot: d.timeSlot,
+      subjectId: "SUB_AI_DBMS",
+      subjectName: "Database Management Systems",
+      facultyId: "FAC_PS",
+      facultyName: "Prof. Priya Shah",
+      department: "AI & Data Science",
+      sem: "3rd Sem",
+      division: "Div 1",
+      academicYear: "2026-27",
+      classId: "CLASS_DEP_AI_3_1_2026-27",
+      topic: d.topic,
+      records,
+      remarks,
+      totalStudents: aiStudents.length,
+      presentCount,
+      absentCount,
+      percentage: aiStudents.length > 0 ? (presentCount / aiStudents.length * 100).toFixed(1) : "0.0",
+      submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  });
+};
+const DEFAULT_SESSIONS = [...generateDSSessions(), ...generateDBMSSessions()];
 const initializeStorage = () => {
   const currentSubjs = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
   const currentStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
@@ -503,6 +561,33 @@ const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
     return;
+  }
+  try {
+    const parsedStudents = JSON.parse(currentStudents || "[]");
+    let stChanged = false;
+    DEFAULT_STUDENTS.forEach((defSt) => {
+      if (!parsedStudents.some((s) => s.id === defSt.id || s.enrollmentNo === defSt.enrollmentNo)) {
+        parsedStudents.push(defSt);
+        stChanged = true;
+      }
+    });
+    if (stChanged) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(parsedStudents));
+    }
+  } catch (e) {
+  }
+  const currentSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  if (currentSessions) {
+    try {
+      const parsedSessions = JSON.parse(currentSessions);
+      if (!parsedSessions.some((s) => s.subjectId === "SUB_AI_DBMS")) {
+        const dbmsSessions = generateDBMSSessions();
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([...parsedSessions, ...dbmsSessions]));
+      }
+    } catch (e) {
+    }
+  } else {
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
   }
   if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) {
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
@@ -824,6 +909,9 @@ const saveClass = (classData) => {
     classes.push(savedClass);
   }
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-classes-updated"));
+  }
   return { success: true, class: savedClass, classes };
 };
 const deleteClass = (classId, deleteStudents = false) => {
@@ -840,6 +928,10 @@ const deleteClass = (classId, deleteStudents = false) => {
       }
     });
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-classes-updated"));
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
   }
   return classes;
 };
@@ -1007,6 +1099,9 @@ const saveStudent = (studentData) => {
     students.push(saved);
   }
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
   return students;
 };
 const moveStudentToClass = (studentId, targetClassId) => {
@@ -1026,6 +1121,9 @@ const moveStudentToClass = (studentId, targetClassId) => {
   student.class = targetClass.division.replace(/[^0-9]/g, "") || "1";
   student.academicYear = targetClass.academicYear;
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
   return { success: true, student, students };
 };
 const bulkImportStudentsToClass = (classId, studentRows, options = { moveExisting: false }) => {
@@ -1104,6 +1202,9 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
     }
   });
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
   return {
     success: true,
     importedCount,
@@ -1116,6 +1217,9 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
 const deleteStudent = (studentId) => {
   const students = getStudents().filter((s) => s.id !== studentId);
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
   return students;
 };
 const removeStudentFromClass = (studentId, classId = null) => {
@@ -1128,6 +1232,9 @@ const removeStudentFromClass = (studentId, classId = null) => {
     student.class = null;
   }
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
   return students;
 };
 const getSubjects = () => {
@@ -1180,11 +1287,17 @@ const saveSession = (session) => {
     sessions.push(session);
   }
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+  }
   return sessions;
 };
 const deleteSession = (sessionId) => {
   const sessions = getSessions().filter((s) => s.id !== sessionId);
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+  }
   return sessions;
 };
 const resetToDefault = () => {
@@ -9014,14 +9127,25 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
   }, [facultiesList, currentUser]);
   const [facultyTab, setFacultyTab] = useState("dashboard");
   const [timetableSyncTick, setTimetableSyncTick] = useState(0);
+  const [studentsTick, setStudentsTick] = useState(0);
+  const [classesTick, setClassesTick] = useState(0);
   useEffect(() => {
     const handleSync = () => setTimetableSyncTick((t) => t + 1);
     const handleFacultyUpdate = () => setFacultiesList(getFaculties());
+    const handleStudentsUpdate = () => setStudentsTick((t) => t + 1);
+    const handleClassesUpdate = () => setClassesTick((t) => t + 1);
+    const handleSessionsUpdate = () => setAllSessions(getSessions());
     window.addEventListener("adit-timetable-synced", handleSync);
     window.addEventListener("adit-faculty-updated", handleFacultyUpdate);
+    window.addEventListener("adit-students-updated", handleStudentsUpdate);
+    window.addEventListener("adit-classes-updated", handleClassesUpdate);
+    window.addEventListener("adit-sessions-updated", handleSessionsUpdate);
     return () => {
       window.removeEventListener("adit-timetable-synced", handleSync);
       window.removeEventListener("adit-faculty-updated", handleFacultyUpdate);
+      window.removeEventListener("adit-students-updated", handleStudentsUpdate);
+      window.removeEventListener("adit-classes-updated", handleClassesUpdate);
+      window.removeEventListener("adit-sessions-updated", handleSessionsUpdate);
     };
   }, []);
   const facultyTimetableGrid = useMemo(() => {
@@ -9100,8 +9224,8 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     }
     const criteriaEnrolled = getStudentsForClassCriteria(attDept, attSem, attDiv, attYear);
     if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
-    return getStudents();
-  }, [activeClass, attDept, attSem, attDiv, attYear]);
+    return [];
+  }, [activeClass, attDept, attSem, attDiv, attYear, studentsTick]);
   useEffect(() => {
     const initialRecords = {};
     const initialRemarks = {};
@@ -9140,7 +9264,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
       return;
     }
     const duplicate = facultySessions.find(
-      (s) => s.date === attDate && s.timeSlot === attTimeSlot && s.subjectId === attSubjectId && s.classId === activeClass?.id
+      (s) => s.date === attDate && s.timeSlot === attTimeSlot && (s.subjectId === attSubjectId || s.subjectName === attSubjectName) && (s.classId === activeClass?.id || s.sem === attSem && s.division === attDiv)
     );
     if (duplicate) {
       const confirmOverwrite = window.confirm(
@@ -9175,9 +9299,276 @@ Do you want to update/overwrite the existing record?`
     saveSession(sessionPayload);
     reloadSessions();
     if (showToast) {
-      showToast(`Attendance successfully saved! (${presentCount} Present, ${absentCount} Absent)`);
+      showToast(`Attendance saved! (${presentCount} Present, ${absentCount} Absent)`);
     }
-    setFacultyTab("history");
+    if (activeClass?.id) setRegClassId(activeClass.id);
+    if (attSubjectId) setRegSubjectId(attSubjectId);
+    setFacultyTab("register");
+  };
+  const allClasses = useMemo(() => getClasses(), [classesTick]);
+  const allSubjects = useMemo(() => getSubjects(), []);
+  const facultyEntries = useMemo(() => {
+    return getEntriesByFaculty(currentFaculty.id);
+  }, [currentFaculty.id, timetableSyncTick]);
+  const facultyClasses = useMemo(() => {
+    const taughtMap = /* @__PURE__ */ new Set();
+    facultyEntries.forEach((e) => {
+      taughtMap.add(`${normalizeSem(e.semId || e.sem)}_${normalizeDiv(e.divId || e.div)}`);
+    });
+    const list = allClasses.filter((c) => {
+      const isDept = c.departmentName?.toLowerCase() === currentFaculty.dept?.toLowerCase() || c.departmentId === currentFaculty.deptId;
+      const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
+      return taughtMap.has(key) || isDept;
+    });
+    return list.length > 0 ? list : allClasses;
+  }, [allClasses, facultyEntries, currentFaculty]);
+  const [regClassId, setRegClassId] = useState("CLASS_DEP_AI_3_1_2026-27");
+  const selectedRegClass = useMemo(() => {
+    return allClasses.find((c) => c.id === regClassId) || facultyClasses.find((c) => c.id === regClassId) || facultyClasses[0] || allClasses[0] || null;
+  }, [allClasses, facultyClasses, regClassId]);
+  const facultySubjects = useMemo(() => {
+    const list = allSubjects.filter((s) => {
+      const isAssigned = s.faculty && s.faculty.toLowerCase() === currentFaculty.name.toLowerCase();
+      const inTimetable = facultyEntries.some(
+        (e) => e.subjectId === s.id || e.subjectId === s.shortName || e.subjectName === s.shortName || e.subjectFullName === s.name
+      );
+      const isDept = s.dept && currentFaculty.dept && (s.dept.toLowerCase().includes(currentFaculty.dept.toLowerCase()) || currentFaculty.dept.toLowerCase().includes(s.dept.toLowerCase()));
+      return isAssigned || inTimetable || isDept;
+    });
+    return list.length > 0 ? list : allSubjects;
+  }, [allSubjects, currentFaculty, facultyEntries]);
+  const [regSubjectId, setRegSubjectId] = useState("SUB_AI_DBMS");
+  const selectedRegSubject = useMemo(() => {
+    return allSubjects.find((s) => s.id === regSubjectId) || facultySubjects.find((s) => s.id === regSubjectId) || facultySubjects[0] || allSubjects[0] || null;
+  }, [allSubjects, facultySubjects, regSubjectId]);
+  const [regAcademicYear, setRegAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
+  const [regTerm, setRegTerm] = useState("Odd");
+  const [regSearchQuery, setRegSearchQuery] = useState("");
+  const [regStatusFilter, setRegStatusFilter] = useState("ALL");
+  const [regDateFrom, setRegDateFrom] = useState("");
+  const [regDateTo, setRegDateTo] = useState("");
+  const registerStudents = useMemo(() => {
+    if (selectedRegClass && selectedRegClass.id) {
+      const enrolled = getStudentsByClassId(selectedRegClass.id);
+      if (enrolled && enrolled.length > 0) return enrolled;
+    }
+    if (selectedRegClass) {
+      const criteria = getStudentsForClassCriteria(
+        selectedRegClass.departmentName || currentFaculty.dept,
+        selectedRegClass.semester,
+        selectedRegClass.division,
+        selectedRegClass.academicYear || regAcademicYear
+      );
+      if (criteria && criteria.length > 0) return criteria;
+    }
+    return [];
+  }, [selectedRegClass, currentFaculty.dept, regAcademicYear, studentsTick]);
+  const registerSessions = useMemo(() => {
+    return allSessions.filter((sess) => {
+      const matchSubj = sess.subjectId === regSubjectId || sess.subjectId === selectedRegSubject?.shortName || sess.subjectName === selectedRegSubject?.name || sess.subjectName && selectedRegSubject?.name && sess.subjectName.toLowerCase() === selectedRegSubject.name.toLowerCase();
+      if (!matchSubj) return false;
+      if (selectedRegClass) {
+        const matchClassId = sess.classId && sess.classId === selectedRegClass.id;
+        const matchSemDiv = normalizeSem(sess.sem) === normalizeSem(selectedRegClass.semester) && normalizeDiv(sess.division) === normalizeDiv(selectedRegClass.division);
+        if (!matchClassId && !matchSemDiv) return false;
+      }
+      if (regDateFrom && sess.date < regDateFrom) return false;
+      if (regDateTo && sess.date > regDateTo) return false;
+      return true;
+    }).sort((a, b) => {
+      const timeA = a.timeSlot ? a.timeSlot.split("-")[0].trim() : "00:00";
+      const timeB = b.timeSlot ? b.timeSlot.split("-")[0].trim() : "00:00";
+      return /* @__PURE__ */ new Date(`${a.date}T${timeA.length === 4 ? "0" + timeA : timeA}`) - /* @__PURE__ */ new Date(`${b.date}T${timeB.length === 4 ? "0" + timeB : timeB}`);
+    });
+  }, [allSessions, regSubjectId, selectedRegSubject, selectedRegClass, regDateFrom, regDateTo]);
+  const registerStudentsFiltered = useMemo(() => {
+    return registerStudents.filter((st) => {
+      const q = regSearchQuery.trim().toLowerCase();
+      const matchQ = !q || st.name && st.name.toLowerCase().includes(q) || st.enrollmentNo && st.enrollmentNo.toLowerCase().includes(q) || st.rollNo && String(st.rollNo).includes(q);
+      if (!matchQ) return false;
+      let presentCount2 = 0;
+      registerSessions.forEach((sess) => {
+        const stStatus = sess.records && sess.records[st.id];
+        if (stStatus === "present" || stStatus === "late" || stStatus === "od") {
+          presentCount2++;
+        }
+      });
+      const pct = registerSessions.length > 0 ? presentCount2 / registerSessions.length * 100 : 0;
+      if (regStatusFilter === "SHORTAGE") return pct < 75;
+      if (regStatusFilter === "ELIGIBLE") return pct >= 75;
+      return true;
+    });
+  }, [registerStudents, regSearchQuery, regStatusFilter, registerSessions]);
+  const { classAveragePct, eligibleStudentsCount, shortageStudentsCount } = useMemo(() => {
+    if (registerStudents.length === 0 || registerSessions.length === 0) {
+      return { classAveragePct: "0.00", eligibleStudentsCount: 0, shortageStudentsCount: 0 };
+    }
+    let totalPctSum = 0;
+    let elig = 0;
+    let short = 0;
+    registerStudents.forEach((st) => {
+      let p = 0;
+      registerSessions.forEach((sess) => {
+        const s = sess.records && sess.records[st.id];
+        if (s === "present" || s === "late" || s === "od") p++;
+      });
+      const pct = p / registerSessions.length * 100;
+      totalPctSum += pct;
+      if (pct >= 75) elig++;
+      else short++;
+    });
+    return {
+      classAveragePct: (totalPctSum / registerStudents.length).toFixed(2),
+      eligibleStudentsCount: elig,
+      shortageStudentsCount: short
+    };
+  }, [registerStudents, registerSessions]);
+  const formatSessionHeader = (sess, allSess) => {
+    if (!sess || !sess.date) return { main: "Lecture", sub: null };
+    const parts = sess.date.split("-");
+    let dateFormatted = sess.date;
+    if (parts.length === 3) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const mName = mIdx >= 0 && mIdx < 12 ? monthNames[mIdx] : parts[1];
+      dateFormatted = `${parts[2]} ${mName}`;
+    }
+    const sameDateSessions = allSess.filter((s) => s.date === sess.date);
+    if (sameDateSessions.length > 1) {
+      const timePart = sess.timeSlot ? sess.timeSlot.split("-")[0].trim() : "";
+      return {
+        main: dateFormatted,
+        sub: timePart || sess.timeSlot || ""
+      };
+    }
+    return {
+      main: dateFormatted,
+      sub: null
+    };
+  };
+  const handleRegisterCellClick = (session, studentId) => {
+    if (session.facultyId && session.facultyId !== currentFaculty.id && session.facultyName && session.facultyName.toLowerCase() !== currentFaculty.name.toLowerCase()) {
+      alert(`Permission Denied: This session was recorded by ${session.facultyName || "another faculty member"}. You can only edit your own sessions.`);
+      return;
+    }
+    const currentStatus = session.records && session.records[studentId] || "absent";
+    let nextStatus = "present";
+    if (currentStatus === "present") nextStatus = "absent";
+    else if (currentStatus === "absent") nextStatus = "od";
+    else if (currentStatus === "od") nextStatus = "present";
+    const updatedRecords = { ...session.records || {}, [studentId]: nextStatus };
+    let pCount = 0;
+    let aCount = 0;
+    Object.values(updatedRecords).forEach((val) => {
+      if (val === "present" || val === "late" || val === "od") pCount++;
+      else if (val === "absent") aCount++;
+    });
+    const updatedSession = {
+      ...session,
+      records: updatedRecords,
+      presentCount: pCount,
+      absentCount: aCount,
+      percentage: pCount + aCount > 0 ? (pCount / (pCount + aCount) * 100).toFixed(1) : session.percentage
+    };
+    saveSession(updatedSession);
+    reloadSessions();
+    if (showToast) {
+      showToast(`Updated Roll #${studentId}: marked as ${nextStatus.toUpperCase()}`);
+    }
+  };
+  const handleExportExcel = () => {
+    const xlsxLib = typeof window !== "undefined" && window.XLSX ? window.XLSX : null;
+    if (!xlsxLib) {
+      alert("Spreadsheet engine (XLSX) is not ready yet.");
+      return;
+    }
+    const headerRow1 = [getCollegeName()];
+    const headerRow2 = [`Academic Year: ${regAcademicYear}`, `Term: ${regTerm}`];
+    const headerRow3 = [`Subject: ${selectedRegSubject?.code || ""} ${selectedRegSubject?.name || selectedRegSubject?.shortName || "Course"}`];
+    const headerRow4 = [
+      `Department: ${selectedRegClass?.departmentName || currentFaculty.dept}`,
+      `Class: ${selectedRegClass?.semester || ""} ${selectedRegClass?.division || ""}`,
+      `Faculty: ${currentFaculty.name}`
+    ];
+    const emptyRow = [];
+    const dateHeaders = registerSessions.map((s) => {
+      const h = formatSessionHeader(s, registerSessions);
+      return h.sub ? `${h.main} (${h.sub})` : h.main;
+    });
+    const tableHeader = [
+      "Sr No",
+      "Enrollment No",
+      "Student Name",
+      ...dateHeaders,
+      "Total Present",
+      "Total Lectures",
+      "Percentage (%)"
+    ];
+    const dataRows = registerStudentsFiltered.map((st, idx) => {
+      let present = 0;
+      const total = registerSessions.length;
+      const dateStatuses = registerSessions.map((sess) => {
+        const status = sess.records && sess.records[st.id] || "";
+        if (status === "present" || status === "late") {
+          present++;
+          return "P";
+        } else if (status === "od") {
+          present++;
+          return "O*";
+        } else if (status === "absent") {
+          return "A";
+        }
+        return "-";
+      });
+      const pct = total > 0 ? (present / total * 100).toFixed(2) : "0.00";
+      return [
+        idx + 1,
+        st.enrollmentNo,
+        st.name,
+        ...dateStatuses,
+        present,
+        total,
+        Number(pct)
+      ];
+    });
+    const summaryRow = ["Total Present", "", ""];
+    registerSessions.forEach((sess) => {
+      let count = 0;
+      registerStudentsFiltered.forEach((st) => {
+        const s = sess.records && sess.records[st.id];
+        if (s === "present" || s === "late" || s === "od") count++;
+      });
+      summaryRow.push(count);
+    });
+    summaryRow.push("", "", "");
+    const sheetData = [
+      headerRow1,
+      headerRow2,
+      headerRow3,
+      headerRow4,
+      emptyRow,
+      tableHeader,
+      ...dataRows,
+      summaryRow
+    ];
+    const wb = xlsxLib.utils.book_new();
+    const ws = xlsxLib.utils.aoa_to_sheet(sheetData);
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 24 },
+      ...registerSessions.map(() => ({ wch: 12 })),
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 }
+    ];
+    xlsxLib.utils.book_append_sheet(wb, ws, "Attendance Register");
+    const fileName = `${(selectedRegSubject?.shortName || "Course").replace(/\s+/g, "_")}_Attendance_Register_${regAcademicYear}.xlsx`;
+    xlsxLib.writeFile(wb, fileName);
+    if (showToast) showToast("Attendance register exported to Excel successfully!");
+  };
+  const handlePrint = () => {
+    window.print();
   };
   const [viewingSession, setViewingSession] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
@@ -9240,6 +9631,7 @@ Do you want to update/overwrite the existing record?`
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "timetable", label: "My Timetable", icon: Calendar },
     { id: "take", label: "Take Attendance", icon: UserCheck },
+    { id: "register", label: "Attendance Register", icon: FileSpreadsheet },
     { id: "history", label: "Attendance History", icon: FileText },
     { id: "profile", label: "My Profile", icon: User }
   ];
@@ -9387,7 +9779,7 @@ Do you want to update/overwrite the existing record?`
     fontSize: "12px",
     fontWeight: "700",
     marginBottom: "10px"
-  } }, /* @__PURE__ */ React.createElement(Sparkles, { size: 14 }), /* @__PURE__ */ React.createElement("span", null, "Faculty Academic Workspace")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "white", margin: "0 0 6px", fontFamily: "'Outfit', sans-serif" } }, "Welcome back, ", currentFaculty.name, "!"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#dbeafe", margin: 0 } }, currentFaculty.designation || "Faculty Member", " \u2022 Department of ", currentFaculty.dept, " \u2022 ID: ", currentFaculty.id)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+  } }, /* @__PURE__ */ React.createElement(Sparkles, { size: 14 }), /* @__PURE__ */ React.createElement("span", null, "Faculty Academic Workspace")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "white", margin: "0 0 6px", fontFamily: "'Outfit', sans-serif" } }, "Welcome back, ", currentFaculty.name, "!"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#dbeafe", margin: 0 } }, currentFaculty.designation || "Faculty Member", " \u2022 Department of ", currentFaculty.dept, " \u2022 ID: ", currentFaculty.id)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -9409,6 +9801,28 @@ Do you want to update/overwrite the existing record?`
     },
     /* @__PURE__ */ React.createElement(UserCheck, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Take Attendance")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setFacultyTab("register"),
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "10px 18px",
+        borderRadius: "10px",
+        border: "none",
+        backgroundColor: "#10b981",
+        color: "#ffffff",
+        fontWeight: "700",
+        fontSize: "13.5px",
+        cursor: "pointer",
+        boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
+      }
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }),
+    /* @__PURE__ */ React.createElement("span", null, "Attendance Register")
   ), /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -9532,7 +9946,15 @@ Do you want to update/overwrite the existing record?`
       lec.isCompleted ? /* @__PURE__ */ React.createElement(Eye, { size: 15 }) : /* @__PURE__ */ React.createElement(UserCheck, { size: 15 }),
       /* @__PURE__ */ React.createElement("span", null, lec.isCompleted ? "Re-open Attendance" : "Take Attendance")
     )
-  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" } }, /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" } }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: "card",
+      style: { padding: "20px", borderRadius: "12px", cursor: "pointer", border: "1px solid #e2e8f0" },
+      onClick: () => setFacultyTab("register")
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 22 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Attendance Register"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: "2px 0 0" } }, "Class P/A matrix, defaulters & export")))
+  ), /* @__PURE__ */ React.createElement(
     "div",
     {
       className: "card",
@@ -9955,6 +10377,20 @@ Do you want to update/overwrite the existing record?`
     "button",
     {
       type: "button",
+      className: "btn btn-secondary",
+      onClick: () => {
+        if (activeClass?.id) setRegClassId(activeClass.id);
+        if (attSubjectId) setRegSubjectId(attSubjectId);
+        setFacultyTab("register");
+      },
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 15, color: "#059669" }),
+    /* @__PURE__ */ React.createElement("span", null, "View Class Register")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
       onClick: handleSubmitAttendance,
       style: {
         display: "flex",
@@ -9973,7 +10409,219 @@ Do you want to update/overwrite the existing record?`
     },
     /* @__PURE__ */ React.createElement(Save, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Submit & Save Attendance")
-  )))), facultyTab === "history" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Attendance History & Records"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Log of past attendance sessions recorded by ", currentFaculty.name, ".")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+  )))), facultyTab === "register" && /* @__PURE__ */ React.createElement("div", { className: "erp-attendance-view", style: { maxWidth: "1400px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card no-print", style: { marginBottom: "20px", padding: "18px 22px", borderRadius: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Class / Division"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: regClassId,
+      onChange: (e) => setRegClassId(e.target.value),
+      style: { height: "38px", minWidth: "220px", fontWeight: "700", fontSize: "13px" }
+    },
+    facultyClasses.map((c) => /* @__PURE__ */ React.createElement("option", { key: c.id, value: c.id }, c.departmentName ? c.departmentName.length > 18 ? c.departmentName.split(" ")[0] : c.departmentName : "Dept", " \u2022 ", c.semester, " \u2022 ", c.division, " (", c.academicYear, ")"))
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Course / Subject"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: regSubjectId,
+      onChange: (e) => setRegSubjectId(e.target.value),
+      style: { height: "38px", minWidth: "240px", fontWeight: "700", fontSize: "13px" }
+    },
+    facultySubjects.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.code ? `${s.code} - ` : "", s.shortName || s.name))
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Term & Year"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px" } }, /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: regTerm,
+      onChange: (e) => setRegTerm(e.target.value),
+      style: { height: "38px", width: "85px", fontWeight: "600", fontSize: "13px" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "Odd" }, "Odd"),
+    /* @__PURE__ */ React.createElement("option", { value: "Even" }, "Even")
+  ), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: regAcademicYear,
+      onChange: (e) => setRegAcademicYear(e.target.value),
+      style: { height: "38px", width: "105px", fontWeight: "600", fontSize: "13px" }
+    },
+    ACADEMIC_YEARS.map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y))
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Date Range"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "date",
+      className: "form-control",
+      value: regDateFrom,
+      onChange: (e) => setRegDateFrom(e.target.value),
+      style: { height: "38px", width: "130px", fontSize: "12px" },
+      title: "From date"
+    }
+  ), /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8", fontSize: "12px" } }, "to"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "date",
+      className: "form-control",
+      value: regDateTo,
+      onChange: (e) => setRegDateTo(e.target.value),
+      style: { height: "38px", width: "130px", fontSize: "12px" },
+      title: "To date"
+    }
+  ), (regDateFrom || regDateTo) && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-sm btn-secondary",
+      onClick: () => {
+        setRegDateFrom("");
+        setRegDateTo("");
+      },
+      style: { height: "36px", padding: "0 8px", fontSize: "11px" },
+      title: "Clear date filter"
+    },
+    "Clear"
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Attendance Filter"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: regStatusFilter,
+      onChange: (e) => setRegStatusFilter(e.target.value),
+      style: { height: "38px", minWidth: "160px", fontSize: "13px" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Students (", registerStudents.length, ")"),
+    /* @__PURE__ */ React.createElement("option", { value: "SHORTAGE" }, "Shortage < 75% (", shortageStudentsCount, ")"),
+    /* @__PURE__ */ React.createElement("option", { value: "ELIGIBLE" }, "Eligible \u2265 75% (", eligibleStudentsCount, ")")
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Search Student"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement(Search, { size: 14, style: { position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "Enrollment / Name...",
+      value: regSearchQuery,
+      onChange: (e) => setRegSearchQuery(e.target.value),
+      style: { height: "38px", paddingLeft: "32px", width: "170px", fontSize: "13px" }
+    }
+  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: handleExportExcel,
+      style: { height: "38px", padding: "0 14px", display: "flex", alignItems: "center", gap: "6px" },
+      title: "Export formatted Excel (.xlsx) file"
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16, color: "#059669" }),
+    /* @__PURE__ */ React.createElement("span", null, "Export Excel")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: handlePrint,
+      style: { height: "38px", padding: "0 14px", display: "flex", alignItems: "center", gap: "6px" },
+      title: "Print official academic sheet"
+    },
+    /* @__PURE__ */ React.createElement(Printer, { size: 16, color: "#2563eb" }),
+    /* @__PURE__ */ React.createElement("span", null, "Print Sheet")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary",
+      onClick: () => {
+        if (selectedRegClass) {
+          setAttDept(selectedRegClass.departmentName || currentFaculty.dept);
+          setAttSem(selectedRegClass.semester);
+          setAttDiv(selectedRegClass.division);
+        }
+        if (selectedRegSubject) {
+          setAttSubjectId(selectedRegSubject.id);
+          setAttSubjectName(selectedRegSubject.name || selectedRegSubject.shortName);
+        }
+        setFacultyTab("take");
+      },
+      style: { height: "38px", padding: "0 14px", display: "flex", alignItems: "center", gap: "6px" },
+      title: "Record attendance for this class"
+    },
+    /* @__PURE__ */ React.createElement(UserCheck, { size: 16 }),
+    /* @__PURE__ */ React.createElement("span", null, "Take Attendance")
+  )))), /* @__PURE__ */ React.createElement("div", { className: "erp-sheet-card" }, /* @__PURE__ */ React.createElement("div", { className: "erp-sheet-header" }, /* @__PURE__ */ React.createElement("h2", { className: "erp-college-title" }, getCollegeName()), /* @__PURE__ */ React.createElement("div", { className: "erp-header-row" }, /* @__PURE__ */ React.createElement("span", null, "Academic Year : ", regAcademicYear), /* @__PURE__ */ React.createElement("span", null, "Term: ", regTerm)), /* @__PURE__ */ React.createElement("div", { className: "erp-header-row erp-course-title" }, /* @__PURE__ */ React.createElement("span", null, "Course Code : ", selectedRegSubject?.code || "", " ", selectedRegSubject?.name || selectedRegSubject?.shortName || "Course")), /* @__PURE__ */ React.createElement("div", { className: "erp-header-row" }, /* @__PURE__ */ React.createElement("span", null, "Department : ", selectedRegClass?.departmentName || currentFaculty.dept), /* @__PURE__ */ React.createElement("span", null, "Class : ", selectedRegClass?.semester || "", " ", selectedRegClass?.division || ""), /* @__PURE__ */ React.createElement("span", { style: { color: "#2563eb" } }, "Faculty : ", currentFaculty.name))), /* @__PURE__ */ React.createElement("div", { className: "erp-table-scroll-container" }, /* @__PURE__ */ React.createElement("table", { className: "erp-attendance-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-sr" }, "Sr No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-enroll" }, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { minWidth: "150px", textAlign: "left", paddingLeft: "12px" } }, "Student Name"), registerSessions.map((sess) => {
+    const hdr = formatSessionHeader(sess, registerSessions);
+    return /* @__PURE__ */ React.createElement(
+      "th",
+      {
+        key: sess.id,
+        className: "erp-th-date",
+        title: `Date: ${sess.date}
+Time: ${sess.timeSlot || "Slot"}
+Topic: ${sess.topic || "Lecture"}
+Faculty: ${sess.facultyName || currentFaculty.name}`
+      },
+      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", fontSize: "11px", color: "#0f172a" } }, hdr.main),
+      hdr.sub && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "9.5px", color: "#2563eb", fontWeight: "800" } }, hdr.sub)
+    );
+  }), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#ecfdf5", color: "#059669", fontWeight: "800" } }, "Total Present"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#f1f5f9" } }, "Total Lectures"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat", style: { backgroundColor: "#eff6ff", color: "#1e3a8a", fontWeight: "800" } }, "Percentage (%)"))), /* @__PURE__ */ React.createElement("tbody", null, registerStudentsFiltered.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: registerSessions.length + 6, style: { textAlign: "center", padding: "40px 20px", color: "#64748b" } }, /* @__PURE__ */ React.createElement(Users, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#334155", fontSize: "14px" } }, registerStudents.length === 0 ? `No students enrolled in ${selectedRegClass?.departmentName || currentFaculty.dept} (${selectedRegClass?.semester || ""} ${selectedRegClass?.division || ""}) yet.` : "No students found matching your search or status filter."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#94a3b8", marginTop: "4px" } }, registerStudents.length === 0 ? "Students added or imported in the Admin Panel for this class will automatically be loaded here." : "Try adjusting your search query or attendance filter."))) : registerStudentsFiltered.map((student, idx) => {
+    let presentCount2 = 0;
+    let odCount = 0;
+    const total = registerSessions.length;
+    return /* @__PURE__ */ React.createElement("tr", { key: student.id }, /* @__PURE__ */ React.createElement("td", { className: "erp-td-sticky-sr" }, idx + 1), /* @__PURE__ */ React.createElement("td", { className: "erp-td-sticky-enroll", title: `Enrollment: ${student.enrollmentNo}` }, student.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "left", paddingLeft: "12px", fontWeight: "600", color: "#0f172a" } }, /* @__PURE__ */ React.createElement("span", null, student.name), student.rollNo && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "6px", fontSize: "11px", color: "#64748b", fontWeight: "400" } }, "(#", student.rollNo, ")")), registerSessions.map((sess) => {
+      const status = sess.records && sess.records[student.id] || "";
+      let cellClass = "erp-cell-empty";
+      let displayText = "-";
+      if (status === "present" || status === "late") {
+        presentCount2++;
+        cellClass = "erp-cell-p";
+        displayText = "P";
+      } else if (status === "absent") {
+        cellClass = "erp-cell-a";
+        displayText = "A";
+      } else if (status === "od") {
+        odCount++;
+        presentCount2++;
+        cellClass = "erp-cell-od";
+        displayText = "O*";
+      }
+      return /* @__PURE__ */ React.createElement(
+        "td",
+        {
+          key: sess.id,
+          className: `erp-attendance-cell ${cellClass}`,
+          onClick: () => handleRegisterCellClick(sess, student.id),
+          title: `Click to toggle status for ${student.name} on ${sess.date} ${sess.timeSlot ? `(${sess.timeSlot})` : ""} - Current: ${status ? status.toUpperCase() : "NOT RECORDED"}`
+        },
+        displayText
+      );
+    }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "800", color: "#059669", backgroundColor: "#f0fdf4" } }, presentCount2), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { color: "#475569" } }, total), /* @__PURE__ */ React.createElement(
+      "td",
+      {
+        className: "erp-td-stat",
+        style: {
+          fontWeight: "800",
+          color: total > 0 && presentCount2 / total * 100 < 75 ? "#e11d48" : "#059669",
+          backgroundColor: total > 0 && presentCount2 / total * 100 < 75 ? "#fff1f2" : "#f0fdf4"
+        }
+      },
+      total > 0 ? (presentCount2 / total * 100).toFixed(2) : "0.00",
+      "%"
+    ));
+  })), registerStudentsFiltered.length > 0 && registerSessions.length > 0 && /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "erp-footer-row" }, /* @__PURE__ */ React.createElement("td", { colSpan: "3", style: { textAlign: "right", paddingRight: "16px", fontWeight: "800", color: "#0f172a" } }, "Total Present in Lecture:"), registerSessions.map((sess) => {
+    let count = 0;
+    registerStudentsFiltered.forEach((st) => {
+      const s = sess.records && sess.records[st.id];
+      if (s === "present" || s === "late" || s === "od") count++;
+    });
+    return /* @__PURE__ */ React.createElement("td", { key: sess.id, style: { fontWeight: "800", color: "#059669" } }, count);
+  }), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#059669", backgroundColor: "#ecfdf5" } }, "-"), /* @__PURE__ */ React.createElement("td", { style: { color: "#475569" } }, "-"), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: Number(classAveragePct) < 75 ? "#e11d48" : "#059669" } }, "Avg: ", classAveragePct, "%"))))), /* @__PURE__ */ React.createElement("div", { style: {
+    marginTop: "20px",
+    padding: "16px 20px",
+    borderRadius: "12px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "16px"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#475569" } }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 18, color: "#059669" }), /* @__PURE__ */ React.createElement("span", null, "Official Academic Register \u2022 Click any cell to toggle ", /* @__PURE__ */ React.createElement("strong", null, "P / A / O*"), " \u2022 Live auto-saving enabled")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#eff6ff", color: "#1e3a8a" } }, "Enrolled: ", registerStudents.length, " Students"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#f1f5f9", color: "#334155" } }, "Conducted: ", registerSessions.length, " Sessions"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#ecfdf5", color: "#059669" } }, "Eligible (\u226575%): ", eligibleStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "800", padding: "5px 10px", borderRadius: "8px", backgroundColor: "#fff1f2", color: "#e11d48" } }, "Shortage (<75%): ", shortageStudentsCount), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "800", padding: "5px 12px", borderRadius: "8px", backgroundColor: "#0f172a", color: "#ffffff" } }, "Class Avg: ", classAveragePct, "%"))))), facultyTab === "history" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Attendance History & Records"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Log of past attendance sessions recorded by ", currentFaculty.name, ".")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",

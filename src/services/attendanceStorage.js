@@ -422,6 +422,14 @@ export const DEFAULT_STUDENTS = [
   { id: 'S_AI_05', rollNo: '5', name: 'Kavya Patel', enrollmentNo: '24AD005', email: 'kavya.patel@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
   { id: 'S_AI_06', rollNo: '6', name: 'Neel Mistry', enrollmentNo: '24AD006', email: 'neel.mistry@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
 
+  // AI & Data Science • Sem 3 • Div 2 (2026-27)
+  { id: 'S_AI_07', rollNo: '1', name: 'Rohan Varma', enrollmentNo: '24AD007', email: 'rohan.v@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_08', rollNo: '2', name: 'Sneha Dave', enrollmentNo: '24AD008', email: 'sneha.d@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_09', rollNo: '3', name: 'Tanmay Bhatt', enrollmentNo: '24AD009', email: 'tanmay.b@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_10', rollNo: '4', name: 'Urvi Solanki', enrollmentNo: '24AD010', email: 'urvi.s@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_11', rollNo: '5', name: 'Vivek Joshi', enrollmentNo: '24AD011', email: 'vivek.j@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_12', rollNo: '6', name: 'Yashvi Prajapati', enrollmentNo: '24AD012', email: 'yashvi.p@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
   // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
   { id: 'S_IT_01', rollNo: '1', name: 'Omkar Trivedi', enrollmentNo: '24IT001', email: 'omkar.t@adit.ac.in', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
   { id: 'S_IT_02', rollNo: '2', name: 'Prachi Joshi', enrollmentNo: '24IT002', email: 'prachi.j@adit.ac.in', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
@@ -535,7 +543,62 @@ const generateDSSessions = () => {
   });
 };
 
-export const DEFAULT_SESSIONS = generateDSSessions();
+const generateDBMSSessions = () => {
+  const dates = [
+    { date: '2026-07-07', timeSlot: '9:00 - 9:55', topic: 'Introduction to DBMS Architecture & Data Models' },
+    { date: '2026-07-14', timeSlot: '9:00 - 9:55', topic: 'Entity-Relationship (ER) Modeling & Diagramming' },
+    { date: '2026-07-21', timeSlot: '9:00 - 9:55', topic: 'Relational Model Constraints & Primary/Foreign Keys' },
+    { date: '2026-07-28', timeSlot: '9:00 - 9:55', topic: 'Relational Algebra Operations: Select, Project, Join' },
+    { date: '2026-08-04', timeSlot: '9:00 - 9:55', topic: 'SQL DDL, DML Statements & Integrity Constraints' },
+    { date: '2026-08-11', timeSlot: '9:00 - 9:55', topic: 'Nested Queries, Group By & Aggregate Functions' },
+    { date: '2026-08-18', timeSlot: '9:00 - 9:55', topic: 'Database Normalization: 1NF, 2NF, 3NF & BCNF' },
+  ];
+
+  const aiStudents = DEFAULT_STUDENTS.filter(s => s.classId === 'CLASS_DEP_AI_3_1_2026-27');
+  return dates.map((d, index) => {
+    const records = {};
+    const remarks = {};
+    let presentCount = 0;
+    let absentCount = 0;
+
+    aiStudents.forEach(st => {
+      const isAbsent = (index % 3 === 0 && st.id === 'S_AI_02') || (index === 2 && st.id === 'S_AI_05');
+      if (isAbsent) {
+        records[st.id] = 'absent';
+        remarks[st.id] = 'Absent';
+        absentCount++;
+      } else {
+        records[st.id] = 'present';
+        presentCount++;
+      }
+    });
+
+    return {
+      id: `SESS_AI_DBMS_${index + 1}`,
+      date: d.date,
+      timeSlot: d.timeSlot,
+      subjectId: 'SUB_AI_DBMS',
+      subjectName: 'Database Management Systems',
+      facultyId: 'FAC_PS',
+      facultyName: 'Prof. Priya Shah',
+      department: 'AI & Data Science',
+      sem: '3rd Sem',
+      division: 'Div 1',
+      academicYear: '2026-27',
+      classId: 'CLASS_DEP_AI_3_1_2026-27',
+      topic: d.topic,
+      records,
+      remarks,
+      totalStudents: aiStudents.length,
+      presentCount,
+      absentCount,
+      percentage: aiStudents.length > 0 ? ((presentCount / aiStudents.length) * 100).toFixed(1) : '0.0',
+      submittedAt: new Date().toISOString()
+    };
+  });
+};
+
+export const DEFAULT_SESSIONS = [...generateDSSessions(), ...generateDBMSSessions()];
 
 // Helper to initialize LocalStorage if empty or outdated
 export const initializeStorage = () => {
@@ -554,6 +617,35 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
     return;
+  }
+
+  // Ensure AI & DS students are in current storage
+  try {
+    const parsedStudents = JSON.parse(currentStudents || '[]');
+    let stChanged = false;
+    DEFAULT_STUDENTS.forEach(defSt => {
+      if (!parsedStudents.some(s => s.id === defSt.id || s.enrollmentNo === defSt.enrollmentNo)) {
+        parsedStudents.push(defSt);
+        stChanged = true;
+      }
+    });
+    if (stChanged) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(parsedStudents));
+    }
+  } catch(e) {}
+
+  // Ensure DBMS sessions exist in current storage
+  const currentSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  if (currentSessions) {
+    try {
+      const parsedSessions = JSON.parse(currentSessions);
+      if (!parsedSessions.some(s => s.subjectId === 'SUB_AI_DBMS')) {
+        const dbmsSessions = generateDBMSSessions();
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([...parsedSessions, ...dbmsSessions]));
+      }
+    } catch(e) {}
+  } else {
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
   }
 
   if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) {
@@ -938,6 +1030,9 @@ export const saveClass = (classData) => {
   }
 
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+  }
   return { success: true, class: savedClass, classes };
 };
 
@@ -956,6 +1051,10 @@ export const deleteClass = (classId, deleteStudents = false) => {
       }
     });
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
   }
   return classes;
 };
@@ -1153,6 +1252,9 @@ export const saveStudent = (studentData) => {
   }
 
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
   return students;
 };
 
@@ -1176,6 +1278,9 @@ export const moveStudentToClass = (studentId, targetClassId) => {
   student.academicYear = targetClass.academicYear;
 
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
   return { success: true, student, students };
 };
 
@@ -1263,6 +1368,9 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
   });
 
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
   return {
     success: true,
     importedCount,
@@ -1276,6 +1384,9 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
 export const deleteStudent = (studentId) => {
   const students = getStudents().filter(s => s.id !== studentId);
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
   return students;
 };
 
@@ -1289,6 +1400,9 @@ export const removeStudentFromClass = (studentId, classId = null) => {
     student.class = null;
   }
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
   return students;
 };
 
@@ -1349,12 +1463,18 @@ export const saveSession = (session) => {
     sessions.push(session);
   }
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+  }
   return sessions;
 };
 
 export const deleteSession = (sessionId) => {
   const sessions = getSessions().filter(s => s.id !== sessionId);
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+  }
   return sessions;
 };
 

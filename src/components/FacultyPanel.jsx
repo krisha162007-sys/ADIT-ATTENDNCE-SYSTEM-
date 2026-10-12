@@ -97,19 +97,30 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   // Main active tab in Faculty Panel: 'dashboard', 'timetable', 'take', 'history', 'profile'
   const [facultyTab, setFacultyTab] = useState('dashboard');
 
-  // Timetable synchronization tick for real-time live sync from Admin Panel
+  // Timetable & master synchronization ticks for real-time live sync from Admin Panel
   const [timetableSyncTick, setTimetableSyncTick] = useState(0);
+  const [studentsTick, setStudentsTick] = useState(0);
+  const [classesTick, setClassesTick] = useState(0);
 
-  // Listen for admin timetable updates & faculty updates
+  // Listen for admin timetable, faculty, student, class, and session updates
   useEffect(() => {
     const handleSync = () => setTimetableSyncTick(t => t + 1);
     const handleFacultyUpdate = () => setFacultiesList(getFaculties());
+    const handleStudentsUpdate = () => setStudentsTick(t => t + 1);
+    const handleClassesUpdate = () => setClassesTick(t => t + 1);
+    const handleSessionsUpdate = () => setAllSessions(getSessions());
 
     window.addEventListener('adit-timetable-synced', handleSync);
     window.addEventListener('adit-faculty-updated', handleFacultyUpdate);
+    window.addEventListener('adit-students-updated', handleStudentsUpdate);
+    window.addEventListener('adit-classes-updated', handleClassesUpdate);
+    window.addEventListener('adit-sessions-updated', handleSessionsUpdate);
     return () => {
       window.removeEventListener('adit-timetable-synced', handleSync);
       window.removeEventListener('adit-faculty-updated', handleFacultyUpdate);
+      window.removeEventListener('adit-students-updated', handleStudentsUpdate);
+      window.removeEventListener('adit-classes-updated', handleClassesUpdate);
+      window.removeEventListener('adit-sessions-updated', handleSessionsUpdate);
     };
   }, []);
 
@@ -213,7 +224,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
            getOrCreateClass(attDept, attSem, attDiv, attYear);
   }, [attDept, attSem, attDiv, attYear]);
 
-  // Retrieve enrolled students for this Class
+  // Retrieve enrolled students for this Class strictly from database
   const classStudents = useMemo(() => {
     if (activeClass && activeClass.id) {
       const enrolled = getStudentsByClassId(activeClass.id);
@@ -221,8 +232,8 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     }
     const criteriaEnrolled = getStudentsForClassCriteria(attDept, attSem, attDiv, attYear);
     if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
-    return getStudents();
-  }, [activeClass, attDept, attSem, attDiv, attYear]);
+    return [];
+  }, [activeClass, attDept, attSem, attDiv, attYear, studentsTick]);
 
   // Initialize records to 'present' when student list changes
   useEffect(() => {
@@ -279,8 +290,8 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     const duplicate = facultySessions.find(s => 
       s.date === attDate &&
       s.timeSlot === attTimeSlot &&
-      s.subjectId === attSubjectId &&
-      s.classId === activeClass?.id
+      (s.subjectId === attSubjectId || s.subjectName === attSubjectName) &&
+      (s.classId === activeClass?.id || (s.sem === attSem && s.division === attDiv))
     );
 
     if (duplicate) {
@@ -316,9 +327,368 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     saveSession(sessionPayload);
     reloadSessions();
     if (showToast) {
-      showToast(`Attendance successfully saved! (${presentCount} Present, ${absentCount} Absent)`);
+      showToast(`Attendance saved! (${presentCount} Present, ${absentCount} Absent)`);
     }
-    setFacultyTab('history');
+
+    // Automatically transition to Attendance Register with this class and subject selected
+    if (activeClass?.id) setRegClassId(activeClass.id);
+    if (attSubjectId) setRegSubjectId(attSubjectId);
+    setFacultyTab('register');
+  };
+
+  // -------------------------------------------------------------
+  // 4B. ATTENDANCE REGISTER (ERP MATRIX VIEW & EXPORTS)
+  // -------------------------------------------------------------
+  const allClasses = useMemo(() => getClasses(), [classesTick]);
+  const allSubjects = useMemo(() => getSubjects(), []);
+
+  // Faculty timetable entries to find classes and subjects assigned to this faculty
+  const facultyEntries = useMemo(() => {
+    return getEntriesByFaculty(currentFaculty.id);
+  }, [currentFaculty.id, timetableSyncTick]);
+
+  // Distinct classes relevant for this faculty
+  const facultyClasses = useMemo(() => {
+    const taughtMap = new Set();
+    facultyEntries.forEach(e => {
+      taughtMap.add(`${normalizeSem(e.semId || e.sem)}_${normalizeDiv(e.divId || e.div)}`);
+    });
+
+    const list = allClasses.filter(c => {
+      const isDept = c.departmentName?.toLowerCase() === currentFaculty.dept?.toLowerCase() ||
+                     c.departmentId === currentFaculty.deptId;
+      const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
+      return taughtMap.has(key) || isDept;
+    });
+
+    return list.length > 0 ? list : allClasses;
+  }, [allClasses, facultyEntries, currentFaculty]);
+
+  // Selected Class in Register
+  const [regClassId, setRegClassId] = useState('CLASS_DEP_AI_3_1_2026-27');
+  
+  const selectedRegClass = useMemo(() => {
+    return allClasses.find(c => c.id === regClassId) || 
+           facultyClasses.find(c => c.id === regClassId) || 
+           facultyClasses[0] || 
+           allClasses[0] || null;
+  }, [allClasses, facultyClasses, regClassId]);
+
+  // Relevant subjects for this faculty
+  const facultySubjects = useMemo(() => {
+    const list = allSubjects.filter(s => {
+      const isAssigned = s.faculty && s.faculty.toLowerCase() === currentFaculty.name.toLowerCase();
+      const inTimetable = facultyEntries.some(e => 
+        e.subjectId === s.id || 
+        e.subjectId === s.shortName || 
+        e.subjectName === s.shortName || 
+        e.subjectFullName === s.name
+      );
+      const isDept = s.dept && currentFaculty.dept && 
+        (s.dept.toLowerCase().includes(currentFaculty.dept.toLowerCase()) || 
+         currentFaculty.dept.toLowerCase().includes(s.dept.toLowerCase()));
+      return isAssigned || inTimetable || isDept;
+    });
+    return list.length > 0 ? list : allSubjects;
+  }, [allSubjects, currentFaculty, facultyEntries]);
+
+  // Selected Subject in Register
+  const [regSubjectId, setRegSubjectId] = useState('SUB_AI_DBMS');
+
+  const selectedRegSubject = useMemo(() => {
+    return allSubjects.find(s => s.id === regSubjectId) || 
+           facultySubjects.find(s => s.id === regSubjectId) || 
+           facultySubjects[0] || 
+           allSubjects[0] || null;
+  }, [allSubjects, facultySubjects, regSubjectId]);
+
+  // Academic Year & Term
+  const [regAcademicYear, setRegAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
+  const [regTerm, setRegTerm] = useState('Odd');
+
+  // Search & Filter state
+  const [regSearchQuery, setRegSearchQuery] = useState('');
+  const [regStatusFilter, setRegStatusFilter] = useState('ALL'); // 'ALL', 'SHORTAGE', 'ELIGIBLE'
+  const [regDateFrom, setRegDateFrom] = useState('');
+  const [regDateTo, setRegDateTo] = useState('');
+
+  // 1. AUTOMATIC STUDENT EXTRACTION FROM ADMIN CLASSES
+  const registerStudents = useMemo(() => {
+    if (selectedRegClass && selectedRegClass.id) {
+      const enrolled = getStudentsByClassId(selectedRegClass.id);
+      if (enrolled && enrolled.length > 0) return enrolled;
+    }
+    if (selectedRegClass) {
+      const criteria = getStudentsForClassCriteria(
+        selectedRegClass.departmentName || currentFaculty.dept,
+        selectedRegClass.semester,
+        selectedRegClass.division,
+        selectedRegClass.academicYear || regAcademicYear
+      );
+      if (criteria && criteria.length > 0) return criteria;
+    }
+    return [];
+  }, [selectedRegClass, currentFaculty.dept, regAcademicYear, studentsTick]);
+
+  // 2. SESSIONS RETRIEVAL & FILTERING FOR SELECTED CLASS & SUBJECT
+  const registerSessions = useMemo(() => {
+    return allSessions
+      .filter(sess => {
+        // Subject match
+        const matchSubj = sess.subjectId === regSubjectId || 
+          sess.subjectId === selectedRegSubject?.shortName ||
+          sess.subjectName === selectedRegSubject?.name ||
+          (sess.subjectName && selectedRegSubject?.name && sess.subjectName.toLowerCase() === selectedRegSubject.name.toLowerCase());
+        if (!matchSubj) return false;
+
+        // Class match
+        if (selectedRegClass) {
+          const matchClassId = sess.classId && sess.classId === selectedRegClass.id;
+          const matchSemDiv = normalizeSem(sess.sem) === normalizeSem(selectedRegClass.semester) &&
+                              normalizeDiv(sess.division) === normalizeDiv(selectedRegClass.division);
+          if (!matchClassId && !matchSemDiv) return false;
+        }
+
+        // Date range filters
+        if (regDateFrom && sess.date < regDateFrom) return false;
+        if (regDateTo && sess.date > regDateTo) return false;
+
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = a.timeSlot ? a.timeSlot.split('-')[0].trim() : '00:00';
+        const timeB = b.timeSlot ? b.timeSlot.split('-')[0].trim() : '00:00';
+        return new Date(`${a.date}T${timeA.length === 4 ? '0' + timeA : timeA}`) - 
+               new Date(`${b.date}T${timeB.length === 4 ? '0' + timeB : timeB}`);
+      });
+  }, [allSessions, regSubjectId, selectedRegSubject, selectedRegClass, regDateFrom, regDateTo]);
+
+  // 3. FILTERED STUDENTS FOR REGISTER (SEARCH + STATUS FILTER)
+  const registerStudentsFiltered = useMemo(() => {
+    return registerStudents.filter(st => {
+      const q = regSearchQuery.trim().toLowerCase();
+      const matchQ = !q || 
+        (st.name && st.name.toLowerCase().includes(q)) ||
+        (st.enrollmentNo && st.enrollmentNo.toLowerCase().includes(q)) ||
+        (st.rollNo && String(st.rollNo).includes(q));
+      if (!matchQ) return false;
+
+      let presentCount = 0;
+      registerSessions.forEach(sess => {
+        const stStatus = sess.records && sess.records[st.id];
+        if (stStatus === 'present' || stStatus === 'late' || stStatus === 'od') {
+          presentCount++;
+        }
+      });
+      const pct = registerSessions.length > 0 ? (presentCount / registerSessions.length) * 100 : 0;
+
+      if (regStatusFilter === 'SHORTAGE') return pct < 75;
+      if (regStatusFilter === 'ELIGIBLE') return pct >= 75;
+      return true;
+    });
+  }, [registerStudents, regSearchQuery, regStatusFilter, registerSessions]);
+
+  // 4. STATS & ANALYTICS
+  const { classAveragePct, eligibleStudentsCount, shortageStudentsCount } = useMemo(() => {
+    if (registerStudents.length === 0 || registerSessions.length === 0) {
+      return { classAveragePct: '0.00', eligibleStudentsCount: 0, shortageStudentsCount: 0 };
+    }
+    let totalPctSum = 0;
+    let elig = 0;
+    let short = 0;
+
+    registerStudents.forEach(st => {
+      let p = 0;
+      registerSessions.forEach(sess => {
+        const s = sess.records && sess.records[st.id];
+        if (s === 'present' || s === 'late' || s === 'od') p++;
+      });
+      const pct = (p / registerSessions.length) * 100;
+      totalPctSum += pct;
+      if (pct >= 75) elig++;
+      else short++;
+    });
+
+    return {
+      classAveragePct: (totalPctSum / registerStudents.length).toFixed(2),
+      eligibleStudentsCount: elig,
+      shortageStudentsCount: short
+    };
+  }, [registerStudents, registerSessions]);
+
+  // Format Date & Session column header
+  const formatSessionHeader = (sess, allSess) => {
+    if (!sess || !sess.date) return { main: 'Lecture', sub: null };
+    const parts = sess.date.split('-');
+    let dateFormatted = sess.date;
+    if (parts.length === 3) {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const mName = (mIdx >= 0 && mIdx < 12) ? monthNames[mIdx] : parts[1];
+      dateFormatted = `${parts[2]} ${mName}`;
+    }
+
+    const sameDateSessions = allSess.filter(s => s.date === sess.date);
+    if (sameDateSessions.length > 1) {
+      const timePart = sess.timeSlot ? sess.timeSlot.split('-')[0].trim() : '';
+      return {
+        main: dateFormatted,
+        sub: timePart || sess.timeSlot || ''
+      };
+    }
+    return {
+      main: dateFormatted,
+      sub: null
+    };
+  };
+
+  // Interactive inline cell click handler
+  const handleRegisterCellClick = (session, studentId) => {
+    // Validate permission
+    if (session.facultyId && session.facultyId !== currentFaculty.id && 
+        session.facultyName && session.facultyName.toLowerCase() !== currentFaculty.name.toLowerCase()) {
+      alert(`Permission Denied: This session was recorded by ${session.facultyName || 'another faculty member'}. You can only edit your own sessions.`);
+      return;
+    }
+
+    const currentStatus = (session.records && session.records[studentId]) || 'absent';
+    let nextStatus = 'present';
+    if (currentStatus === 'present') nextStatus = 'absent';
+    else if (currentStatus === 'absent') nextStatus = 'od';
+    else if (currentStatus === 'od') nextStatus = 'present';
+
+    const updatedRecords = { ...(session.records || {}), [studentId]: nextStatus };
+    
+    let pCount = 0;
+    let aCount = 0;
+    Object.values(updatedRecords).forEach(val => {
+      if (val === 'present' || val === 'late' || val === 'od') pCount++;
+      else if (val === 'absent') aCount++;
+    });
+
+    const updatedSession = {
+      ...session,
+      records: updatedRecords,
+      presentCount: pCount,
+      absentCount: aCount,
+      percentage: (pCount + aCount) > 0 ? ((pCount / (pCount + aCount)) * 100).toFixed(1) : session.percentage
+    };
+
+    saveSession(updatedSession);
+    reloadSessions();
+    if (showToast) {
+      showToast(`Updated Roll #${studentId}: marked as ${nextStatus.toUpperCase()}`);
+    }
+  };
+
+  // Export to Excel
+  const handleExportExcel = () => {
+    const xlsxLib = typeof window !== 'undefined' && window.XLSX ? window.XLSX : null;
+    if (!xlsxLib) {
+      alert('Spreadsheet engine (XLSX) is not ready yet.');
+      return;
+    }
+
+    const headerRow1 = [getCollegeName()];
+    const headerRow2 = [`Academic Year: ${regAcademicYear}`, `Term: ${regTerm}`];
+    const headerRow3 = [`Subject: ${selectedRegSubject?.code || ''} ${selectedRegSubject?.name || selectedRegSubject?.shortName || 'Course'}`];
+    const headerRow4 = [
+      `Department: ${selectedRegClass?.departmentName || currentFaculty.dept}`, 
+      `Class: ${selectedRegClass?.semester || ''} ${selectedRegClass?.division || ''}`,
+      `Faculty: ${currentFaculty.name}`
+    ];
+    const emptyRow = [];
+
+    const dateHeaders = registerSessions.map(s => {
+      const h = formatSessionHeader(s, registerSessions);
+      return h.sub ? `${h.main} (${h.sub})` : h.main;
+    });
+
+    const tableHeader = [
+      'Sr No',
+      'Enrollment No',
+      'Student Name',
+      ...dateHeaders,
+      'Total Present',
+      'Total Lectures',
+      'Percentage (%)'
+    ];
+
+    const dataRows = registerStudentsFiltered.map((st, idx) => {
+      let present = 0;
+      const total = registerSessions.length;
+
+      const dateStatuses = registerSessions.map(sess => {
+        const status = (sess.records && sess.records[st.id]) || '';
+        if (status === 'present' || status === 'late') {
+          present++;
+          return 'P';
+        } else if (status === 'od') {
+          present++;
+          return 'O*';
+        } else if (status === 'absent') {
+          return 'A';
+        }
+        return '-';
+      });
+
+      const pct = total > 0 ? ((present / total) * 100).toFixed(2) : '0.00';
+
+      return [
+        idx + 1,
+        st.enrollmentNo,
+        st.name,
+        ...dateStatuses,
+        present,
+        total,
+        Number(pct)
+      ];
+    });
+
+    const summaryRow = ['Total Present', '', ''];
+    registerSessions.forEach(sess => {
+      let count = 0;
+      registerStudentsFiltered.forEach(st => {
+        const s = (sess.records && sess.records[st.id]);
+        if (s === 'present' || s === 'late' || s === 'od') count++;
+      });
+      summaryRow.push(count);
+    });
+    summaryRow.push('', '', '');
+
+    const sheetData = [
+      headerRow1,
+      headerRow2,
+      headerRow3,
+      headerRow4,
+      emptyRow,
+      tableHeader,
+      ...dataRows,
+      summaryRow
+    ];
+
+    const wb = xlsxLib.utils.book_new();
+    const ws = xlsxLib.utils.aoa_to_sheet(sheetData);
+
+    ws['!cols'] = [
+      { wch: 8 },
+      { wch: 18 },
+      { wch: 24 },
+      ...registerSessions.map(() => ({ wch: 12 })),
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 }
+    ];
+
+    xlsxLib.utils.book_append_sheet(wb, ws, "Attendance Register");
+    const fileName = `${(selectedRegSubject?.shortName || 'Course').replace(/\s+/g, '_')}_Attendance_Register_${regAcademicYear}.xlsx`;
+    xlsxLib.writeFile(wb, fileName);
+
+    if (showToast) showToast('Attendance register exported to Excel successfully!');
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   // -------------------------------------------------------------
@@ -408,6 +778,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'timetable', label: 'My Timetable', icon: Calendar },
     { id: 'take', label: 'Take Attendance', icon: UserCheck },
+    { id: 'register', label: 'Attendance Register', icon: FileSpreadsheet },
     { id: 'history', label: 'Attendance History', icon: FileText },
     { id: 'profile', label: 'My Profile', icon: User },
   ];
@@ -624,7 +995,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setFacultyTab('take')}
@@ -645,6 +1016,28 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 >
                   <UserCheck size={16} />
                   <span>Take Attendance</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFacultyTab('register')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: '13.5px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>Attendance Register</span>
                 </button>
 
                 <button
@@ -888,7 +1281,23 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
             </div>
 
             {/* Quick Access Tiles */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+              <div 
+                className="card" 
+                style={{ padding: '20px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0' }}
+                onClick={() => setFacultyTab('register')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileSpreadsheet size={22} />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Attendance Register</h4>
+                    <p style={{ fontSize: '12.5px', color: '#64748b', margin: '2px 0 0' }}>Class P/A matrix, defaulters &amp; export</p>
+                  </div>
+                </div>
+              </div>
+
               <div 
                 className="card" 
                 style={{ padding: '20px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0' }}
@@ -1578,6 +1987,20 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
 
                 <button
                   type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    if (activeClass?.id) setRegClassId(activeClass.id);
+                    if (attSubjectId) setRegSubjectId(attSubjectId);
+                    setFacultyTab('register');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <FileSpreadsheet size={15} color="#059669" />
+                  <span>View Class Register</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={handleSubmitAttendance}
                   style={{
                     display: 'flex',
@@ -1597,6 +2020,451 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                   <Save size={16} />
                   <span>Submit &amp; Save Attendance</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =================================================================
+            VIEW 3.5: OFFICIAL COLLEGE ATTENDANCE REGISTER (ERP MATRIX VIEW)
+            ================================================================= */}
+        {facultyTab === 'register' && (
+          <div className="erp-attendance-view" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+            
+            {/* Control & Filter Bar (Hidden on Print) */}
+            <div className="card no-print" style={{ marginBottom: '20px', padding: '18px 22px', borderRadius: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                
+                {/* Left Side Filters */}
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+                  
+                  {/* Class / Div Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Class / Division
+                    </label>
+                    <select
+                      className="form-control"
+                      value={regClassId}
+                      onChange={(e) => setRegClassId(e.target.value)}
+                      style={{ height: '38px', minWidth: '220px', fontWeight: '700', fontSize: '13px' }}
+                    >
+                      {facultyClasses.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.departmentName ? (c.departmentName.length > 18 ? c.departmentName.split(' ')[0] : c.departmentName) : 'Dept'} • {c.semester} • {c.division} ({c.academicYear})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Course / Subject Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Course / Subject
+                    </label>
+                    <select
+                      className="form-control"
+                      value={regSubjectId}
+                      onChange={(e) => setRegSubjectId(e.target.value)}
+                      style={{ height: '38px', minWidth: '240px', fontWeight: '700', fontSize: '13px' }}
+                    >
+                      {facultySubjects.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.code ? `${s.code} - ` : ''}{s.shortName || s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Term & Year */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Term &amp; Year
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <select
+                        className="form-control"
+                        value={regTerm}
+                        onChange={(e) => setRegTerm(e.target.value)}
+                        style={{ height: '38px', width: '85px', fontWeight: '600', fontSize: '13px' }}
+                      >
+                        <option value="Odd">Odd</option>
+                        <option value="Even">Even</option>
+                      </select>
+                      <select
+                        className="form-control"
+                        value={regAcademicYear}
+                        onChange={(e) => setRegAcademicYear(e.target.value)}
+                        style={{ height: '38px', width: '105px', fontWeight: '600', fontSize: '13px' }}
+                      >
+                        {ACADEMIC_YEARS.map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Date Range Filter */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Date Range
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={regDateFrom}
+                        onChange={(e) => setRegDateFrom(e.target.value)}
+                        style={{ height: '38px', width: '130px', fontSize: '12px' }}
+                        title="From date"
+                      />
+                      <span style={{ color: '#94a3b8', fontSize: '12px' }}>to</span>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={regDateTo}
+                        onChange={(e) => setRegDateTo(e.target.value)}
+                        style={{ height: '38px', width: '130px', fontSize: '12px' }}
+                        title="To date"
+                      />
+                      {(regDateFrom || regDateTo) && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => { setRegDateFrom(''); setRegDateTo(''); }}
+                          style={{ height: '36px', padding: '0 8px', fontSize: '11px' }}
+                          title="Clear date filter"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Attendance Filter
+                    </label>
+                    <select
+                      className="form-control"
+                      value={regStatusFilter}
+                      onChange={(e) => setRegStatusFilter(e.target.value)}
+                      style={{ height: '38px', minWidth: '160px', fontSize: '13px' }}
+                    >
+                      <option value="ALL">All Students ({registerStudents.length})</option>
+                      <option value="SHORTAGE">Shortage &lt; 75% ({shortageStudentsCount})</option>
+                      <option value="ELIGIBLE">Eligible &ge; 75% ({eligibleStudentsCount})</option>
+                    </select>
+                  </div>
+
+                  {/* Search Input */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
+                      Search Student
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Enrollment / Name..."
+                        value={regSearchQuery}
+                        onChange={(e) => setRegSearchQuery(e.target.value)}
+                        style={{ height: '38px', paddingLeft: '32px', width: '170px', fontSize: '13px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Side Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleExportExcel}
+                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    title="Export formatted Excel (.xlsx) file"
+                  >
+                    <FileSpreadsheet size={16} color="#059669" />
+                    <span>Export Excel</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handlePrint}
+                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    title="Print official academic sheet"
+                  >
+                    <Printer size={16} color="#2563eb" />
+                    <span>Print Sheet</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      if (selectedRegClass) {
+                        setAttDept(selectedRegClass.departmentName || currentFaculty.dept);
+                        setAttSem(selectedRegClass.semester);
+                        setAttDiv(selectedRegClass.division);
+                      }
+                      if (selectedRegSubject) {
+                        setAttSubjectId(selectedRegSubject.id);
+                        setAttSubjectName(selectedRegSubject.name || selectedRegSubject.shortName);
+                      }
+                      setFacultyTab('take');
+                    }}
+                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    title="Record attendance for this class"
+                  >
+                    <UserCheck size={16} />
+                    <span>Take Attendance</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Official College Attendance Matrix Card */}
+            <div className="erp-sheet-card">
+              
+              {/* College Header */}
+              <div className="erp-sheet-header">
+                <h2 className="erp-college-title">{getCollegeName()}</h2>
+                <div className="erp-header-row">
+                  <span>Academic Year : {regAcademicYear}</span>
+                  <span>Term: {regTerm}</span>
+                </div>
+                <div className="erp-header-row erp-course-title">
+                  <span>Course Code : {selectedRegSubject?.code || ''} {selectedRegSubject?.name || selectedRegSubject?.shortName || 'Course'}</span>
+                </div>
+                <div className="erp-header-row">
+                  <span>Department : {selectedRegClass?.departmentName || currentFaculty.dept}</span>
+                  <span>Class : {selectedRegClass?.semester || ''} {selectedRegClass?.division || ''}</span>
+                  <span style={{ color: '#2563eb' }}>Faculty : {currentFaculty.name}</span>
+                </div>
+              </div>
+
+              {/* Attendance Matrix Table */}
+              <div className="erp-table-scroll-container">
+                <table className="erp-attendance-table">
+                  <thead>
+                    <tr>
+                      <th className="erp-th-sticky-sr">Sr No</th>
+                      <th className="erp-th-sticky-enroll">Enrollment No</th>
+                      <th style={{ minWidth: '150px', textAlign: 'left', paddingLeft: '12px' }}>Student Name</th>
+                      
+                      {/* Dynamic Session Date Columns */}
+                      {registerSessions.map((sess) => {
+                        const hdr = formatSessionHeader(sess, registerSessions);
+                        return (
+                          <th 
+                            key={sess.id} 
+                            className="erp-th-date"
+                            title={`Date: ${sess.date}\nTime: ${sess.timeSlot || 'Slot'}\nTopic: ${sess.topic || 'Lecture'}\nFaculty: ${sess.facultyName || currentFaculty.name}`}
+                          >
+                            <div style={{ fontWeight: '700', fontSize: '11px', color: '#0f172a' }}>
+                              {hdr.main}
+                            </div>
+                            {hdr.sub && (
+                              <div style={{ fontSize: '9.5px', color: '#2563eb', fontWeight: '800' }}>
+                                {hdr.sub}
+                              </div>
+                            )}
+                          </th>
+                        );
+                      })}
+
+                      {/* Summary Columns */}
+                      <th className="erp-th-stat" style={{ backgroundColor: '#ecfdf5', color: '#059669', fontWeight: '800' }}>
+                        Total Present
+                      </th>
+                      <th className="erp-th-stat" style={{ backgroundColor: '#f1f5f9' }}>
+                        Total Lectures
+                      </th>
+                      <th className="erp-th-stat" style={{ backgroundColor: '#eff6ff', color: '#1e3a8a', fontWeight: '800' }}>
+                        Percentage (%)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registerStudentsFiltered.length === 0 ? (
+                      <tr>
+                        <td colSpan={registerSessions.length + 6} style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                          <Users size={32} color="#94a3b8" style={{ marginBottom: '8px' }} />
+                          <div style={{ fontWeight: '700', color: '#334155', fontSize: '14px' }}>
+                            {registerStudents.length === 0 
+                              ? `No students enrolled in ${selectedRegClass?.departmentName || currentFaculty.dept} (${selectedRegClass?.semester || ''} ${selectedRegClass?.division || ''}) yet.`
+                              : 'No students found matching your search or status filter.'}
+                          </div>
+                          <div style={{ fontSize: '12.5px', color: '#94a3b8', marginTop: '4px' }}>
+                            {registerStudents.length === 0 
+                              ? 'Students added or imported in the Admin Panel for this class will automatically be loaded here.' 
+                              : 'Try adjusting your search query or attendance filter.'}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      registerStudentsFiltered.map((student, idx) => {
+                        let presentCount = 0;
+                        let odCount = 0;
+                        const total = registerSessions.length;
+
+                        return (
+                          <tr key={student.id}>
+                            {/* Sr No */}
+                            <td className="erp-td-sticky-sr">{idx + 1}</td>
+                            
+                            {/* Enrollment No */}
+                            <td className="erp-td-sticky-enroll" title={`Enrollment: ${student.enrollmentNo}`}>
+                              {student.enrollmentNo}
+                            </td>
+
+                            {/* Student Name */}
+                            <td style={{ textAlign: 'left', paddingLeft: '12px', fontWeight: '600', color: '#0f172a' }}>
+                              <span>{student.name}</span>
+                              {student.rollNo && (
+                                <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: '400' }}>
+                                  (#{student.rollNo})
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Date Cells: P / A / OD */}
+                            {registerSessions.map(sess => {
+                              const status = (sess.records && sess.records[student.id]) || '';
+                              let cellClass = 'erp-cell-empty';
+                              let displayText = '-';
+
+                              if (status === 'present' || status === 'late') {
+                                presentCount++;
+                                cellClass = 'erp-cell-p';
+                                displayText = 'P';
+                              } else if (status === 'absent') {
+                                cellClass = 'erp-cell-a';
+                                displayText = 'A';
+                              } else if (status === 'od') {
+                                odCount++;
+                                presentCount++;
+                                cellClass = 'erp-cell-od';
+                                displayText = 'O*';
+                              }
+
+                              return (
+                                <td 
+                                  key={sess.id} 
+                                  className={`erp-attendance-cell ${cellClass}`}
+                                  onClick={() => handleRegisterCellClick(sess, student.id)}
+                                  title={`Click to toggle status for ${student.name} on ${sess.date} ${sess.timeSlot ? `(${sess.timeSlot})` : ''} - Current: ${status ? status.toUpperCase() : 'NOT RECORDED'}`}
+                                >
+                                  {displayText}
+                                </td>
+                              );
+                            })}
+
+                            {/* Total Present */}
+                            <td className="erp-td-stat" style={{ fontWeight: '800', color: '#059669', backgroundColor: '#f0fdf4' }}>
+                              {presentCount}
+                            </td>
+
+                            {/* Total Lectures */}
+                            <td className="erp-td-stat" style={{ color: '#475569' }}>
+                              {total}
+                            </td>
+
+                            {/* Percentage */}
+                            <td 
+                              className="erp-td-stat" 
+                              style={{ 
+                                fontWeight: '800', 
+                                color: (total > 0 && ((presentCount / total) * 100) < 75) ? '#e11d48' : '#059669',
+                                backgroundColor: (total > 0 && ((presentCount / total) * 100) < 75) ? '#fff1f2' : '#f0fdf4'
+                              }}
+                            >
+                              {total > 0 ? ((presentCount / total) * 100).toFixed(2) : '0.00'}%
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+
+                  {/* Table Footer: Total Present per Lecture */}
+                  {registerStudentsFiltered.length > 0 && registerSessions.length > 0 && (
+                    <tfoot>
+                      <tr className="erp-footer-row">
+                        <td colSpan="3" style={{ textAlign: 'right', paddingRight: '16px', fontWeight: '800', color: '#0f172a' }}>
+                          Total Present in Lecture:
+                        </td>
+                        {registerSessions.map(sess => {
+                          let count = 0;
+                          registerStudentsFiltered.forEach(st => {
+                            const s = sess.records && sess.records[st.id];
+                            if (s === 'present' || s === 'late' || s === 'od') count++;
+                          });
+                          return (
+                            <td key={sess.id} style={{ fontWeight: '800', color: '#059669' }}>
+                              {count}
+                            </td>
+                          );
+                        })}
+                        <td style={{ fontWeight: '800', color: '#059669', backgroundColor: '#ecfdf5' }}>
+                          -
+                        </td>
+                        <td style={{ color: '#475569' }}>
+                          -
+                        </td>
+                        <td style={{ fontWeight: '800', color: Number(classAveragePct) < 75 ? '#e11d48' : '#059669' }}>
+                          Avg: {classAveragePct}%
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+
+              {/* Register Summary Strip */}
+              <div style={{
+                marginTop: '20px',
+                padding: '16px 20px',
+                borderRadius: '12px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' }}>
+                  <ShieldCheck size={18} color="#059669" />
+                  <span>
+                    Official Academic Register • Click any cell to toggle <strong>P / A / O*</strong> • Live auto-saving enabled
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1e3a8a' }}>
+                    Enrolled: {registerStudents.length} Students
+                  </span>
+
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#f1f5f9', color: '#334155' }}>
+                    Conducted: {registerSessions.length} Sessions
+                  </span>
+
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#ecfdf5', color: '#059669' }}>
+                    Eligible (&ge;75%): {eligibleStudentsCount}
+                  </span>
+
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#fff1f2', color: '#e11d48' }}>
+                    Shortage (&lt;75%): {shortageStudentsCount}
+                  </span>
+
+                  <span style={{ fontSize: '13px', fontWeight: '800', padding: '5px 12px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff' }}>
+                    Class Avg: {classAveragePct}%
+                  </span>
+                </div>
               </div>
             </div>
           </div>
