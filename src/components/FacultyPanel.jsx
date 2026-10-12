@@ -33,7 +33,7 @@ import {
   LogOut,
   LayoutDashboard,
   CalendarCheck,
-  History,
+  FileText,
   Phone,
   Mail,
   Award
@@ -408,7 +408,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'timetable', label: 'My Timetable', icon: Calendar },
     { id: 'take', label: 'Take Attendance', icon: UserCheck },
-    { id: 'history', label: 'Attendance History', icon: History },
+    { id: 'history', label: 'Attendance History', icon: FileText },
     { id: 'profile', label: 'My Profile', icon: User },
   ];
 
@@ -726,7 +726,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Total Sessions Saved</span>
                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <History size={18} />
+                    <FileText size={18} />
                   </div>
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a' }}>
@@ -912,7 +912,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <History size={22} />
+                    <FileText size={22} />
                   </div>
                   <div>
                     <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Attendance History</h4>
