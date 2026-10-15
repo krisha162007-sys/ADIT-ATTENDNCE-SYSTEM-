@@ -647,7 +647,16 @@ const getCurrentUser = () => {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const user = JSON.parse(raw);
+    if (user && user.loginTime) {
+      const loginDate = new Date(user.loginTime).toDateString();
+      const todayDate = (/* @__PURE__ */ new Date()).toDateString();
+      if (loginDate !== todayDate) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+    }
+    return user;
   } catch (e) {
     return null;
   }
@@ -690,7 +699,7 @@ const getActiveFaculty = () => {
 };
 const loginUser = (identifier, password) => {
   if (!identifier || !password) {
-    return { success: false, error: "Please enter both User ID / Email and Password." };
+    return { success: false, error: "Please enter both User ID and Password." };
   }
   const cleanId = String(identifier).trim().toLowerCase();
   const cleanPass = String(password).trim();
@@ -734,7 +743,7 @@ const loginUser = (identifier, password) => {
       return { success: false, error: "Incorrect password for this faculty account." };
     }
   }
-  return { success: false, error: "Invalid User ID/Email or Password. Please check your credentials." };
+  return { success: false, error: "Invalid User ID or Password. Access denied." };
 };
 const getClasses = () => {
   initializeStorage();
@@ -9385,6 +9394,21 @@ function AdminPanel({ showToast, onExit }) {
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Subject"))))));
 }
+const SUBJECT_COLOR_THEMES = {
+  purple: { bg: "#fbf7ff", border: "#ddd6fe", text: "#5b21b6", badgeBg: "#ede9fe", badgeText: "#6d28d9" },
+  green: { bg: "#f0fdf4", border: "#bbf7d0", text: "#166534", badgeBg: "#dcfce7", badgeText: "#15803d" },
+  emerald: { bg: "#ecfdf5", border: "#a7f3d0", text: "#065f46", badgeBg: "#d1fae5", badgeText: "#047857" },
+  coral: { bg: "#fff1f2", border: "#fecdd3", text: "#9f1239", badgeBg: "#ffe4e6", badgeText: "#be123c" },
+  amber: { bg: "#fffbeb", border: "#fde68a", text: "#92400e", badgeBg: "#fef3c7", badgeText: "#b45309" },
+  indigo: { bg: "#eef2ff", border: "#c7d2fe", text: "#3730a3", badgeBg: "#e0e7ff", badgeText: "#4338ca" },
+  cyan: { bg: "#ecfeff", border: "#a5f3fc", text: "#155e75", badgeBg: "#cffafe", badgeText: "#0e7490" },
+  slate: { bg: "#f8fafc", border: "#cbd5e1", text: "#334155", badgeBg: "#f1f5f9", badgeText: "#475569" },
+  blue: { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af", badgeBg: "#dbeafe", badgeText: "#1d4ed8" }
+};
+const getCardStyleForSubject = (subjectNameOrCode) => {
+  const colorName = getSubjectColor(subjectNameOrCode);
+  return SUBJECT_COLOR_THEMES[colorName] || SUBJECT_COLOR_THEMES.blue;
+};
 function FacultyPanel({ currentUser, showToast, onExit }) {
   const [facultiesList, setFacultiesList] = useState(getFaculties());
   const currentFaculty = useMemo(() => {
@@ -10481,6 +10505,7 @@ Do you want to update/overwrite the existing record?`
       if (!slot || !slot.subject) {
         return /* @__PURE__ */ React.createElement("td", { key: dayName, style: { textAlign: "center", color: "#cbd5e1", padding: "14px 8px", borderRight: "1px solid #e2e8f0", backgroundColor: "#ffffff" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "16px", color: "#94a3b8" } }, "\u2013"));
       }
+      const theme = getCardStyleForSubject(slot.subject);
       return /* @__PURE__ */ React.createElement(
         "td",
         {
@@ -10497,19 +10522,26 @@ Do you want to update/overwrite the existing record?`
           {
             onClick: () => setSelectedLectureDetail({ slot, day: dayName, time }),
             style: {
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #bfdbfe",
-              backgroundColor: "#eff6ff",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              border: `1px solid ${theme.border}`,
+              backgroundColor: theme.bg,
               cursor: "pointer",
               transition: "all 0.15s ease",
-              boxShadow: "0 2px 5px rgba(37,99,235,0.06)"
+              boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
             },
-            title: "Click to view details, class student roster, or take attendance"
+            title: "Click to view lecture details, class roster, or take attendance"
           },
-          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#1e3a8a", fontSize: "12.5px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", fontWeight: "700", color: "#0284c7", backgroundColor: "#e0f2fe", padding: "1px 5px", borderRadius: "4px" } }, time.split(" - ")[0])),
-          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "600", marginBottom: "2px" } }, slot.sem, " \u2022 ", slot.div),
-          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "#64748b" } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F4CD} ", slot.room || "Room"), /* @__PURE__ */ React.createElement("span", { style: { color: "#2563eb", fontWeight: "700" } }, "Inspect \u2192"))
+          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: theme.text, fontSize: "13px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: {
+            fontSize: "10px",
+            fontWeight: "700",
+            color: theme.badgeText,
+            backgroundColor: theme.badgeBg,
+            padding: "1px 6px",
+            borderRadius: "4px"
+          } }, time.split(" - ")[0])),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "700", marginBottom: "3px" } }, slot.sem, " \u2022 ", slot.div),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b" } }, "\u{1F4CD} ", slot.room || "Classroom")
         )
       );
     }));
@@ -10554,7 +10586,7 @@ Do you want to update/overwrite the existing record?`
         }
       },
       /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 15 }),
-      /* @__PURE__ */ React.createElement("span", null, "View in Register")
+      /* @__PURE__ */ React.createElement("span", null, "View Attendance History")
     ), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -10573,7 +10605,7 @@ Do you want to update/overwrite the existing record?`
         }
       },
       /* @__PURE__ */ React.createElement(UserCheck, { size: 15 }),
-      /* @__PURE__ */ React.createElement("span", null, "Take Attendance Now")
+      /* @__PURE__ */ React.createElement("span", null, "Take Attendance")
     ))));
   })()), facultyTab === "take" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid #e2e8f0", paddingBottom: "16px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "22px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "Record Lecture Attendance"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Take official attendance for your scheduled lecture. System verifies class roster and prevents duplicates.")), /* @__PURE__ */ React.createElement("div", { style: {
     display: "grid",
@@ -11571,25 +11603,12 @@ Faculty: ${sess.facultyName || currentFaculty.name}`
   }))))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setEditingSession(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Changes"))))));
 }
 function LoginView({ onLoginSuccess, showToast }) {
-  const [roleTab, setRoleTab] = useState("faculty");
-  const [identifier, setIdentifier] = useState("FAC_PS");
-  const [password, setPassword] = useState("faculty123");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const faculties = getFaculties();
   const collegeName = getCollegeName();
-  const handleRoleTabChange = (newRole) => {
-    setRoleTab(newRole);
-    setErrorMsg("");
-    if (newRole === "admin") {
-      setIdentifier("admin");
-      setPassword("1234");
-    } else {
-      setIdentifier("FAC_PS");
-      setPassword("faculty123");
-    }
-  };
   const handleSubmit = (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -11605,18 +11624,12 @@ function LoginView({ onLoginSuccess, showToast }) {
           onLoginSuccess(result.user.role, result.user);
         }
       } else {
-        setErrorMsg(result.error || "Authentication failed. Please check your credentials.");
+        setErrorMsg(result.error || "Invalid User ID or Password. Access denied.");
       }
     } catch (err) {
       setLoading(false);
-      setErrorMsg("An unexpected error occurred during login. Please try again.");
+      setErrorMsg("An unexpected error occurred during authentication. Please try again.");
     }
-  };
-  const handleQuickFacultySelect = (facId) => {
-    setRoleTab("faculty");
-    setIdentifier(facId);
-    setPassword("faculty123");
-    setErrorMsg("");
   };
   return /* @__PURE__ */ React.createElement("div", { style: {
     minHeight: "100vh",
@@ -11626,10 +11639,10 @@ function LoginView({ onLoginSuccess, showToast }) {
     alignItems: "center",
     justifyContent: "center",
     padding: "24px 16px",
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
   } }, /* @__PURE__ */ React.createElement("div", { style: {
     width: "100%",
-    maxWidth: "460px",
+    maxWidth: "430px",
     backgroundColor: "#ffffff",
     borderRadius: "20px",
     boxShadow: "0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.8)",
@@ -11664,64 +11677,7 @@ function LoginView({ onLoginSuccess, showToast }) {
     color: "#bfdbfe",
     margin: 0,
     fontWeight: "500"
-  } }, collegeName)), /* @__PURE__ */ React.createElement("div", { style: {
-    display: "flex",
-    backgroundColor: "#f1f5f9",
-    padding: "6px",
-    margin: "24px 28px 0",
-    borderRadius: "12px",
-    border: "1px solid #e2e8f0"
-  } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleRoleTabChange("faculty"),
-      style: {
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "10px 14px",
-        borderRadius: "8px",
-        border: "none",
-        backgroundColor: roleTab === "faculty" ? "#ffffff" : "transparent",
-        color: roleTab === "faculty" ? "#1e3a8a" : "#64748b",
-        fontWeight: roleTab === "faculty" ? "700" : "600",
-        fontSize: "13.5px",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-        boxShadow: roleTab === "faculty" ? "0 2px 6px rgba(0,0,0,0.06)" : "none"
-      }
-    },
-    /* @__PURE__ */ React.createElement(UserCheck, { size: 16, color: roleTab === "faculty" ? "#2563eb" : "#94a3b8" }),
-    /* @__PURE__ */ React.createElement("span", null, "Faculty Login")
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleRoleTabChange("admin"),
-      style: {
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "10px 14px",
-        borderRadius: "8px",
-        border: "none",
-        backgroundColor: roleTab === "admin" ? "#ffffff" : "transparent",
-        color: roleTab === "admin" ? "#0f172a" : "#64748b",
-        fontWeight: roleTab === "admin" ? "700" : "600",
-        fontSize: "13.5px",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-        boxShadow: roleTab === "admin" ? "0 2px 6px rgba(0,0,0,0.06)" : "none"
-      }
-    },
-    /* @__PURE__ */ React.createElement(ShieldCheck, { size: 16, color: roleTab === "admin" ? "#0f172a" : "#94a3b8" }),
-    /* @__PURE__ */ React.createElement("span", null, "Admin Login")
-  )), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { padding: "24px 28px 28px" } }, errorMsg && /* @__PURE__ */ React.createElement("div", { style: {
+  } }, collegeName)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { padding: "32px 28px 36px" } }, errorMsg && /* @__PURE__ */ React.createElement("div", { style: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
@@ -11733,13 +11689,20 @@ function LoginView({ onLoginSuccess, showToast }) {
     fontSize: "13px",
     fontWeight: "600",
     marginBottom: "20px"
-  } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 18, style: { flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", null, errorMsg)), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("label", { style: {
-    display: "block",
-    fontSize: "12.5px",
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: "7px"
-  } }, roleTab === "admin" ? "Administrator Username / Email" : "Faculty ID / Email"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: {
+  } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 18, style: { flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", null, errorMsg)), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "20px" } }, /* @__PURE__ */ React.createElement(
+    "label",
+    {
+      htmlFor: "userIdInput",
+      style: {
+        display: "block",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#334155",
+        marginBottom: "8px"
+      }
+    },
+    "User ID"
+  ), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: {
     position: "absolute",
     left: "12px",
     top: "50%",
@@ -11747,17 +11710,19 @@ function LoginView({ onLoginSuccess, showToast }) {
     color: "#94a3b8",
     display: "flex",
     alignItems: "center"
-  } }, roleTab === "admin" ? /* @__PURE__ */ React.createElement(ShieldCheck, { size: 18 }) : /* @__PURE__ */ React.createElement(User, { size: 18 })), /* @__PURE__ */ React.createElement(
+  } }, /* @__PURE__ */ React.createElement(User, { size: 18 })), /* @__PURE__ */ React.createElement(
     "input",
     {
+      id: "userIdInput",
       type: "text",
       required: true,
       value: identifier,
       onChange: (e) => setIdentifier(e.target.value),
-      placeholder: roleTab === "admin" ? "Enter admin or email" : "e.g. FAC_PS or email",
+      placeholder: "Enter your User ID",
+      autoComplete: "username",
       style: {
         width: "100%",
-        height: "44px",
+        height: "46px",
         paddingLeft: "40px",
         paddingRight: "14px",
         borderRadius: "10px",
@@ -11780,11 +11745,20 @@ function LoginView({ onLoginSuccess, showToast }) {
         e.target.style.boxShadow = "none";
       }
     }
-  ))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "22px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "7px" } }, /* @__PURE__ */ React.createElement("label", { style: {
-    fontSize: "12.5px",
-    fontWeight: "700",
-    color: "#334155"
-  } }, roleTab === "admin" ? "Admin Password / Security PIN" : "Password"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b" } }, roleTab === "admin" ? "Default: 1234" : "Default: faculty123")), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: {
+  ))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "26px" } }, /* @__PURE__ */ React.createElement(
+    "label",
+    {
+      htmlFor: "passwordInput",
+      style: {
+        display: "block",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#334155",
+        marginBottom: "8px"
+      }
+    },
+    "Password"
+  ), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: {
     position: "absolute",
     left: "12px",
     top: "50%",
@@ -11795,14 +11769,16 @@ function LoginView({ onLoginSuccess, showToast }) {
   } }, /* @__PURE__ */ React.createElement(Lock, { size: 18 })), /* @__PURE__ */ React.createElement(
     "input",
     {
+      id: "passwordInput",
       type: showPassword ? "text" : "password",
       required: true,
       value: password,
       onChange: (e) => setPassword(e.target.value),
       placeholder: "Enter your password",
+      autoComplete: "current-password",
       style: {
         width: "100%",
-        height: "44px",
+        height: "46px",
         paddingLeft: "40px",
         paddingRight: "40px",
         borderRadius: "10px",
@@ -11842,7 +11818,8 @@ function LoginView({ onLoginSuccess, showToast }) {
         display: "flex",
         alignItems: "center",
         padding: 0
-      }
+      },
+      "aria-label": showPassword ? "Hide password" : "Show password"
     },
     showPassword ? /* @__PURE__ */ React.createElement(EyeOff, { size: 18 }) : /* @__PURE__ */ React.createElement(Eye, { size: 18 })
   ))), /* @__PURE__ */ React.createElement(
@@ -11852,107 +11829,25 @@ function LoginView({ onLoginSuccess, showToast }) {
       disabled: loading,
       style: {
         width: "100%",
-        height: "46px",
+        height: "48px",
         borderRadius: "10px",
         border: "none",
-        backgroundColor: roleTab === "admin" ? "#0f172a" : "#2563eb",
+        backgroundColor: "#2563eb",
         color: "#ffffff",
-        fontSize: "14.5px",
+        fontSize: "15px",
         fontWeight: "700",
         cursor: loading ? "not-allowed" : "pointer",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         gap: "8px",
-        boxShadow: roleTab === "admin" ? "0 4px 12px rgba(15, 23, 42, 0.25)" : "0 4px 12px rgba(37, 99, 235, 0.3)",
+        boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
         transition: "all 0.2s ease"
       }
     },
-    /* @__PURE__ */ React.createElement("span", null, loading ? "Authenticating..." : `Log in to ${roleTab === "admin" ? "Admin Panel" : "Faculty Panel"}`),
+    /* @__PURE__ */ React.createElement("span", null, loading ? "Authenticating..." : "Login"),
     /* @__PURE__ */ React.createElement(ArrowRight, { size: 17 })
-  ), /* @__PURE__ */ React.createElement("div", { style: {
-    marginTop: "24px",
-    paddingTop: "20px",
-    borderTop: "1px solid #f1f5f9"
-  } }, /* @__PURE__ */ React.createElement("div", { style: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "11.5px",
-    fontWeight: "700",
-    color: "#64748b",
-    marginBottom: "10px",
-    textTransform: "uppercase",
-    letterSpacing: "0.04em"
-  } }, /* @__PURE__ */ React.createElement(Sparkles, { size: 13, color: "#2563eb" }), /* @__PURE__ */ React.createElement("span", null, "Quick Login (Click to Auto-fill)")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "6px" } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleQuickFacultySelect("FAC_PS"),
-      style: {
-        fontSize: "11.5px",
-        fontWeight: "600",
-        padding: "5px 10px",
-        borderRadius: "6px",
-        border: "1px solid #bfdbfe",
-        backgroundColor: identifier === "FAC_PS" ? "#eff6ff" : "#f8fafc",
-        color: "#1d4ed8",
-        cursor: "pointer"
-      }
-    },
-    "Prof. Priya Shah (FAC_PS)"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleQuickFacultySelect("FAC_DJP"),
-      style: {
-        fontSize: "11.5px",
-        fontWeight: "600",
-        padding: "5px 10px",
-        borderRadius: "6px",
-        border: "1px solid #bfdbfe",
-        backgroundColor: identifier === "FAC_DJP" ? "#eff6ff" : "#f8fafc",
-        color: "#1d4ed8",
-        cursor: "pointer"
-      }
-    },
-    "Dr. Dinesh Prajapati (FAC_DJP)"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleQuickFacultySelect("FAC_RP"),
-      style: {
-        fontSize: "11.5px",
-        fontWeight: "600",
-        padding: "5px 10px",
-        borderRadius: "6px",
-        border: "1px solid #bfdbfe",
-        backgroundColor: identifier === "FAC_RP" ? "#eff6ff" : "#f8fafc",
-        color: "#1d4ed8",
-        cursor: "pointer"
-      }
-    },
-    "Prof. Rahul Patel (FAC_RP)"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => handleRoleTabChange("admin"),
-      style: {
-        fontSize: "11.5px",
-        fontWeight: "600",
-        padding: "5px 10px",
-        borderRadius: "6px",
-        border: "1px solid #cbd5e1",
-        backgroundColor: roleTab === "admin" ? "#f1f5f9" : "#f8fafc",
-        color: "#0f172a",
-        cursor: "pointer"
-      }
-    },
-    "Admin (admin / 1234)"
-  ))))));
+  ))));
 }
 function App() {
   const [currentUser, setCurrentUserSession] = useState(() => getCurrentUser());

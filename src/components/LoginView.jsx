@@ -1,43 +1,23 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, 
-  UserCheck, 
   Lock, 
   User, 
-  KeyRound, 
   ArrowRight, 
-  CheckCircle, 
   AlertCircle, 
-  Building2,
   GraduationCap,
-  Sparkles,
   Eye,
   EyeOff
 } from 'lucide-react';
-import { loginUser, getFaculties, getCollegeName } from '../services/attendanceStorage';
+import { loginUser, getCollegeName } from '../services/attendanceStorage';
 
 export default function LoginView({ onLoginSuccess, showToast }) {
-  const [roleTab, setRoleTab] = useState('faculty'); // 'faculty' or 'admin'
-  const [identifier, setIdentifier] = useState('FAC_PS'); // default for quick demo
-  const [password, setPassword] = useState('faculty123'); // default password
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const faculties = getFaculties();
   const collegeName = getCollegeName();
-
-  const handleRoleTabChange = (newRole) => {
-    setRoleTab(newRole);
-    setErrorMsg('');
-    if (newRole === 'admin') {
-      setIdentifier('admin');
-      setPassword('1234');
-    } else {
-      setIdentifier('FAC_PS');
-      setPassword('faculty123');
-    }
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -56,19 +36,12 @@ export default function LoginView({ onLoginSuccess, showToast }) {
           onLoginSuccess(result.user.role, result.user);
         }
       } else {
-        setErrorMsg(result.error || 'Authentication failed. Please check your credentials.');
+        setErrorMsg(result.error || 'Invalid User ID or Password. Access denied.');
       }
     } catch (err) {
       setLoading(false);
-      setErrorMsg('An unexpected error occurred during login. Please try again.');
+      setErrorMsg('An unexpected error occurred during authentication. Please try again.');
     }
-  };
-
-  const handleQuickFacultySelect = (facId) => {
-    setRoleTab('faculty');
-    setIdentifier(facId);
-    setPassword('faculty123');
-    setErrorMsg('');
   };
 
   return (
@@ -80,11 +53,11 @@ export default function LoginView({ onLoginSuccess, showToast }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px 16px',
-      fontFamily: "'Plus Jakarta Sans', sans-serif"
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '460px',
+        maxWidth: '430px',
         backgroundColor: '#ffffff',
         borderRadius: '20px',
         boxShadow: '0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.8)',
@@ -134,68 +107,8 @@ export default function LoginView({ onLoginSuccess, showToast }) {
           </p>
         </div>
 
-        {/* Role Selector Tabs */}
-        <div style={{
-          display: 'flex',
-          backgroundColor: '#f1f5f9',
-          padding: '6px',
-          margin: '24px 28px 0',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0'
-        }}>
-          <button
-            type="button"
-            onClick={() => handleRoleTabChange('faculty')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: roleTab === 'faculty' ? '#ffffff' : 'transparent',
-              color: roleTab === 'faculty' ? '#1e3a8a' : '#64748b',
-              fontWeight: roleTab === 'faculty' ? '700' : '600',
-              fontSize: '13.5px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: roleTab === 'faculty' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
-            }}
-          >
-            <UserCheck size={16} color={roleTab === 'faculty' ? '#2563eb' : '#94a3b8'} />
-            <span>Faculty Login</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleRoleTabChange('admin')}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: roleTab === 'admin' ? '#ffffff' : 'transparent',
-              color: roleTab === 'admin' ? '#0f172a' : '#64748b',
-              fontWeight: roleTab === 'admin' ? '700' : '600',
-              fontSize: '13.5px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: roleTab === 'admin' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
-            }}
-          >
-            <ShieldCheck size={16} color={roleTab === 'admin' ? '#0f172a' : '#94a3b8'} />
-            <span>Admin Login</span>
-          </button>
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px 28px 28px' }}>
+        {/* Single Common Login Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '32px 28px 36px' }}>
           {/* Error Banner */}
           {errorMsg && (
             <div style={{
@@ -216,16 +129,19 @@ export default function LoginView({ onLoginSuccess, showToast }) {
             </div>
           )}
 
-          {/* Identifier Field */}
-          <div style={{ marginBottom: '18px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              color: '#334155',
-              marginBottom: '7px'
-            }}>
-              {roleTab === 'admin' ? 'Administrator Username / Email' : 'Faculty ID / Email'}
+          {/* User ID Field */}
+          <div style={{ marginBottom: '20px' }}>
+            <label 
+              htmlFor="userIdInput"
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: '#334155',
+                marginBottom: '8px'
+              }}
+            >
+              User ID
             </label>
             <div style={{ position: 'relative' }}>
               <div style={{
@@ -237,17 +153,19 @@ export default function LoginView({ onLoginSuccess, showToast }) {
                 display: 'flex',
                 alignItems: 'center'
               }}>
-                {roleTab === 'admin' ? <ShieldCheck size={18} /> : <User size={18} />}
+                <User size={18} />
               </div>
               <input
+                id="userIdInput"
                 type="text"
                 required
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder={roleTab === 'admin' ? 'Enter admin or email' : 'e.g. FAC_PS or email'}
+                placeholder="Enter your User ID"
+                autoComplete="username"
                 style={{
                   width: '100%',
-                  height: '44px',
+                  height: '46px',
                   paddingLeft: '40px',
                   paddingRight: '14px',
                   borderRadius: '10px',
@@ -274,19 +192,19 @@ export default function LoginView({ onLoginSuccess, showToast }) {
           </div>
 
           {/* Password Field */}
-          <div style={{ marginBottom: '22px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-              <label style={{
-                fontSize: '12.5px',
+          <div style={{ marginBottom: '26px' }}>
+            <label 
+              htmlFor="passwordInput"
+              style={{
+                display: 'block',
+                fontSize: '13px',
                 fontWeight: '700',
-                color: '#334155'
-              }}>
-                {roleTab === 'admin' ? 'Admin Password / Security PIN' : 'Password'}
-              </label>
-              <span style={{ fontSize: '11.5px', color: '#64748b' }}>
-                {roleTab === 'admin' ? 'Default: 1234' : 'Default: faculty123'}
-              </span>
-            </div>
+                color: '#334155',
+                marginBottom: '8px'
+              }}
+            >
+              Password
+            </label>
 
             <div style={{ position: 'relative' }}>
               <div style={{
@@ -302,14 +220,16 @@ export default function LoginView({ onLoginSuccess, showToast }) {
               </div>
 
               <input
+                id="passwordInput"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
+                autoComplete="current-password"
                 style={{
                   width: '100%',
-                  height: '44px',
+                  height: '46px',
                   paddingLeft: '40px',
                   paddingRight: '40px',
                   borderRadius: '10px',
@@ -349,131 +269,38 @@ export default function LoginView({ onLoginSuccess, showToast }) {
                   alignItems: 'center',
                   padding: 0
                 }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Login Button */}
           <button
             type="submit"
             disabled={loading}
             style={{
               width: '100%',
-              height: '46px',
+              height: '48px',
               borderRadius: '10px',
               border: 'none',
-              backgroundColor: roleTab === 'admin' ? '#0f172a' : '#2563eb',
+              backgroundColor: '#2563eb',
               color: '#ffffff',
-              fontSize: '14.5px',
+              fontSize: '15px',
               fontWeight: '700',
               cursor: loading ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: roleTab === 'admin' 
-                ? '0 4px 12px rgba(15, 23, 42, 0.25)' 
-                : '0 4px 12px rgba(37, 99, 235, 0.3)',
+              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
               transition: 'all 0.2s ease'
             }}
           >
-            <span>{loading ? 'Authenticating...' : `Log in to ${roleTab === 'admin' ? 'Admin Panel' : 'Faculty Panel'}`}</span>
+            <span>{loading ? 'Authenticating...' : 'Login'}</span>
             <ArrowRight size={17} />
           </button>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div style={{
-            marginTop: '24px',
-            paddingTop: '20px',
-            borderTop: '1px solid #f1f5f9'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '11.5px',
-              fontWeight: '700',
-              color: '#64748b',
-              marginBottom: '10px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em'
-            }}>
-              <Sparkles size={13} color="#2563eb" />
-              <span>Quick Login (Click to Auto-fill)</span>
-            </div>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickFacultySelect('FAC_PS')}
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #bfdbfe',
-                  backgroundColor: identifier === 'FAC_PS' ? '#eff6ff' : '#f8fafc',
-                  color: '#1d4ed8',
-                  cursor: 'pointer'
-                }}
-              >
-                Prof. Priya Shah (FAC_PS)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFacultySelect('FAC_DJP')}
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #bfdbfe',
-                  backgroundColor: identifier === 'FAC_DJP' ? '#eff6ff' : '#f8fafc',
-                  color: '#1d4ed8',
-                  cursor: 'pointer'
-                }}
-              >
-                Dr. Dinesh Prajapati (FAC_DJP)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFacultySelect('FAC_RP')}
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #bfdbfe',
-                  backgroundColor: identifier === 'FAC_RP' ? '#eff6ff' : '#f8fafc',
-                  color: '#1d4ed8',
-                  cursor: 'pointer'
-                }}
-              >
-                Prof. Rahul Patel (FAC_RP)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRoleTabChange('admin')}
-                style={{
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: roleTab === 'admin' ? '#f1f5f9' : '#f8fafc',
-                  color: '#0f172a',
-                  cursor: 'pointer'
-                }}
-              >
-                Admin (admin / 1234)
-              </button>
-            </div>
-          </div>
         </form>
       </div>
     </div>

@@ -89,6 +89,23 @@ import {
   notifyTimetableSync
 } from '../services/timetableStorage';
 
+const SUBJECT_COLOR_THEMES = {
+  purple:  { bg: '#fbf7ff', border: '#ddd6fe', text: '#5b21b6', badgeBg: '#ede9fe', badgeText: '#6d28d9' },
+  green:   { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', badgeBg: '#dcfce7', badgeText: '#15803d' },
+  emerald: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', badgeBg: '#d1fae5', badgeText: '#047857' },
+  coral:   { bg: '#fff1f2', border: '#fecdd3', text: '#9f1239', badgeBg: '#ffe4e6', badgeText: '#be123c' },
+  amber:   { bg: '#fffbeb', border: '#fde68a', text: '#92400e', badgeBg: '#fef3c7', badgeText: '#b45309' },
+  indigo:  { bg: '#eef2ff', border: '#c7d2fe', text: '#3730a3', badgeBg: '#e0e7ff', badgeText: '#4338ca' },
+  cyan:    { bg: '#ecfeff', border: '#a5f3fc', text: '#155e75', badgeBg: '#cffafe', badgeText: '#0e7490' },
+  slate:   { bg: '#f8fafc', border: '#cbd5e1', text: '#334155', badgeBg: '#f1f5f9', badgeText: '#475569' },
+  blue:    { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', badgeBg: '#dbeafe', badgeText: '#1d4ed8' }
+};
+
+export const getCardStyleForSubject = (subjectNameOrCode) => {
+  const colorName = getSubjectColor(subjectNameOrCode);
+  return SUBJECT_COLOR_THEMES[colorName] || SUBJECT_COLOR_THEMES.blue;
+};
+
 export default function FacultyPanel({ currentUser, showToast, onExit }) {
   // -------------------------------------------------------------
   // 1. ACTIVE FACULTY IDENTITY
@@ -1752,6 +1769,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                 );
                               }
 
+                              const theme = getCardStyleForSubject(slot.subject);
                               return (
                                 <td 
                                   key={dayName}
@@ -1765,30 +1783,36 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                   <div
                                     onClick={() => setSelectedLectureDetail({ slot, day: dayName, time })}
                                     style={{
-                                      padding: '10px',
-                                      borderRadius: '8px',
-                                      border: '1px solid #bfdbfe',
-                                      backgroundColor: '#eff6ff',
+                                      padding: '10px 12px',
+                                      borderRadius: '10px',
+                                      border: `1px solid ${theme.border}`,
+                                      backgroundColor: theme.bg,
                                       cursor: 'pointer',
                                       transition: 'all 0.15s ease',
-                                      boxShadow: '0 2px 5px rgba(37,99,235,0.06)'
+                                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                                     }}
-                                    title="Click to view details, class student roster, or take attendance"
+                                    title="Click to view lecture details, class roster, or take attendance"
                                   >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                      <span style={{ fontWeight: '800', color: '#1e3a8a', fontSize: '12.5px' }}>
+                                      <span style={{ fontWeight: '800', color: theme.text, fontSize: '13px' }}>
                                         {slot.subject}
                                       </span>
-                                      <span style={{ fontSize: '10px', fontWeight: '700', color: '#0284c7', backgroundColor: '#e0f2fe', padding: '1px 5px', borderRadius: '4px' }}>
+                                      <span style={{
+                                        fontSize: '10px',
+                                        fontWeight: '700',
+                                        color: theme.badgeText,
+                                        backgroundColor: theme.badgeBg,
+                                        padding: '1px 6px',
+                                        borderRadius: '4px'
+                                      }}>
                                         {time.split(' - ')[0]}
                                       </span>
                                     </div>
-                                    <div style={{ fontSize: '11px', color: '#475569', fontWeight: '600', marginBottom: '2px' }}>
+                                    <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
                                       {slot.sem} • {slot.div}
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10.5px', color: '#64748b' }}>
-                                      <span>📍 {slot.room || 'Room'}</span>
-                                      <span style={{ color: '#2563eb', fontWeight: '700' }}>Inspect →</span>
+                                    <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                      📍 {slot.room || 'Classroom'}
                                     </div>
                                   </div>
                                 </td>
@@ -1939,7 +1963,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                         }}
                       >
                         <FileSpreadsheet size={15} />
-                        <span>View in Register</span>
+                        <span>View Attendance History</span>
                       </button>
 
                       <button
@@ -1958,7 +1982,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                         }}
                       >
                         <UserCheck size={15} />
-                        <span>Take Attendance Now</span>
+                        <span>Take Attendance</span>
                       </button>
                     </div>
                   </div>

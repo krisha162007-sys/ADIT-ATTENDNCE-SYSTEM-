@@ -716,7 +716,16 @@ export const getCurrentUser = () => {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const user = JSON.parse(raw);
+    if (user && user.loginTime) {
+      const loginDate = new Date(user.loginTime).toDateString();
+      const todayDate = new Date().toDateString();
+      if (loginDate !== todayDate) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+    }
+    return user;
   } catch (e) {
     return null;
   }
@@ -766,7 +775,7 @@ export const getActiveFaculty = () => {
 
 export const loginUser = (identifier, password) => {
   if (!identifier || !password) {
-    return { success: false, error: 'Please enter both User ID / Email and Password.' };
+    return { success: false, error: 'Please enter both User ID and Password.' };
   }
   const cleanId = String(identifier).trim().toLowerCase();
   const cleanPass = String(password).trim();
@@ -821,7 +830,7 @@ export const loginUser = (identifier, password) => {
     }
   }
 
-  return { success: false, error: 'Invalid User ID/Email or Password. Please check your credentials.' };
+  return { success: false, error: 'Invalid User ID or Password. Access denied.' };
 };
 
 // =========================================================================
