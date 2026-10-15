@@ -83,7 +83,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
     name: '',
     enrollmentNo: '',
     rollNo: '',
-    email: ''
+    email: '',
+    batch: 'Batch A'
   });
   const [studentModalError, setStudentModalError] = useState('');
   const [otherClassConflict, setOtherClassConflict] = useState(null);
@@ -222,7 +223,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       name: '',
       enrollmentNo: '',
       rollNo: String(studentsInSelectedClass.length + 1),
-      email: ''
+      email: '',
+      batch: 'Batch A'
     });
     setStudentModalError('');
     setOtherClassConflict(null);
@@ -235,7 +237,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       name: st.name,
       enrollmentNo: st.enrollmentNo,
       rollNo: st.rollNo || '',
-      email: st.email || ''
+      email: st.email || '',
+      batch: st.batch || 'Batch A'
     });
     setStudentModalError('');
     setOtherClassConflict(null);
@@ -289,6 +292,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
         enrollmentNo: studentForm.enrollmentNo.trim(),
         rollNo: studentForm.rollNo.trim(),
         email: studentForm.email.trim(),
+        batch: studentForm.batch ? studentForm.batch.trim() : 'Batch A',
         classId: editingStudent ? (editingStudent.classId || selectedClassId) : selectedClassId
       });
       refreshData();
@@ -354,12 +358,12 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
   const handleDownloadSampleTemplate = () => {
     const wb = XLSX.utils.book_new();
     const sampleData = [
-      ['Roll No', 'Enrollment No', 'Student Name', 'Email'],
-      ['1', '24AD001', 'Aarav Patel', 'aarav.patel@adit.ac.in'],
-      ['2', '24AD002', 'Ananya Sharma', 'ananya.sharma@adit.ac.in'],
-      ['3', '24AD003', 'Devansh Verma', 'devansh.verma@adit.ac.in'],
-      ['4', '24AD004', 'Diyansh Joshi', 'diyansh.joshi@adit.ac.in'],
-      ['5', '24AD005', 'Isha Mehta', 'isha.mehta@adit.ac.in']
+      ['Roll No', 'Enrollment No', 'Student Name', 'Batch', 'Email'],
+      ['1', '24AD001', 'Aarav Patel', 'Batch A', 'aarav.patel@adit.ac.in'],
+      ['2', '24AD002', 'Ananya Sharma', 'Batch A', 'ananya.sharma@adit.ac.in'],
+      ['3', '24AD003', 'Devansh Verma', 'Batch B', 'devansh.verma@adit.ac.in'],
+      ['4', '24AD004', 'Diyansh Joshi', 'Batch B', 'diyansh.joshi@adit.ac.in'],
+      ['5', '24AD005', 'Isha Mehta', 'Batch C', 'isha.mehta@adit.ac.in']
     ];
     const ws = XLSX.utils.aoa_to_sheet(sampleData);
     XLSX.utils.book_append_sheet(wb, ws, 'Students');
@@ -377,12 +381,13 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       [`Department: ${selectedClass.departmentName}`, `Semester: ${selectedClass.semester}`, `Division: ${selectedClass.division}`, `Academic Year: ${selectedClass.academicYear}`],
       [`Total Students: ${studentsInSelectedClass.length}`, `Export Date: ${new Date().toLocaleDateString()}`],
       [],
-      ['Roll No', 'Enrollment No', 'Student Name', 'Email', 'Department', 'Semester', 'Division', 'Academic Year']
+      ['Roll No', 'Enrollment No', 'Student Name', 'Batch', 'Email', 'Department', 'Semester', 'Division', 'Academic Year']
     ];
     const rows = studentsInSelectedClass.map(s => [
       s.rollNo || '',
       s.enrollmentNo || '',
       s.name || '',
+      s.batch || 'Batch A',
       s.email || '',
       selectedClass.departmentName,
       selectedClass.semester,
@@ -431,6 +436,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       let rollCol = headers.findIndex(h => /^(roll|roll\s*no|rno|sr|sr\s*no|no)$/i.test(h));
       let enrCol = headers.findIndex(h => /^(enroll|enrollment|enrollment\s*no|enrolment|id|enr)$/i.test(h));
       let nameCol = headers.findIndex(h => /^(name|student\s*name|full\s*name|student)$/i.test(h));
+      let batchCol = headers.findIndex(h => /^(batch|group|subgroup|section|lab\s*batch)$/i.test(h));
       let emailCol = headers.findIndex(h => /^(email|e-mail|email\s*address|mail)$/i.test(h));
 
       // Fallbacks if columns not strictly matched
@@ -442,6 +448,9 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       }
       if (rollCol === -1) {
         rollCol = headers.findIndex(h => h.includes('roll') || h.includes('sr'));
+      }
+      if (batchCol === -1) {
+        batchCol = headers.findIndex(h => h.includes('batch') || h.includes('group'));
       }
       if (emailCol === -1) {
         emailCol = headers.findIndex(h => h.includes('mail'));
@@ -463,6 +472,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
         const rollNo = rollCol !== -1 ? String(row[rollCol] || '').trim() : '';
         const enr = enrCol !== -1 ? String(row[enrCol] || '').trim() : '';
         const name = nameCol !== -1 ? String(row[nameCol] || '').trim() : '';
+        const batch = batchCol !== -1 ? String(row[batchCol] || '').trim() : 'Batch A';
         const email = emailCol !== -1 ? String(row[emailCol] || '').trim() : '';
 
         const rowItem = {
@@ -470,6 +480,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
           rollNo: rollNo || String(r - headerIdx),
           enrollmentNo: enr,
           name,
+          batch: batch || 'Batch A',
           email,
           status: 'valid',
           reason: 'Ready to import'
@@ -581,17 +592,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
           </button>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            {onOpenClassTimetable && (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => onOpenClassTimetable(selectedClass.departmentName, selectedClass.semester, selectedClass.division)}
-                style={{ color: '#2563eb', borderColor: '#bfdbfe' }}
-              >
-                <Layers size={14} />
-                <span>View Class Timetable</span>
-              </button>
-            )}
+
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -738,8 +739,9 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                     <th style={{ padding: '12px 16px', width: '70px', fontWeight: '800', color: '#475569' }}>Roll No</th>
-                    <th style={{ padding: '12px 16px', width: '170px', fontWeight: '800', color: '#475569' }}>Enrollment No.</th>
+                    <th style={{ padding: '12px 16px', width: '160px', fontWeight: '800', color: '#475569' }}>Enrollment No.</th>
                     <th style={{ padding: '12px 16px', fontWeight: '800', color: '#475569' }}>Student Name</th>
+                    <th style={{ padding: '12px 16px', width: '120px', fontWeight: '800', color: '#475569' }}>Batch</th>
                     <th style={{ padding: '12px 16px', fontWeight: '800', color: '#475569' }}>Email Address</th>
                     <th style={{ padding: '12px 16px', width: '190px', textAlign: 'right', fontWeight: '800', color: '#475569' }}>Actions</th>
                   </tr>
@@ -770,6 +772,21 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                       </td>
                       <td style={{ padding: '12px 16px', fontWeight: '700', color: '#0f172a' }}>
                         {st.name}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          padding: '3px 9px', 
+                          backgroundColor: st.batch?.includes('B') ? '#fef3c7' : st.batch?.includes('C') ? '#f3e8ff' : '#eff6ff', 
+                          color: st.batch?.includes('B') ? '#b45309' : st.batch?.includes('C') ? '#7e22ce' : '#1d4ed8', 
+                          borderRadius: '6px', 
+                          fontWeight: '700', 
+                          fontSize: '12px', 
+                          border: `1px solid ${st.batch?.includes('B') ? '#fde68a' : st.batch?.includes('C') ? '#e9d5ff' : '#bfdbfe'}` 
+                        }}>
+                          {st.batch || 'Batch A'}
+                        </span>
                       </td>
                       <td style={{ padding: '12px 16px', color: '#64748b' }}>
                         {st.email || '—'}
@@ -1343,15 +1360,29 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                     </div>
 
                     <div className="form-group">
-                      <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Email Address (Optional)</label>
-                      <input
-                        type="email"
+                      <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Assigned Batch *</label>
+                      <select
                         className="form-control"
-                        placeholder="e.g. student@adit.ac.in"
-                        value={studentForm.email}
-                        onChange={(e) => handleStudentFormChange('email', e.target.value)}
-                      />
+                        value={studentForm.batch || 'Batch A'}
+                        onChange={(e) => handleStudentFormChange('batch', e.target.value)}
+                        style={{ fontWeight: '700' }}
+                      >
+                        <option value="Batch A">Batch A</option>
+                        <option value="Batch B">Batch B</option>
+                        <option value="Batch C">Batch C</option>
+                      </select>
                     </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      placeholder="e.g. student@adit.ac.in"
+                      value={studentForm.email}
+                      onChange={(e) => handleStudentFormChange('email', e.target.value)}
+                    />
                   </div>
                 </div>
 
@@ -1596,6 +1627,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                             <th style={{ padding: '8px 12px', width: '60px' }}>Roll</th>
                             <th style={{ padding: '8px 12px', width: '120px' }}>Enrollment</th>
                             <th style={{ padding: '8px 12px' }}>Name</th>
+                            <th style={{ padding: '8px 12px', width: '80px' }}>Batch</th>
                             <th style={{ padding: '8px 12px' }}>Email</th>
                             <th style={{ padding: '8px 12px' }}>Validation Note</th>
                           </tr>
@@ -1629,6 +1661,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                                 <td style={{ padding: '8px 12px', fontWeight: '700' }}>{row.rollNo}</td>
                                 <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: '700' }}>{row.enrollmentNo}</td>
                                 <td style={{ padding: '8px 12px', fontWeight: '600' }}>{row.name}</td>
+                                <td style={{ padding: '8px 12px', fontWeight: '700', color: '#2563eb' }}>{row.batch || 'Batch A'}</td>
                                 <td style={{ padding: '8px 12px', color: '#64748b' }}>{row.email || '—'}</td>
                                 <td style={{ padding: '8px 12px', color: row.status === 'invalid' ? '#b91c1c' : '#64748b' }}>
                                   {row.reason}

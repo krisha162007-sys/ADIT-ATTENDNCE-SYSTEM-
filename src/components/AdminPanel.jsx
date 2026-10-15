@@ -103,9 +103,8 @@ export default function AdminPanel({ showToast, onExit }) {
   // Sidebar Menu Items
   const adminMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'faculty', label: 'Faculty Timetables', icon: Users },
-    { id: 'class-timetables', label: 'Class Timetables', icon: Layers },
-    { id: 'classes', label: 'Classes', icon: GraduationCap },
+    { id: 'faculty', label: 'Faculty Roster', icon: Users },
+    { id: 'classes', label: 'Student Management', icon: GraduationCap },
     { id: 'subjects', label: 'Subjects', icon: BookOpen },
     { id: 'departments', label: 'Departments', icon: Building2 },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -282,35 +281,18 @@ export default function AdminPanel({ showToast, onExit }) {
           =================================================================== */}
       <div className="admin-main-viewport">
         
-        {/* VIEW 1: FACULTY TIMETABLES (Primary View from User Screenshot) */}
+        {/* VIEW 1: FACULTY ROSTER */}
         {adminTab === 'faculty' && (
-          <FacultyTimetablePanel
-            departments={departments}
-            faculties={faculties}
-            subjects={subjects}
-            onSaveFaculty={handleSaveFaculty}
-            onSwitchToClassTimetable={() => setAdminTab('class-timetables')}
+          <DepartmentAdminPanel
             showToast={showToast}
           />
         )}
 
-        {/* VIEW: CLASS TIMETABLES (Division/Class-wise Weekly Schedule & Sync) */}
-        {adminTab === 'class-timetables' && (
-          <ClassTimetablePanel
-            departments={departments}
-            faculties={faculties}
-            subjects={subjects}
-            onSwitchToFacultyTimetable={() => setAdminTab('faculty')}
-            showToast={showToast}
-          />
-        )}
-
-        {/* VIEW: CLASS MANAGEMENT (Department + Semester + Division + Academic Year) */}
+        {/* VIEW: STUDENT MANAGEMENT */}
         {adminTab === 'classes' && (
           <ClassManagementPanel
             departments={departments}
             showToast={showToast}
-            onOpenClassTimetable={(dept, sem, div) => setAdminTab('class-timetables')}
           />
         )}
 
@@ -386,15 +368,15 @@ export default function AdminPanel({ showToast, onExit }) {
 
               <div className="card" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Timetables Active</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Faculty Strength</span>
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f3e8ff', color: '#7e22ce', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Calendar size={18} />
+                    <Users size={18} />
                   </div>
                 </div>
                 <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '10px' }}>
                   {faculties.length}
                 </div>
-                <span style={{ fontSize: '12px', color: '#7e22ce', fontWeight: '600' }}>Individual Faculty Schedules</span>
+                <span style={{ fontSize: '12px', color: '#7e22ce', fontWeight: '600' }}>Active Teaching Roster</span>
               </div>
             </div>
 
@@ -409,7 +391,7 @@ export default function AdminPanel({ showToast, onExit }) {
                   onClick={() => setAdminTab('faculty')}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <span>Open Faculty Timetables</span>
+                  <span>Open Faculty Roster</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -468,150 +450,12 @@ export default function AdminPanel({ showToast, onExit }) {
                           cursor: 'pointer'
                         }}
                       >
-                        <span>View Timetables</span>
+                        <span>View Faculty Roster</span>
                         <ChevronRight size={14} />
                       </button>
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 3: TIMETABLES (Department Master View) */}
-        {adminTab === 'timetables' && (
-          <div className="admin-subview">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-              <div>
-                <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
-                  Department Master Timetables
-                </h1>
-                <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
-                  Comprehensive schedule matrix for {activeDept} ({activeSem}).
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setAdminTab('faculty')}
-                >
-                  <Users size={14} /> Individual Faculty Timetables
-                </button>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => window.print()}
-                >
-                  <Download size={14} /> Export Schedule
-                </button>
-              </div>
-            </div>
-
-            {/* Department selector */}
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
-              <select
-                className="form-control"
-                value={activeDept}
-                onChange={(e) => setActiveDept(e.target.value)}
-                style={{ maxWidth: '280px', fontWeight: '700' }}
-              >
-                {departments.map((d) => (
-                  <option key={d.id || d.name} value={d.name}>{d.name}</option>
-                ))}
-              </select>
-
-              <select
-                className="form-control"
-                value={activeSem}
-                onChange={(e) => setActiveSem(e.target.value)}
-                style={{ maxWidth: '180px', fontWeight: '700' }}
-              >
-                <option value="1st Semester">1st Semester</option>
-                <option value="2nd Semester">2nd Semester</option>
-                <option value="3rd Semester">3rd Semester</option>
-                <option value="4th Semester">4th Semester</option>
-                <option value="5th Semester">5th Semester</option>
-                <option value="6th Semester">6th Semester</option>
-                <option value="7th Semester">7th Semester</option>
-                <option value="8th Semester">8th Semester</option>
-              </select>
-            </div>
-
-            {/* Department Master Matrix */}
-            <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>
-                Weekly Department Matrix - {activeDept}
-              </h3>
-
-              <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ padding: '10px 14px', width: '120px' }}>Time Slot</th>
-                      {TIMETABLE_DAYS.map(day => (
-                        <th key={day} style={{ padding: '10px', textAlign: 'center' }}>{day}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {TIME_SLOTS.map((slotTime) => {
-                      if (slotTime === '12:40 - 1:25') {
-                        return (
-                          <tr key={slotTime} style={{ backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '8px 14px', fontWeight: '700', color: '#64748b' }}>{slotTime}</td>
-                            <td colSpan={6} style={{ textAlign: 'center', fontWeight: '800', color: '#64748b', letterSpacing: '0.1em', fontSize: '11px', textTransform: 'uppercase' }}>
-                              LUNCH BREAK
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return (
-                        <tr key={slotTime} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '10px 14px', fontWeight: '700', color: '#475569', backgroundColor: '#fafbfc' }}>
-                            {slotTime}
-                          </td>
-                          {TIMETABLE_DAYS.map(day => (
-                            <td key={day} style={{ padding: '8px', borderRight: '1px solid #f1f5f9', textAlign: 'center' }}>
-                              <span style={{ color: '#64748b', fontSize: '12px' }}>Scheduled Lectures</span>
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 4: UPLOAD TIMETABLE (Dedicated Upload Hub) */}
-        {adminTab === 'upload' && (
-          <div className="admin-subview">
-            <div style={{ marginBottom: '24px' }}>
-              <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a' }}>
-                Timetable Upload Hub
-              </h1>
-              <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
-                Upload official class or faculty timetable files in Excel (.xlsx, .csv), Image, or PDF format.
-              </p>
-            </div>
-
-            <div style={{ maxWidth: '720px' }}>
-              <div className="card" style={{ padding: '30px' }}>
-                <TimetableUploadModal
-                  selectedFaculty={faculties[0]}
-                  departmentName={activeDept}
-                  semesterName={activeSem}
-                  onClose={() => setAdminTab('faculty')}
-                  onTimetableUpdated={() => {
-                    if (showToast) showToast('Timetable successfully loaded!');
-                    setAdminTab('faculty');
-                  }}
-                  showToast={showToast}
-                />
               </div>
             </div>
           </div>

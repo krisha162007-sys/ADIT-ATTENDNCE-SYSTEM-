@@ -392,49 +392,49 @@ export const setFacultyName = (name) => {
 // Initial Seed Data aligned with College ERP Reference Sheet
 export const DEFAULT_STUDENTS = [
   // Computer Engineering • Sem 3 • Div 3 (2026-27)
-  { id: 'S127', rollNo: '1', name: 'Aarav Patel', enrollmentNo: '12502040501127', email: 'aarav.patel@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S128', rollNo: '2', name: 'Ananya Sharma', enrollmentNo: '12502040501128', email: 'ananya.sharma@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S129', rollNo: '3', name: 'Devansh Verma', enrollmentNo: '12502040501129', email: 'devansh.verma@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S130', rollNo: '4', name: 'Diyansh Joshi', enrollmentNo: '12502040501130', email: 'diyansh.joshi@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S131', rollNo: '5', name: 'Isha Mehta', enrollmentNo: '12502040501131', email: 'isha.mehta@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S132', rollNo: '6', name: 'Kabir Shah', enrollmentNo: '12502040501132', email: 'kabir.shah@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S133', rollNo: '7', name: 'Khushi Trivedi', enrollmentNo: '12502040501133', email: 'khushi.trivedi@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S134', rollNo: '8', name: 'Manav Desai', enrollmentNo: '12502040501134', email: 'manav.desai@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S135', rollNo: '9', name: 'Neha Bhatt', enrollmentNo: '12502040501135', email: 'neha.bhatt@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S136', rollNo: '10', name: 'Parth Solanki', enrollmentNo: '12502040501136', email: 'parth.solanki@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S137', rollNo: '11', name: 'Riya Rathod', enrollmentNo: '12502040501137', email: 'riya.rathod@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S138', rollNo: '12', name: 'Siddharth Dave', enrollmentNo: '12502040501138', email: 'siddharth.dave@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S139', rollNo: '13', name: 'Tanya Kothari', enrollmentNo: '12502040501139', email: 'tanya.kothari@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S140', rollNo: '14', name: 'Varun Chawla', enrollmentNo: '12502040501140', email: 'varun.chawla@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S142', rollNo: '15', name: 'Yash Vaghela', enrollmentNo: '12502040501142', email: 'yash.vaghela@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S143', rollNo: '16', name: 'Aayush Prajapati', enrollmentNo: '12502040501143', email: 'aayush.p@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S144', rollNo: '17', name: 'Bhumika Parmar', enrollmentNo: '12502040501144', email: 'bhumika.p@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S145', rollNo: '18', name: 'Chirag Panchal', enrollmentNo: '12502040501145', email: 'chirag.p@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S146', rollNo: '19', name: 'Diya Patel', enrollmentNo: '12502040501146', email: 'diya.patel@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S147', rollNo: '20', name: 'Harshil Soni', enrollmentNo: '12502040501147', email: 'harshil.soni@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S148', rollNo: '21', name: 'Jiya Shah', enrollmentNo: '12502040501148', email: 'jiya.shah@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S149', rollNo: '22', name: 'Karan Mistry', enrollmentNo: '12502040501149', email: 'karan.mistry@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S150', rollNo: '23', name: 'Meet Makwana', enrollmentNo: '12502040501150', email: 'meet.makwana@adit.ac.in', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S127', rollNo: '1', name: 'Aarav Patel', enrollmentNo: '12502040501127', email: 'aarav.patel@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S128', rollNo: '2', name: 'Ananya Sharma', enrollmentNo: '12502040501128', email: 'ananya.sharma@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S129', rollNo: '3', name: 'Devansh Verma', enrollmentNo: '12502040501129', email: 'devansh.verma@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S130', rollNo: '4', name: 'Diyansh Joshi', enrollmentNo: '12502040501130', email: 'diyansh.joshi@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S131', rollNo: '5', name: 'Isha Mehta', enrollmentNo: '12502040501131', email: 'isha.mehta@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S132', rollNo: '6', name: 'Kabir Shah', enrollmentNo: '12502040501132', email: 'kabir.shah@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S133', rollNo: '7', name: 'Khushi Trivedi', enrollmentNo: '12502040501133', email: 'khushi.trivedi@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S134', rollNo: '8', name: 'Manav Desai', enrollmentNo: '12502040501134', email: 'manav.desai@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S135', rollNo: '9', name: 'Neha Bhatt', enrollmentNo: '12502040501135', email: 'neha.bhatt@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S136', rollNo: '10', name: 'Parth Solanki', enrollmentNo: '12502040501136', email: 'parth.solanki@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S137', rollNo: '11', name: 'Riya Rathod', enrollmentNo: '12502040501137', email: 'riya.rathod@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S138', rollNo: '12', name: 'Siddharth Dave', enrollmentNo: '12502040501138', email: 'siddharth.dave@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S139', rollNo: '13', name: 'Tanya Kothari', enrollmentNo: '12502040501139', email: 'tanya.kothari@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S140', rollNo: '14', name: 'Varun Chawla', enrollmentNo: '12502040501140', email: 'varun.chawla@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S142', rollNo: '15', name: 'Yash Vaghela', enrollmentNo: '12502040501142', email: 'yash.vaghela@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S143', rollNo: '16', name: 'Aayush Prajapati', enrollmentNo: '12502040501143', email: 'aayush.p@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S144', rollNo: '17', name: 'Bhumika Parmar', enrollmentNo: '12502040501144', email: 'bhumika.p@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S145', rollNo: '18', name: 'Chirag Panchal', enrollmentNo: '12502040501145', email: 'chirag.p@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S146', rollNo: '19', name: 'Diya Patel', enrollmentNo: '12502040501146', email: 'diya.patel@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S147', rollNo: '20', name: 'Harshil Soni', enrollmentNo: '12502040501147', email: 'harshil.soni@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S148', rollNo: '21', name: 'Jiya Shah', enrollmentNo: '12502040501148', email: 'jiya.shah@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S149', rollNo: '22', name: 'Karan Mistry', enrollmentNo: '12502040501149', email: 'karan.mistry@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S150', rollNo: '23', name: 'Meet Makwana', enrollmentNo: '12502040501150', email: 'meet.makwana@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_3_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer', class: '3', division: 'Div 3', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
 
   // AI & Data Science • Sem 3 • Div 1 (2026-27) - Matching User Prompt Specification
-  { id: 'S_AI_01', rollNo: '1', name: 'Student A', enrollmentNo: '24AD001', email: 'student.a@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_02', rollNo: '2', name: 'Student B', enrollmentNo: '24AD002', email: 'student.b@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_03', rollNo: '3', name: 'Student C', enrollmentNo: '24AD003', email: 'student.c@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_04', rollNo: '4', name: 'Dhwani Shah', enrollmentNo: '24AD004', email: 'dhwani.shah@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_05', rollNo: '5', name: 'Kavya Patel', enrollmentNo: '24AD005', email: 'kavya.patel@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_06', rollNo: '6', name: 'Neel Mistry', enrollmentNo: '24AD006', email: 'neel.mistry@adit.ac.in', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_01', rollNo: '1', name: 'Student A', enrollmentNo: '24AD001', email: 'student.a@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_02', rollNo: '2', name: 'Student B', enrollmentNo: '24AD002', email: 'student.b@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_03', rollNo: '3', name: 'Student C', enrollmentNo: '24AD003', email: 'student.c@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_04', rollNo: '4', name: 'Dhwani Shah', enrollmentNo: '24AD004', email: 'dhwani.shah@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_05', rollNo: '5', name: 'Kavya Patel', enrollmentNo: '24AD005', email: 'kavya.patel@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_06', rollNo: '6', name: 'Neel Mistry', enrollmentNo: '24AD006', email: 'neel.mistry@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_3_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
 
   // AI & Data Science • Sem 3 • Div 2 (2026-27)
-  { id: 'S_AI_07', rollNo: '1', name: 'Rohan Varma', enrollmentNo: '24AD007', email: 'rohan.v@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_08', rollNo: '2', name: 'Sneha Dave', enrollmentNo: '24AD008', email: 'sneha.d@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_09', rollNo: '3', name: 'Tanmay Bhatt', enrollmentNo: '24AD009', email: 'tanmay.b@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_10', rollNo: '4', name: 'Urvi Solanki', enrollmentNo: '24AD010', email: 'urvi.s@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_11', rollNo: '5', name: 'Vivek Joshi', enrollmentNo: '24AD011', email: 'vivek.j@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
-  { id: 'S_AI_12', rollNo: '6', name: 'Yashvi Prajapati', enrollmentNo: '24AD012', email: 'yashvi.p@adit.ac.in', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_07', rollNo: '1', name: 'Rohan Varma', enrollmentNo: '24AD007', email: 'rohan.v@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_08', rollNo: '2', name: 'Sneha Dave', enrollmentNo: '24AD008', email: 'sneha.d@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_09', rollNo: '3', name: 'Tanmay Bhatt', enrollmentNo: '24AD009', email: 'tanmay.b@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_10', rollNo: '4', name: 'Urvi Solanki', enrollmentNo: '24AD010', email: 'urvi.s@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_11', rollNo: '5', name: 'Vivek Joshi', enrollmentNo: '24AD011', email: 'vivek.j@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_AI_12', rollNo: '6', name: 'Yashvi Prajapati', enrollmentNo: '24AD012', email: 'yashvi.p@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_3_2_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
 
   // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
-  { id: 'S_IT_01', rollNo: '1', name: 'Omkar Trivedi', enrollmentNo: '24IT001', email: 'omkar.t@adit.ac.in', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
-  { id: 'S_IT_02', rollNo: '2', name: 'Prachi Joshi', enrollmentNo: '24IT002', email: 'prachi.j@adit.ac.in', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
+  { id: 'S_IT_01', rollNo: '1', name: 'Omkar Trivedi', enrollmentNo: '24IT001', email: 'omkar.t@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
+  { id: 'S_IT_02', rollNo: '2', name: 'Prachi Joshi', enrollmentNo: '24IT002', email: 'prachi.j@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
 ];
 
 export const DEFAULT_SUBJECTS = [
@@ -1084,9 +1084,18 @@ export const getStudents = () => {
     students = DEFAULT_STUDENTS;
   }
 
-  // Ensure each student has classId properly linked
+  // Ensure each student has classId and batch properly linked
   let modified = false;
-  students.forEach(st => {
+  students.forEach((st, idx) => {
+    if (!st.batch) {
+      const r = parseInt(st.rollNo, 10);
+      if (!isNaN(r)) {
+        st.batch = r <= 8 ? 'Batch A' : r <= 16 ? 'Batch B' : 'Batch C';
+      } else {
+        st.batch = (idx % 3 === 0) ? 'Batch A' : (idx % 3 === 1) ? 'Batch B' : 'Batch C';
+      }
+      modified = true;
+    }
     if (!st.classId) {
       const cls = findClassByCriteria(
         st.department || st.dept,
@@ -1204,6 +1213,8 @@ export const saveStudent = (studentData) => {
   const year = resolvedClass ? resolvedClass.academicYear : (studentData.academicYear || DEFAULT_ACADEMIC_YEAR);
 
   let saved;
+  const batchVal = studentData.batch ? String(studentData.batch).trim() : 'Batch A';
+
   if (studentData.id) {
     const idx = students.findIndex(s => s.id === studentData.id);
     if (idx !== -1) {
@@ -1214,6 +1225,7 @@ export const saveStudent = (studentData) => {
         name: String(studentData.name).trim(),
         rollNo: String(studentData.rollNo || students[idx].rollNo || ''),
         email: studentData.email ? String(studentData.email).trim() : '',
+        batch: studentData.batch ? String(studentData.batch).trim() : (students[idx].batch || 'Batch A'),
         department: dept,
         dept: dept,
         semester: sem,
@@ -1229,6 +1241,7 @@ export const saveStudent = (studentData) => {
         ...studentData,
         enrollmentNo: cleanEnr,
         name: String(studentData.name).trim(),
+        batch: batchVal,
         department: dept,
         dept: dept,
         semester: sem,
@@ -1249,6 +1262,7 @@ export const saveStudent = (studentData) => {
       name: String(studentData.name).trim(),
       rollNo: String(studentData.rollNo || (students.length + 1)),
       email: studentData.email ? String(studentData.email).trim() : '',
+      batch: batchVal,
       classId: studentData.classId || (resolvedClass ? resolvedClass.id : null),
       department: dept,
       dept: dept,
@@ -1312,6 +1326,7 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
     const enrollmentNo = String(row.enrollmentNo || '').trim();
     const rollNo = String(row.rollNo || '').trim();
     const email = String(row.email || '').trim();
+    const batch = String(row.batch || row.Batch || row['Student Batch'] || '').trim() || 'Batch A';
 
     if (!name || !enrollmentNo) {
       errors.push(`Row ${rowNum}: Name and Enrollment Number are required.`);
@@ -1327,6 +1342,7 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
           students[existingIdx].name = name;
           if (rollNo) students[existingIdx].rollNo = rollNo;
           if (email) students[existingIdx].email = email;
+          if (batch) students[existingIdx].batch = batch;
           updatedCount++;
         }
       } else {
@@ -1346,6 +1362,7 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
             if (name) students[existingIdx].name = name;
             if (rollNo) students[existingIdx].rollNo = rollNo;
             if (email) students[existingIdx].email = email;
+            if (batch) students[existingIdx].batch = batch;
             movedCount++;
           }
         } else {
@@ -1362,6 +1379,7 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
         enrollmentNo,
         rollNo: rollNo || String(currentClassStudents.length + importedCount + 1),
         email: email || '',
+        batch,
         classId: targetClass.id,
         departmentId: targetClass.departmentId,
         department: targetClass.departmentName,
@@ -1415,6 +1433,18 @@ export const removeStudentFromClass = (studentId, classId = null) => {
     window.dispatchEvent(new CustomEvent('adit-students-updated'));
   }
   return students;
+};
+
+export const updateStudentBatch = (studentId, newBatch) => {
+  const students = getStudents();
+  const st = students.find(s => s.id === studentId);
+  if (!st) throw new Error('Student not found.');
+  st.batch = String(newBatch).trim() || 'Batch A';
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
+  return st;
 };
 
 // Subjects API
@@ -1622,6 +1652,9 @@ export const saveFaculty = (faculty) => {
 export const deleteFaculty = (facultyId) => {
   const faculties = getFaculties().filter(f => f.id !== facultyId);
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+  }
   return faculties;
 };
 

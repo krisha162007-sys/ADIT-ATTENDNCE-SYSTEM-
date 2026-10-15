@@ -29,7 +29,10 @@ import {
   Sparkles,
   UserCheck,
   UserPlus,
-  ShieldCheck
+  ShieldCheck,
+  ArrowRightLeft,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -37,6 +40,7 @@ import {
   saveDepartment, 
   getFaculties, 
   saveFaculty, 
+  deleteFaculty,
   getSubjects, 
   saveSubject, 
   deleteSubject 
@@ -48,7 +52,11 @@ import {
   getSubjectColor,
   calculateTimetableSummary,
   updateSubjectInEntries,
-  notifyTimetableSync
+  notifyTimetableSync,
+  getEntriesByFaculty,
+  deleteEntriesForFaculty,
+  getTimetableEntries,
+  saveTimetableEntry
 } from '../services/timetableStorage';
 
 export default function DepartmentAdminPanel({
@@ -76,6 +84,18 @@ export default function DepartmentAdminPanel({
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+
+  // Replace Faculty Modal state
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+  const [facultyToReplace, setFacultyToReplace] = useState(null);
+  const [targetReplacementFacultyId, setTargetReplacementFacultyId] = useState('');
+  const [selectedLectureIdsForReplace, setSelectedLectureIdsForReplace] = useState([]);
+  const [replaceSearch, setReplaceSearch] = useState('');
+
+  // Remove Faculty Modal state
+  const [showRemoveFacultyModal, setShowRemoveFacultyModal] = useState(false);
+  const [facultyToRemove, setFacultyToRemove] = useState(null);
+  const [removeWarningAcknowledged, setRemoveWarningAcknowledged] = useState(false);
 
   // Forms
   const [deptEditForm, setDeptEditForm] = useState(null);
@@ -285,6 +305,113 @@ export default function DepartmentAdminPanel({
     if (showToast) showToast(`Lab "${labForm.name}" added to ${currentDept.name}!`);
   };
 
+  // Entries for faculty to replace
+  const entriesForReplace = useMemo(() => {
+    if (!facultyToReplace) return [];
+    return getEntriesByFaculty(facultyToReplace.id);
+  }, [facultyToReplace]);
+
+  // Entries for faculty to remove
+  const entriesForRemove = useMemo(() => {
+    if (!facultyToRemove) return [];
+    return getEntriesByFaculty(facultyToRemove.id);
+  }, [facultyToRemove]);
+
+  // Toggle individual lecture for replacement
+  const handleToggleLectureSelect = (id) => {
+    setSelectedLectureIdsForReplace(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  // Select / Deselect all lectures for replacement
+  const handleSelectAllLectures = () => {
+    if (selectedLectureIdsForReplace.length === entriesForReplace.length) {
+      setSelectedLectureIdsForReplace([]);
+    } else {
+      setSelectedLectureIdsForReplace(entriesForReplace.map(e => e.id));
+    }
+  };
+
+  // Open Replace Modal
+  const handleOpenReplaceModal = (fac) => {
+    setFacultyToReplace(fac);
+    const assigned = getEntriesByFaculty(fac.id);
+    setSelectedLectureIdsForReplace(assigned.map(a => a.id));
+    setTargetReplacementFacultyId('');
+    setReplaceSearch('');
+    setShowReplaceModal(true);
+  };
+
+  // Open Remove Modal
+  const handleOpenRemoveModal = (fac) => {
+    setFacultyToRemove(fac);
+    setRemoveWarningAcknowledged(false);
+    setShowRemoveFacultyModal(true);
+  };
+
+  // Execute Replace
+  const handleConfirmReplaceFaculty = () => {
+    if (!facultyToReplace || !targetReplacementFacultyId) {
+      alert('Please select an eligible replacement faculty member.');
+      return;
+    }
+    if (targetReplacementFacultyId === facultyToReplace.id) {
+      alert('Cannot select the same faculty member as their own replacement.');
+      return;
+    }
+    const targetFaculty = faculties.find(f => f.id === targetReplacementFacultyId);
+    if (!targetFaculty) {
+      alert('Selected replacement faculty not found.');
+      return;
+    }
+
+    const allEntries = getTimetableEntries();
+    let replacedCount = 0;
+    allEntries.forEach(e => {
+      if (e.facultyId === facultyToReplace.id && selectedLectureIdsForReplace.includes(e.id)) {
+        e.facultyId = targetFaculty.id;
+        e.facultyName = targetFaculty.name;
+        replacedCount++;
+      }
+    });
+
+    localStorage.setItem('adit_timetable_entries', JSON.stringify(allEntries));
+    notifyTimetableSync();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+    }
+    setFaculties([...getFaculties()]);
+    setShowReplaceModal(false);
+    if (showToast) {
+      showToast(`Successfully reassigned ${replacedCount} lecture(s) from ${facultyToReplace.name} to ${targetFaculty.name}!`);
+    }
+  };
+
+  // Execute Remove
+  const handleConfirmRemoveFaculty = () => {
+    if (!facultyToRemove) return;
+    const assigned = getEntriesByFaculty(facultyToRemove.id);
+    if (assigned.length > 0 && !removeWarningAcknowledged) {
+      alert('Please acknowledge that scheduled lectures will be unassigned before proceeding.');
+      return;
+    }
+
+    if (assigned.length > 0) {
+      deleteEntriesForFaculty(facultyToRemove.id);
+    }
+    deleteFaculty(facultyToRemove.id);
+    notifyTimetableSync();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+    }
+    setFaculties([...getFaculties()]);
+    setShowRemoveFacultyModal(false);
+    if (showToast) {
+      showToast(`Faculty member "${facultyToRemove.name}" removed from active roster. Historical attendance preserved.`);
+    }
+  };
+
   // Export Department Dossier to Excel
   const handleExportDossier = () => {
     const headerInfo = [
@@ -427,17 +554,6 @@ export default function DepartmentAdminPanel({
           >
             <Download size={14} /> Export Dossier
           </button>
-
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => {
-              if (onOpenFacultyTimetable) onOpenFacultyTimetable();
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
-          >
-            <Calendar size={14} /> Open Faculty Timetables
-          </button>
         </div>
       </div>
 
@@ -488,7 +604,7 @@ export default function DepartmentAdminPanel({
                 {currentDept.fullName || `Department of ${currentDept.name}`}
               </h1>
               <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                Autonomous Department Administration Panel • Curriculum, Faculty Workload & Division Matrix
+                Autonomous Department Administration Panel • Curriculum & Faculty Roster
               </p>
             </div>
           </div>
@@ -608,21 +724,7 @@ export default function DepartmentAdminPanel({
           </span>
         </div>
 
-        {/* 2. Divisions & Batches */}
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Active Divisions</span>
-            <Layers size={18} style={{ color: '#7c3aed' }} />
-          </div>
-          <div style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginTop: '8px' }}>
-            {(currentDept.divisions || []).length || 3}
-          </div>
-          <span style={{ fontSize: '11.5px', color: '#7c3aed', fontWeight: '600' }}>
-            Div 1, Div 2, Div 3
-          </span>
-        </div>
-
-        {/* 3. Subjects & Curriculum */}
+        {/* 2. Subjects & Curriculum */}
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Department Subjects</span>
@@ -636,7 +738,7 @@ export default function DepartmentAdminPanel({
           </span>
         </div>
 
-        {/* 4. Labs & Classrooms */}
+        {/* 3. Labs & Classrooms */}
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Labs & Classrooms</span>
@@ -650,7 +752,7 @@ export default function DepartmentAdminPanel({
           </span>
         </div>
 
-        {/* 5. Weekly Scheduled Workload */}
+        {/* 4. Weekly Scheduled Workload */}
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Weekly Lecture Load</span>
@@ -680,11 +782,9 @@ export default function DepartmentAdminPanel({
         className="no-print"
       >
         {[
-          { id: 'faculty', label: 'Faculty Roster & Workload', icon: Users, count: deptFaculties.length },
-          { id: 'divisions', label: 'Divisions & Batches', icon: Layers, count: (currentDept.divisions || []).length || 3 },
+          { id: 'faculty', label: 'Faculty Roster', icon: Users, count: deptFaculties.length },
           { id: 'labs', label: 'Classrooms & Laboratories', icon: Laptop, count: (currentDept.labs || []).length },
-          { id: 'subjects', label: 'Curriculum & Subjects', icon: BookOpen, count: deptSubjects.length },
-          { id: 'master-timetable', label: 'Department Master Timetable', icon: Calendar }
+          { id: 'subjects', label: 'Curriculum & Subjects', icon: BookOpen, count: deptSubjects.length }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = deptSubTab === tab.id;
@@ -856,17 +956,49 @@ export default function DepartmentAdminPanel({
                           <td style={{ textAlign: 'center', fontWeight: '700', color: '#475569' }}>
                             {load.activeDays} Days
                           </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => {
-                                if (onOpenFacultyTimetable) onOpenFacultyTimetable(fac.id);
-                              }}
-                              style={{ padding: '4px 10px', fontSize: '12px', fontWeight: '700', color: '#2563eb' }}
-                            >
-                              <Calendar size={13} style={{ marginRight: '4px' }} /> Timetable
-                            </button>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                title="Replace Faculty Assignment"
+                                onClick={() => handleOpenReplaceModal(fac)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  color: '#2563eb',
+                                  backgroundColor: '#eff6ff',
+                                  border: '1px solid #bfdbfe'
+                                }}
+                              >
+                                <ArrowRightLeft size={13} />
+                                <span>Replace</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                title="Remove Faculty Member"
+                                onClick={() => handleOpenRemoveModal(fac)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  color: '#e11d48',
+                                  backgroundColor: '#fff1f2',
+                                  border: '1px solid #fecdd3'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                                <span>Remove</span>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -875,96 +1007,6 @@ export default function DepartmentAdminPanel({
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          TAB 2: DIVISIONS & BATCHES
-          =================================================================== */}
-      {deptSubTab === 'divisions' && (
-        <div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-            {(currentDept.divisions || [
-              { id: '1', name: 'Div 1', counselor: 'Prof. Priya Shah', cr: 'Aarav Patel', studentCount: 60 },
-              { id: '2', name: 'Div 2', counselor: 'Prof. Rahul Patel', cr: 'Ananya Sharma', studentCount: 60 },
-              { id: '3', name: 'Div 3', counselor: 'Prof. A. Kumar', cr: 'Devansh Verma', studentCount: 60 }
-            ]).map((div) => (
-              <div 
-                key={div.id}
-                className="card"
-                style={{
-                  padding: '24px',
-                  borderRadius: '14px',
-                  border: '1px solid #e2e8f0',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '10px',
-                      backgroundColor: '#eff6ff',
-                      color: '#2563eb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '800'
-                    }}>
-                      {div.id}
-                    </div>
-                    <div>
-                      <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
-                        Division {div.id} ({div.name})
-                      </h3>
-                      <span style={{ fontSize: '12px', color: '#64748b' }}>
-                        {selectedSem} • {currentDept.code}
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="badge" style={{ backgroundColor: '#ecfdf5', color: '#059669', fontWeight: '800' }}>
-                    {div.studentCount || 60} Students
-                  </span>
-                </div>
-
-                <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#64748b', fontWeight: '600' }}>Class Counselor:</span>
-                    <strong style={{ color: '#0f172a' }}>{div.counselor || 'Assigned Faculty'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#64748b', fontWeight: '600' }}>Class Representative (CR):</span>
-                    <strong style={{ color: '#0f172a' }}>{div.cr || 'Student CR'}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: '#64748b', fontWeight: '600' }}>Designated Classroom:</span>
-                    <strong style={{ color: '#2563eb' }}>Room 20{div.id}</strong>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    if (onOpenFacultyTimetable) onOpenFacultyTimetable();
-                  }}
-                  style={{
-                    width: '100%',
-                    marginTop: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    fontWeight: '700'
-                  }}
-                >
-                  <Calendar size={14} /> View Division Schedule
-                </button>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -1149,74 +1191,6 @@ export default function DepartmentAdminPanel({
         </div>
       )}
 
-      {/* ===================================================================
-          TAB 5: DEPARTMENT MASTER TIMETABLE
-          =================================================================== */}
-      {deptSubTab === 'master-timetable' && (
-        <div className="card" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                Department Master Timetable Matrix - {currentDept.name}
-              </h3>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>
-                Consolidated weekly view across all classrooms & laboratories.
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => window.print()}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Printer size={14} /> Print Master Matrix
-            </button>
-          </div>
-
-          <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '12px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '10px 14px', width: '110px', textAlign: 'left', fontWeight: '700' }}>Time Slot</th>
-                  {TIMETABLE_DAYS.map(day => (
-                    <th key={day} style={{ padding: '10px 8px', fontWeight: '700' }}>{day}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {TIME_SLOTS.map(slotTime => {
-                  if (slotTime === '12:40 - 1:25') {
-                    return (
-                      <tr key={slotTime} style={{ backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '8px 14px', textAlign: 'left', fontWeight: '700', color: '#64748b' }}>{slotTime}</td>
-                        <td colSpan={6} style={{ padding: '8px', letterSpacing: '0.1em', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', backgroundColor: '#e2e8f0' }}>
-                          LUNCH BREAK
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return (
-                    <tr key={slotTime} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '700', color: '#475569', backgroundColor: '#fafbfc', whiteSpace: 'nowrap' }}>
-                        {slotTime}
-                      </td>
-                      {TIMETABLE_DAYS.map(day => (
-                        <td key={day} style={{ padding: '6px', borderRight: '1px solid #f1f5f9' }}>
-                          <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#2563eb', fontSize: '11px', display: 'inline-block' }}>
-                            {currentDept.code} • Scheduled
-                          </span>
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* ===================================================================
           MODAL 1: EDIT DEPARTMENT PROFILE
@@ -1584,6 +1558,331 @@ export default function DepartmentAdminPanel({
           </div>
         </div>
       )}
+
+      {/* ===================================================================
+          MODAL 5: REPLACE FACULTY ASSIGNMENT
+          =================================================================== */}
+      {showReplaceModal && facultyToReplace && (() => {
+        const activeLectures = entriesForReplace;
+        const eligibleFaculties = faculties.filter(f => {
+          if (f.id === facultyToReplace.id) return false;
+          if (!replaceSearch.trim()) return true;
+          const q = replaceSearch.toLowerCase();
+          return (f.name && f.name.toLowerCase().includes(q)) ||
+                 (f.dept && f.dept.toLowerCase().includes(q)) ||
+                 (f.id && f.id.toLowerCase().includes(q));
+        });
+        const targetFaculty = faculties.find(f => f.id === targetReplacementFacultyId);
+        const selectedLectures = activeLectures.filter(l => selectedLectureIdsForReplace.includes(l.id));
+        const affectedSubjects = Array.from(new Set(selectedLectures.map(l => l.subjectName || l.subjectCode))).filter(Boolean);
+        const affectedClasses = Array.from(new Set(selectedLectures.map(l => l.division || l.className))).filter(Boolean);
+
+        return (
+          <div className="modal-overlay">
+            <div className="modal-card" style={{ maxWidth: '640px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+              <div className="modal-header">
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontSize: '18px' }}>
+                  <ArrowRightLeft size={20} style={{ color: '#2563eb' }} />
+                  Replace Faculty Assignment
+                </h3>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowReplaceModal(false)}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="modal-body" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                {/* Current Faculty Card */}
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Currently Selected Faculty
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                        {facultyToReplace.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                        ID: <strong>{facultyToReplace.id}</strong> • {facultyToReplace.designation || 'Assistant Professor'} • {facultyToReplace.dept || currentDept.name}
+                      </div>
+                    </div>
+                    <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#2563eb', fontWeight: '700' }}>
+                      {activeLectures.length} Total Lectures
+                    </span>
+                  </div>
+                </div>
+
+                {/* Replacement Faculty Selection */}
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', display: 'block', marginBottom: '6px' }}>
+                    Select Replacement Faculty *
+                  </label>
+                  <div style={{ position: 'relative', marginBottom: '8px' }}>
+                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Search eligible faculty by name, department, or ID..."
+                      value={replaceSearch}
+                      onChange={(e) => setReplaceSearch(e.target.value)}
+                      style={{ paddingLeft: '32px', height: '36px', fontSize: '12.5px' }}
+                    />
+                  </div>
+
+                  <select
+                    className="form-control"
+                    value={targetReplacementFacultyId}
+                    onChange={(e) => setTargetReplacementFacultyId(e.target.value)}
+                    style={{ fontWeight: '700', fontSize: '13px' }}
+                    required
+                  >
+                    <option value="">-- Choose Replacement Faculty Member --</option>
+                    {eligibleFaculties.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} ({f.id} • {f.dept || 'Engineering'} • {f.designation || 'Faculty'})
+                      </option>
+                    ))}
+                  </select>
+                  {eligibleFaculties.length === 0 && (
+                    <div style={{ fontSize: '11.5px', color: '#e11d48', marginTop: '4px' }}>
+                      No eligible replacement faculty found matching "{replaceSearch}".
+                    </div>
+                  )}
+                </div>
+
+                {/* Select Lectures to Replace */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>
+                        Select Scheduled Lectures to Transfer
+                      </label>
+                      <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                        Choose individual lectures or transfer all scheduled lectures.
+                      </div>
+                    </div>
+
+                    {activeLectures.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSelectAllLectures}
+                        style={{
+                          fontSize: '11.5px',
+                          color: '#2563eb',
+                          backgroundColor: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {selectedLectureIdsForReplace.length === activeLectures.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
+
+                  {activeLectures.length === 0 ? (
+                    <div style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', textAlign: 'center', fontSize: '12.5px', color: '#64748b' }}>
+                      This faculty member currently has no scheduled timetable assignments.
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                      {activeLectures.map((lec) => {
+                        const isChecked = selectedLectureIdsForReplace.includes(lec.id);
+                        return (
+                          <div
+                            key={lec.id}
+                            onClick={() => handleToggleLectureSelect(lec.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '10px 14px',
+                              borderBottom: '1px solid #f1f5f9',
+                              backgroundColor: isChecked ? '#eff6ff' : 'white',
+                              cursor: 'pointer',
+                              transition: 'background-color 0.1s'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleLectureSelect(lec.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                              />
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>
+                                  {lec.subjectName || lec.subjectCode}
+                                </div>
+                                <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                                  {lec.day} • {lec.timeSlot} • {lec.division || 'Div'} • {lec.room || 'Room'}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="badge" style={{ backgroundColor: isChecked ? '#dbeafe' : '#f1f5f9', color: isChecked ? '#1d4ed8' : '#64748b', fontSize: '11px', fontWeight: '700' }}>
+                              {lec.day}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirmation Summary Card */}
+                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={15} />
+                    Transfer Confirmation Summary
+                  </div>
+                  <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12.5px' }}>
+                    <div>
+                      <span style={{ color: '#78350f', fontWeight: '600' }}>Previous Faculty:</span>
+                      <div style={{ fontWeight: '800', color: '#0f172a' }}>{facultyToReplace.name}</div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#78350f', fontWeight: '600' }}>New Faculty:</span>
+                      <div style={{ fontWeight: '800', color: targetFaculty ? targetFaculty.name : '#e11d48' }}>
+                        {targetFaculty ? targetFaculty.name : '— Select faculty above —'}
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#78350f', fontWeight: '600' }}>Lectures Transferring:</span>
+                      <div style={{ fontWeight: '800', color: '#0f172a' }}>
+                        {selectedLectureIdsForReplace.length} of {activeLectures.length} selected
+                      </div>
+                    </div>
+                    <div>
+                      <span style={{ color: '#78350f', fontWeight: '600' }}>Affected Classes & Subjects:</span>
+                      <div style={{ fontWeight: '800', color: '#0f172a' }}>
+                        {affectedClasses.join(', ') || 'None'} {affectedSubjects.length > 0 ? `(${affectedSubjects.join(', ')})` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '11px', color: '#92400e', fontStyle: 'italic' }}>
+                    Historical attendance sessions and student records will remain preserved and unaffected.
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', padding: '14px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowReplaceModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConfirmReplaceFaculty}
+                  disabled={!targetReplacementFacultyId || selectedLectureIdsForReplace.length === 0}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Confirm & Replace Assignments</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ===================================================================
+          MODAL 6: REMOVE FACULTY MEMBER
+          =================================================================== */}
+      {showRemoveFacultyModal && facultyToRemove && (() => {
+        const activeLectures = entriesForRemove;
+        const hasActiveLectures = activeLectures.length > 0;
+
+        return (
+          <div className="modal-overlay">
+            <div className="modal-card" style={{ maxWidth: '540px' }}>
+              <div className="modal-header">
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#e11d48', fontSize: '18px' }}>
+                  <AlertTriangle size={20} />
+                  Remove Faculty Member
+                </h3>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowRemoveFacultyModal(false)}>
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Faculty Details */}
+                <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '10px', padding: '14px 16px' }}>
+                  <div style={{ fontSize: '11px', color: '#9f1239', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Faculty Member to be Removed
+                  </div>
+                  <div style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>
+                    {facultyToRemove.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                    ID: <strong>{facultyToRemove.id}</strong> • {facultyToRemove.designation || 'Faculty'} • {facultyToRemove.dept || currentDept.name}
+                  </div>
+                </div>
+
+                {/* Active Assignments Check */}
+                {hasActiveLectures ? (
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '10px', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c', fontWeight: '800', fontSize: '13.5px' }}>
+                      <AlertTriangle size={18} />
+                      Active Timetable Assignments Warning
+                    </div>
+                    <p style={{ fontSize: '12.5px', color: '#991b1b', marginTop: '6px', lineHeight: 1.5 }}>
+                      This faculty member currently has <strong>{activeLectures.length} active scheduled lecture(s)</strong> across the academic timetable. Removing this faculty member will unassign all their lecture slots.
+                    </p>
+
+                    <div style={{ maxHeight: '120px', overflowY: 'auto', marginTop: '10px', border: '1px solid #fecaca', borderRadius: '6px', backgroundColor: 'white' }}>
+                      {activeLectures.map(lec => (
+                        <div key={lec.id} style={{ padding: '6px 10px', borderBottom: '1px solid #fef2f2', fontSize: '11.5px', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>{lec.subjectName || lec.subjectCode} ({lec.division || 'Class'})</span>
+                          <span style={{ color: '#64748b' }}>{lec.day} • {lec.timeSlot}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '14px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '700', color: '#7f1d1d' }}>
+                      <input
+                        type="checkbox"
+                        checked={removeWarningAcknowledged}
+                        onChange={(e) => setRemoveWarningAcknowledged(e.target.checked)}
+                        style={{ marginTop: '2px', width: '16px', height: '16px' }}
+                      />
+                      <span>I understand and acknowledge that {activeLectures.length} scheduled lecture(s) will be unassigned from the timetable.</span>
+                    </label>
+                  </div>
+                ) : (
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px 14px', fontSize: '12.5px', color: '#166534' }}>
+                    <CheckCircle2 size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                    This faculty member has <strong>0 active timetable assignments</strong>. They can be safely removed.
+                  </div>
+                )}
+
+                {/* Historical Data Notice */}
+                <div style={{ fontSize: '12px', color: '#64748b', padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <strong>Data Preservation Guarantee:</strong> Student records, class definitions, and all historical attendance sessions previously recorded by {facultyToRemove.name} will remain permanently preserved in the system.
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', padding: '14px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowRemoveFacultyModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleConfirmRemoveFaculty}
+                  disabled={hasActiveLectures && !removeWarningAcknowledged}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={16} />
+                  <span>Confirm & Remove Faculty</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

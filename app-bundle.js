@@ -358,46 +358,46 @@ const setFacultyName = (name) => {
 };
 const DEFAULT_STUDENTS = [
   // Computer Engineering • Sem 3 • Div 3 (2026-27)
-  { id: "S127", rollNo: "1", name: "Aarav Patel", enrollmentNo: "12502040501127", email: "aarav.patel@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S128", rollNo: "2", name: "Ananya Sharma", enrollmentNo: "12502040501128", email: "ananya.sharma@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S129", rollNo: "3", name: "Devansh Verma", enrollmentNo: "12502040501129", email: "devansh.verma@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S130", rollNo: "4", name: "Diyansh Joshi", enrollmentNo: "12502040501130", email: "diyansh.joshi@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S131", rollNo: "5", name: "Isha Mehta", enrollmentNo: "12502040501131", email: "isha.mehta@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S132", rollNo: "6", name: "Kabir Shah", enrollmentNo: "12502040501132", email: "kabir.shah@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S133", rollNo: "7", name: "Khushi Trivedi", enrollmentNo: "12502040501133", email: "khushi.trivedi@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S134", rollNo: "8", name: "Manav Desai", enrollmentNo: "12502040501134", email: "manav.desai@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S135", rollNo: "9", name: "Neha Bhatt", enrollmentNo: "12502040501135", email: "neha.bhatt@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S136", rollNo: "10", name: "Parth Solanki", enrollmentNo: "12502040501136", email: "parth.solanki@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S137", rollNo: "11", name: "Riya Rathod", enrollmentNo: "12502040501137", email: "riya.rathod@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S138", rollNo: "12", name: "Siddharth Dave", enrollmentNo: "12502040501138", email: "siddharth.dave@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S139", rollNo: "13", name: "Tanya Kothari", enrollmentNo: "12502040501139", email: "tanya.kothari@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S140", rollNo: "14", name: "Varun Chawla", enrollmentNo: "12502040501140", email: "varun.chawla@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S142", rollNo: "15", name: "Yash Vaghela", enrollmentNo: "12502040501142", email: "yash.vaghela@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S143", rollNo: "16", name: "Aayush Prajapati", enrollmentNo: "12502040501143", email: "aayush.p@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S144", rollNo: "17", name: "Bhumika Parmar", enrollmentNo: "12502040501144", email: "bhumika.p@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S145", rollNo: "18", name: "Chirag Panchal", enrollmentNo: "12502040501145", email: "chirag.p@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S146", rollNo: "19", name: "Diya Patel", enrollmentNo: "12502040501146", email: "diya.patel@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S147", rollNo: "20", name: "Harshil Soni", enrollmentNo: "12502040501147", email: "harshil.soni@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S148", rollNo: "21", name: "Jiya Shah", enrollmentNo: "12502040501148", email: "jiya.shah@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S149", rollNo: "22", name: "Karan Mistry", enrollmentNo: "12502040501149", email: "karan.mistry@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S150", rollNo: "23", name: "Meet Makwana", enrollmentNo: "12502040501150", email: "meet.makwana@adit.ac.in", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S127", rollNo: "1", name: "Aarav Patel", enrollmentNo: "12502040501127", email: "aarav.patel@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S128", rollNo: "2", name: "Ananya Sharma", enrollmentNo: "12502040501128", email: "ananya.sharma@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S129", rollNo: "3", name: "Devansh Verma", enrollmentNo: "12502040501129", email: "devansh.verma@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S130", rollNo: "4", name: "Diyansh Joshi", enrollmentNo: "12502040501130", email: "diyansh.joshi@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S131", rollNo: "5", name: "Isha Mehta", enrollmentNo: "12502040501131", email: "isha.mehta@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S132", rollNo: "6", name: "Kabir Shah", enrollmentNo: "12502040501132", email: "kabir.shah@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S133", rollNo: "7", name: "Khushi Trivedi", enrollmentNo: "12502040501133", email: "khushi.trivedi@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S134", rollNo: "8", name: "Manav Desai", enrollmentNo: "12502040501134", email: "manav.desai@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S135", rollNo: "9", name: "Neha Bhatt", enrollmentNo: "12502040501135", email: "neha.bhatt@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S136", rollNo: "10", name: "Parth Solanki", enrollmentNo: "12502040501136", email: "parth.solanki@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S137", rollNo: "11", name: "Riya Rathod", enrollmentNo: "12502040501137", email: "riya.rathod@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S138", rollNo: "12", name: "Siddharth Dave", enrollmentNo: "12502040501138", email: "siddharth.dave@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S139", rollNo: "13", name: "Tanya Kothari", enrollmentNo: "12502040501139", email: "tanya.kothari@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S140", rollNo: "14", name: "Varun Chawla", enrollmentNo: "12502040501140", email: "varun.chawla@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S142", rollNo: "15", name: "Yash Vaghela", enrollmentNo: "12502040501142", email: "yash.vaghela@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S143", rollNo: "16", name: "Aayush Prajapati", enrollmentNo: "12502040501143", email: "aayush.p@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S144", rollNo: "17", name: "Bhumika Parmar", enrollmentNo: "12502040501144", email: "bhumika.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S145", rollNo: "18", name: "Chirag Panchal", enrollmentNo: "12502040501145", email: "chirag.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S146", rollNo: "19", name: "Diya Patel", enrollmentNo: "12502040501146", email: "diya.patel@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S147", rollNo: "20", name: "Harshil Soni", enrollmentNo: "12502040501147", email: "harshil.soni@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S148", rollNo: "21", name: "Jiya Shah", enrollmentNo: "12502040501148", email: "jiya.shah@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S149", rollNo: "22", name: "Karan Mistry", enrollmentNo: "12502040501149", email: "karan.mistry@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S150", rollNo: "23", name: "Meet Makwana", enrollmentNo: "12502040501150", email: "meet.makwana@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   // AI & Data Science • Sem 3 • Div 1 (2026-27) - Matching User Prompt Specification
-  { id: "S_AI_01", rollNo: "1", name: "Student A", enrollmentNo: "24AD001", email: "student.a@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_02", rollNo: "2", name: "Student B", enrollmentNo: "24AD002", email: "student.b@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_03", rollNo: "3", name: "Student C", enrollmentNo: "24AD003", email: "student.c@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_04", rollNo: "4", name: "Dhwani Shah", enrollmentNo: "24AD004", email: "dhwani.shah@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_05", rollNo: "5", name: "Kavya Patel", enrollmentNo: "24AD005", email: "kavya.patel@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_06", rollNo: "6", name: "Neel Mistry", enrollmentNo: "24AD006", email: "neel.mistry@adit.ac.in", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_01", rollNo: "1", name: "Student A", enrollmentNo: "24AD001", email: "student.a@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_02", rollNo: "2", name: "Student B", enrollmentNo: "24AD002", email: "student.b@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_03", rollNo: "3", name: "Student C", enrollmentNo: "24AD003", email: "student.c@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_04", rollNo: "4", name: "Dhwani Shah", enrollmentNo: "24AD004", email: "dhwani.shah@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_05", rollNo: "5", name: "Kavya Patel", enrollmentNo: "24AD005", email: "kavya.patel@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_06", rollNo: "6", name: "Neel Mistry", enrollmentNo: "24AD006", email: "neel.mistry@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   // AI & Data Science • Sem 3 • Div 2 (2026-27)
-  { id: "S_AI_07", rollNo: "1", name: "Rohan Varma", enrollmentNo: "24AD007", email: "rohan.v@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_08", rollNo: "2", name: "Sneha Dave", enrollmentNo: "24AD008", email: "sneha.d@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_09", rollNo: "3", name: "Tanmay Bhatt", enrollmentNo: "24AD009", email: "tanmay.b@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_10", rollNo: "4", name: "Urvi Solanki", enrollmentNo: "24AD010", email: "urvi.s@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_11", rollNo: "5", name: "Vivek Joshi", enrollmentNo: "24AD011", email: "vivek.j@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_12", rollNo: "6", name: "Yashvi Prajapati", enrollmentNo: "24AD012", email: "yashvi.p@adit.ac.in", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_07", rollNo: "1", name: "Rohan Varma", enrollmentNo: "24AD007", email: "rohan.v@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_08", rollNo: "2", name: "Sneha Dave", enrollmentNo: "24AD008", email: "sneha.d@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_09", rollNo: "3", name: "Tanmay Bhatt", enrollmentNo: "24AD009", email: "tanmay.b@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_10", rollNo: "4", name: "Urvi Solanki", enrollmentNo: "24AD010", email: "urvi.s@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_11", rollNo: "5", name: "Vivek Joshi", enrollmentNo: "24AD011", email: "vivek.j@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
+  { id: "S_AI_12", rollNo: "6", name: "Yashvi Prajapati", enrollmentNo: "24AD012", email: "yashvi.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
   // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
-  { id: "S_IT_01", rollNo: "1", name: "Omkar Trivedi", enrollmentNo: "24IT001", email: "omkar.t@adit.ac.in", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" },
-  { id: "S_IT_02", rollNo: "2", name: "Prachi Joshi", enrollmentNo: "24IT002", email: "prachi.j@adit.ac.in", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" }
+  { id: "S_IT_01", rollNo: "1", name: "Omkar Trivedi", enrollmentNo: "24IT001", email: "omkar.t@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" },
+  { id: "S_IT_02", rollNo: "2", name: "Prachi Joshi", enrollmentNo: "24IT002", email: "prachi.j@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" }
 ];
 const DEFAULT_SUBJECTS = [
   // AI & Data Science
@@ -956,7 +956,16 @@ const getStudents = () => {
     students = DEFAULT_STUDENTS;
   }
   let modified = false;
-  students.forEach((st) => {
+  students.forEach((st, idx) => {
+    if (!st.batch) {
+      const r = parseInt(st.rollNo, 10);
+      if (!isNaN(r)) {
+        st.batch = r <= 8 ? "Batch A" : r <= 16 ? "Batch B" : "Batch C";
+      } else {
+        st.batch = idx % 3 === 0 ? "Batch A" : idx % 3 === 1 ? "Batch B" : "Batch C";
+      }
+      modified = true;
+    }
     if (!st.classId) {
       const cls = findClassByCriteria(
         st.department || st.dept,
@@ -1052,6 +1061,7 @@ const saveStudent = (studentData) => {
   const div = resolvedClass ? resolvedClass.division : normalizeDiv(studentData.division || studentData.class || "Div 1");
   const year = resolvedClass ? resolvedClass.academicYear : studentData.academicYear || DEFAULT_ACADEMIC_YEAR;
   let saved;
+  const batchVal = studentData.batch ? String(studentData.batch).trim() : "Batch A";
   if (studentData.id) {
     const idx = students.findIndex((s) => s.id === studentData.id);
     if (idx !== -1) {
@@ -1062,6 +1072,7 @@ const saveStudent = (studentData) => {
         name: String(studentData.name).trim(),
         rollNo: String(studentData.rollNo || students[idx].rollNo || ""),
         email: studentData.email ? String(studentData.email).trim() : "",
+        batch: studentData.batch ? String(studentData.batch).trim() : students[idx].batch || "Batch A",
         department: dept,
         dept,
         semester: sem,
@@ -1077,6 +1088,7 @@ const saveStudent = (studentData) => {
         ...studentData,
         enrollmentNo: cleanEnr,
         name: String(studentData.name).trim(),
+        batch: batchVal,
         department: dept,
         dept,
         semester: sem,
@@ -1097,6 +1109,7 @@ const saveStudent = (studentData) => {
       name: String(studentData.name).trim(),
       rollNo: String(studentData.rollNo || students.length + 1),
       email: studentData.email ? String(studentData.email).trim() : "",
+      batch: batchVal,
       classId: studentData.classId || (resolvedClass ? resolvedClass.id : null),
       department: dept,
       dept,
@@ -1152,6 +1165,7 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
     const enrollmentNo = String(row.enrollmentNo || "").trim();
     const rollNo = String(row.rollNo || "").trim();
     const email = String(row.email || "").trim();
+    const batch = String(row.batch || row.Batch || row["Student Batch"] || "").trim() || "Batch A";
     if (!name || !enrollmentNo) {
       errors.push(`Row ${rowNum}: Name and Enrollment Number are required.`);
       return;
@@ -1164,6 +1178,7 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
           students[existingIdx].name = name;
           if (rollNo) students[existingIdx].rollNo = rollNo;
           if (email) students[existingIdx].email = email;
+          if (batch) students[existingIdx].batch = batch;
           updatedCount++;
         }
       } else {
@@ -1182,6 +1197,7 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
             if (name) students[existingIdx].name = name;
             if (rollNo) students[existingIdx].rollNo = rollNo;
             if (email) students[existingIdx].email = email;
+            if (batch) students[existingIdx].batch = batch;
             movedCount++;
           }
         } else {
@@ -1197,6 +1213,7 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
         enrollmentNo,
         rollNo: rollNo || String(currentClassStudents.length + importedCount + 1),
         email: email || "",
+        batch,
         classId: targetClass.id,
         departmentId: targetClass.departmentId,
         department: targetClass.departmentName,
@@ -1247,6 +1264,17 @@ const removeStudentFromClass = (studentId, classId = null) => {
     window.dispatchEvent(new CustomEvent("adit-students-updated"));
   }
   return students;
+};
+const updateStudentBatch = (studentId, newBatch) => {
+  const students = getStudents();
+  const st = students.find((s) => s.id === studentId);
+  if (!st) throw new Error("Student not found.");
+  st.batch = String(newBatch).trim() || "Batch A";
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-students-updated"));
+  }
+  return st;
 };
 const getSubjects = () => {
   initializeStorage();
@@ -1422,6 +1450,9 @@ const saveFaculty = (faculty) => {
 const deleteFaculty = (facultyId) => {
   const faculties = getFaculties().filter((f) => f.id !== facultyId);
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+  }
   return faculties;
 };
 const getDepartments = () => {
@@ -7238,7 +7269,8 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
     name: "",
     enrollmentNo: "",
     rollNo: "",
-    email: ""
+    email: "",
+    batch: "Batch A"
   });
   const [studentModalError, setStudentModalError] = useState("");
   const [otherClassConflict, setOtherClassConflict] = useState(null);
@@ -7343,7 +7375,8 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       name: "",
       enrollmentNo: "",
       rollNo: String(studentsInSelectedClass.length + 1),
-      email: ""
+      email: "",
+      batch: "Batch A"
     });
     setStudentModalError("");
     setOtherClassConflict(null);
@@ -7355,7 +7388,8 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       name: st.name,
       enrollmentNo: st.enrollmentNo,
       rollNo: st.rollNo || "",
-      email: st.email || ""
+      email: st.email || "",
+      batch: st.batch || "Batch A"
     });
     setStudentModalError("");
     setOtherClassConflict(null);
@@ -7403,6 +7437,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         enrollmentNo: studentForm.enrollmentNo.trim(),
         rollNo: studentForm.rollNo.trim(),
         email: studentForm.email.trim(),
+        batch: studentForm.batch ? studentForm.batch.trim() : "Batch A",
         classId: editingStudent ? editingStudent.classId || selectedClassId : selectedClassId
       });
       refreshData();
@@ -7455,12 +7490,12 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
   const handleDownloadSampleTemplate = () => {
     const wb = XLSX.utils.book_new();
     const sampleData = [
-      ["Roll No", "Enrollment No", "Student Name", "Email"],
-      ["1", "24AD001", "Aarav Patel", "aarav.patel@adit.ac.in"],
-      ["2", "24AD002", "Ananya Sharma", "ananya.sharma@adit.ac.in"],
-      ["3", "24AD003", "Devansh Verma", "devansh.verma@adit.ac.in"],
-      ["4", "24AD004", "Diyansh Joshi", "diyansh.joshi@adit.ac.in"],
-      ["5", "24AD005", "Isha Mehta", "isha.mehta@adit.ac.in"]
+      ["Roll No", "Enrollment No", "Student Name", "Batch", "Email"],
+      ["1", "24AD001", "Aarav Patel", "Batch A", "aarav.patel@adit.ac.in"],
+      ["2", "24AD002", "Ananya Sharma", "Batch A", "ananya.sharma@adit.ac.in"],
+      ["3", "24AD003", "Devansh Verma", "Batch B", "devansh.verma@adit.ac.in"],
+      ["4", "24AD004", "Diyansh Joshi", "Batch B", "diyansh.joshi@adit.ac.in"],
+      ["5", "24AD005", "Isha Mehta", "Batch C", "isha.mehta@adit.ac.in"]
     ];
     const ws = XLSX.utils.aoa_to_sheet(sampleData);
     XLSX.utils.book_append_sheet(wb, ws, "Students");
@@ -7477,12 +7512,13 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       [`Department: ${selectedClass.departmentName}`, `Semester: ${selectedClass.semester}`, `Division: ${selectedClass.division}`, `Academic Year: ${selectedClass.academicYear}`],
       [`Total Students: ${studentsInSelectedClass.length}`, `Export Date: ${(/* @__PURE__ */ new Date()).toLocaleDateString()}`],
       [],
-      ["Roll No", "Enrollment No", "Student Name", "Email", "Department", "Semester", "Division", "Academic Year"]
+      ["Roll No", "Enrollment No", "Student Name", "Batch", "Email", "Department", "Semester", "Division", "Academic Year"]
     ];
     const rows = studentsInSelectedClass.map((s) => [
       s.rollNo || "",
       s.enrollmentNo || "",
       s.name || "",
+      s.batch || "Batch A",
       s.email || "",
       selectedClass.departmentName,
       selectedClass.semester,
@@ -7521,6 +7557,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       let rollCol = headers.findIndex((h) => /^(roll|roll\s*no|rno|sr|sr\s*no|no)$/i.test(h));
       let enrCol = headers.findIndex((h) => /^(enroll|enrollment|enrollment\s*no|enrolment|id|enr)$/i.test(h));
       let nameCol = headers.findIndex((h) => /^(name|student\s*name|full\s*name|student)$/i.test(h));
+      let batchCol = headers.findIndex((h) => /^(batch|group|subgroup|section|lab\s*batch)$/i.test(h));
       let emailCol = headers.findIndex((h) => /^(email|e-mail|email\s*address|mail)$/i.test(h));
       if (enrCol === -1) {
         enrCol = headers.findIndex((h) => h.includes("enr") || h.includes("enroll"));
@@ -7530,6 +7567,9 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       }
       if (rollCol === -1) {
         rollCol = headers.findIndex((h) => h.includes("roll") || h.includes("sr"));
+      }
+      if (batchCol === -1) {
+        batchCol = headers.findIndex((h) => h.includes("batch") || h.includes("group"));
       }
       if (emailCol === -1) {
         emailCol = headers.findIndex((h) => h.includes("mail"));
@@ -7549,12 +7589,14 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         const rollNo = rollCol !== -1 ? String(row[rollCol] || "").trim() : "";
         const enr = enrCol !== -1 ? String(row[enrCol] || "").trim() : "";
         const name = nameCol !== -1 ? String(row[nameCol] || "").trim() : "";
+        const batch = batchCol !== -1 ? String(row[batchCol] || "").trim() : "Batch A";
         const email = emailCol !== -1 ? String(row[emailCol] || "").trim() : "";
         const rowItem = {
           rowNumber: r + 1,
           rollNo: rollNo || String(r - headerIdx),
           enrollmentNo: enr,
           name,
+          batch: batch || "Batch A",
           email,
           status: "valid",
           reason: "Ready to import"
@@ -7642,17 +7684,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       },
       /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }),
       /* @__PURE__ */ React.createElement("span", null, "Back to All Classes")
-    ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, onOpenClassTimetable && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "btn btn-secondary btn-sm",
-        onClick: () => onOpenClassTimetable(selectedClass.departmentName, selectedClass.semester, selectedClass.division),
-        style: { color: "#2563eb", borderColor: "#bfdbfe" }
-      },
-      /* @__PURE__ */ React.createElement(Layers, { size: 14 }),
-      /* @__PURE__ */ React.createElement("span", null, "View Class Timetable")
-    ), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -7740,7 +7772,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       },
       /* @__PURE__ */ React.createElement(Download, { size: 14 }),
       /* @__PURE__ */ React.createElement("span", null, "Export")
-    ))), filteredClassStudents.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "70px", fontWeight: "800", color: "#475569" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "170px", fontWeight: "800", color: "#475569" } }, "Enrollment No."), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Email Address"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "190px", textAlign: "right", fontWeight: "800", color: "#475569" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredClassStudents.map((st, idx) => /* @__PURE__ */ React.createElement(
+    ))), filteredClassStudents.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "70px", fontWeight: "800", color: "#475569" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "160px", fontWeight: "800", color: "#475569" } }, "Enrollment No."), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Student Name"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "120px", fontWeight: "800", color: "#475569" } }, "Batch"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Email Address"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "190px", textAlign: "right", fontWeight: "800", color: "#475569" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredClassStudents.map((st, idx) => /* @__PURE__ */ React.createElement(
       "tr",
       {
         key: st.id || idx,
@@ -7759,6 +7791,17 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       } }, st.rollNo || idx + 1)),
       /* @__PURE__ */ React.createElement("td", { style: { padding: "12px 16px", fontFamily: "monospace", fontWeight: "700", color: "#2563eb" } }, st.enrollmentNo),
       /* @__PURE__ */ React.createElement("td", { style: { padding: "12px 16px", fontWeight: "700", color: "#0f172a" } }, st.name),
+      /* @__PURE__ */ React.createElement("td", { style: { padding: "12px 16px" } }, /* @__PURE__ */ React.createElement("span", { style: {
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px 9px",
+        backgroundColor: st.batch?.includes("B") ? "#fef3c7" : st.batch?.includes("C") ? "#f3e8ff" : "#eff6ff",
+        color: st.batch?.includes("B") ? "#b45309" : st.batch?.includes("C") ? "#7e22ce" : "#1d4ed8",
+        borderRadius: "6px",
+        fontWeight: "700",
+        fontSize: "12px",
+        border: `1px solid ${st.batch?.includes("B") ? "#fde68a" : st.batch?.includes("C") ? "#e9d5ff" : "#bfdbfe"}`
+      } }, st.batch || "Batch A")),
       /* @__PURE__ */ React.createElement("td", { style: { padding: "12px 16px", color: "#64748b" } }, st.email || "\u2014"),
       /* @__PURE__ */ React.createElement("td", { style: { padding: "12px 16px", textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: "8px" } }, /* @__PURE__ */ React.createElement(
         "button",
@@ -8017,7 +8060,18 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         value: studentForm.rollNo,
         onChange: (e) => handleStudentFormChange("rollNo", e.target.value)
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Email Address (Optional)"), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Assigned Batch *"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: studentForm.batch || "Batch A",
+        onChange: (e) => handleStudentFormChange("batch", e.target.value),
+        style: { fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
+      /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
+      /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C")
+    ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Email Address (Optional)"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "email",
@@ -8026,7 +8080,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         value: studentForm.email,
         onChange: (e) => handleStudentFormChange("email", e.target.value)
       }
-    )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowStudentModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary", disabled: !!otherClassConflict }, editingStudent ? "Save Changes" : "Add Student"))))), showRemoveModal && studentToRemove && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "440px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#e11d48", fontSize: "18px", fontWeight: "800" } }, /* @__PURE__ */ React.createElement(Trash2, { size: 20 }), "Remove Student?"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowRemoveModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "14px", color: "#475569", margin: 0 } }, "Are you sure you want to remove:"), /* @__PURE__ */ React.createElement("div", { style: {
+    ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowStudentModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary", disabled: !!otherClassConflict }, editingStudent ? "Save Changes" : "Add Student"))))), showRemoveModal && studentToRemove && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "440px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#e11d48", fontSize: "18px", fontWeight: "800" } }, /* @__PURE__ */ React.createElement(Trash2, { size: 20 }), "Remove Student?"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowRemoveModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: "14px", color: "#475569", margin: 0 } }, "Are you sure you want to remove:"), /* @__PURE__ */ React.createElement("div", { style: {
       padding: "14px 16px",
       backgroundColor: "#fef2f2",
       borderRadius: "8px",
@@ -8083,7 +8137,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         onChange: (e) => setMoveExistingOnImport(e.target.checked),
         style: { width: "16px", height: "16px" }
       }
-    ), /* @__PURE__ */ React.createElement("label", { htmlFor: "moveConflictCheckbox", style: { fontSize: "13px", color: "#1e40af", fontWeight: "700", cursor: "pointer" } }, "Move ", uploadStats.conflicts, " student(s) currently enrolled in other classes to this class automatically")), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid #e2e8f0", borderRadius: "8px", maxHeight: "260px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", { style: { position: "sticky", top: 0, backgroundColor: "#f8fafc", zIndex: 1 } }, /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "50px" } }, "#"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "80px" } }, "Status"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "60px" } }, "Roll"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "120px" } }, "Enrollment"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Name"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Email"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Validation Note"))), /* @__PURE__ */ React.createElement("tbody", null, uploadPreviewRows.map((row, idx) => {
+    ), /* @__PURE__ */ React.createElement("label", { htmlFor: "moveConflictCheckbox", style: { fontSize: "13px", color: "#1e40af", fontWeight: "700", cursor: "pointer" } }, "Move ", uploadStats.conflicts, " student(s) currently enrolled in other classes to this class automatically")), /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid #e2e8f0", borderRadius: "8px", maxHeight: "260px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", { style: { position: "sticky", top: 0, backgroundColor: "#f8fafc", zIndex: 1 } }, /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "50px" } }, "#"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "80px" } }, "Status"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "60px" } }, "Roll"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "120px" } }, "Enrollment"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Name"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", width: "80px" } }, "Batch"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Email"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Validation Note"))), /* @__PURE__ */ React.createElement("tbody", null, uploadPreviewRows.map((row, idx) => {
       const badgeColors = {
         valid: { bg: "#ecfdf5", color: "#047857" },
         duplicate: { bg: "#fffbeb", color: "#b45309" },
@@ -8099,7 +8153,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         fontWeight: "800",
         fontSize: "10.5px",
         textTransform: "uppercase"
-      } }, row.status)), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "700" } }, row.rollNo), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontFamily: "monospace", fontWeight: "700" } }, row.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "600" } }, row.name), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", color: "#64748b" } }, row.email || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", color: row.status === "invalid" ? "#b91c1c" : "#64748b" } }, row.reason));
+      } }, row.status)), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "700" } }, row.rollNo), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontFamily: "monospace", fontWeight: "700" } }, row.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "600" } }, row.name), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "700", color: "#2563eb" } }, row.batch || "Batch A"), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", color: "#64748b" } }, row.email || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", color: row.status === "invalid" ? "#b91c1c" : "#64748b" } }, row.reason));
     })))))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowUploadModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -8129,6 +8183,14 @@ function DepartmentAdminPanel({
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+  const [facultyToReplace, setFacultyToReplace] = useState(null);
+  const [targetReplacementFacultyId, setTargetReplacementFacultyId] = useState("");
+  const [selectedLectureIdsForReplace, setSelectedLectureIdsForReplace] = useState([]);
+  const [replaceSearch, setReplaceSearch] = useState("");
+  const [showRemoveFacultyModal, setShowRemoveFacultyModal] = useState(false);
+  const [facultyToRemove, setFacultyToRemove] = useState(null);
+  const [removeWarningAcknowledged, setRemoveWarningAcknowledged] = useState(false);
   const [deptEditForm, setDeptEditForm] = useState(null);
   const [facultyForm, setFacultyForm] = useState({
     name: "",
@@ -8311,6 +8373,94 @@ function DepartmentAdminPanel({
     setLabForm({ name: "", code: "", room: "", pcs: 30, inCharge: "" });
     if (showToast) showToast(`Lab "${labForm.name}" added to ${currentDept.name}!`);
   };
+  const entriesForReplace = useMemo(() => {
+    if (!facultyToReplace) return [];
+    return getEntriesByFaculty(facultyToReplace.id);
+  }, [facultyToReplace]);
+  const entriesForRemove = useMemo(() => {
+    if (!facultyToRemove) return [];
+    return getEntriesByFaculty(facultyToRemove.id);
+  }, [facultyToRemove]);
+  const handleToggleLectureSelect = (id) => {
+    setSelectedLectureIdsForReplace(
+      (prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+  const handleSelectAllLectures = () => {
+    if (selectedLectureIdsForReplace.length === entriesForReplace.length) {
+      setSelectedLectureIdsForReplace([]);
+    } else {
+      setSelectedLectureIdsForReplace(entriesForReplace.map((e) => e.id));
+    }
+  };
+  const handleOpenReplaceModal = (fac) => {
+    setFacultyToReplace(fac);
+    const assigned = getEntriesByFaculty(fac.id);
+    setSelectedLectureIdsForReplace(assigned.map((a) => a.id));
+    setTargetReplacementFacultyId("");
+    setReplaceSearch("");
+    setShowReplaceModal(true);
+  };
+  const handleOpenRemoveModal = (fac) => {
+    setFacultyToRemove(fac);
+    setRemoveWarningAcknowledged(false);
+    setShowRemoveFacultyModal(true);
+  };
+  const handleConfirmReplaceFaculty = () => {
+    if (!facultyToReplace || !targetReplacementFacultyId) {
+      alert("Please select an eligible replacement faculty member.");
+      return;
+    }
+    if (targetReplacementFacultyId === facultyToReplace.id) {
+      alert("Cannot select the same faculty member as their own replacement.");
+      return;
+    }
+    const targetFaculty = faculties.find((f) => f.id === targetReplacementFacultyId);
+    if (!targetFaculty) {
+      alert("Selected replacement faculty not found.");
+      return;
+    }
+    const allEntries = getTimetableEntries();
+    let replacedCount = 0;
+    allEntries.forEach((e) => {
+      if (e.facultyId === facultyToReplace.id && selectedLectureIdsForReplace.includes(e.id)) {
+        e.facultyId = targetFaculty.id;
+        e.facultyName = targetFaculty.name;
+        replacedCount++;
+      }
+    });
+    localStorage.setItem("adit_timetable_entries", JSON.stringify(allEntries));
+    notifyTimetableSync();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+    }
+    setFaculties([...getFaculties()]);
+    setShowReplaceModal(false);
+    if (showToast) {
+      showToast(`Successfully reassigned ${replacedCount} lecture(s) from ${facultyToReplace.name} to ${targetFaculty.name}!`);
+    }
+  };
+  const handleConfirmRemoveFaculty = () => {
+    if (!facultyToRemove) return;
+    const assigned = getEntriesByFaculty(facultyToRemove.id);
+    if (assigned.length > 0 && !removeWarningAcknowledged) {
+      alert("Please acknowledge that scheduled lectures will be unassigned before proceeding.");
+      return;
+    }
+    if (assigned.length > 0) {
+      deleteEntriesForFaculty(facultyToRemove.id);
+    }
+    deleteFaculty(facultyToRemove.id);
+    notifyTimetableSync();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+    }
+    setFaculties([...getFaculties()]);
+    setShowRemoveFacultyModal(false);
+    if (showToast) {
+      showToast(`Faculty member "${facultyToRemove.name}" removed from active roster. Historical attendance preserved.`);
+    }
+  };
   const handleExportDossier = () => {
     const headerInfo = [
       [`ADIT - Department Administration Dossier: ${currentDept.fullName || currentDept.name}`],
@@ -8425,18 +8575,6 @@ function DepartmentAdminPanel({
       },
       /* @__PURE__ */ React.createElement(Download, { size: 14 }),
       " Export Dossier"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "btn btn-primary btn-sm",
-        onClick: () => {
-          if (onOpenFacultyTimetable) onOpenFacultyTimetable();
-        },
-        style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700" }
-      },
-      /* @__PURE__ */ React.createElement(Calendar, { size: 14 }),
-      " Open Faculty Timetables"
     ))
   ), /* @__PURE__ */ React.createElement(
     "div",
@@ -8467,7 +8605,7 @@ function DepartmentAdminPanel({
         }
       },
       renderDeptIcon(currentDept.icon)
-    ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#1d4ed8", fontWeight: "800", fontSize: "12px" } }, currentDept.code), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b", fontWeight: "600" } }, "Est. ", currentDept.established || "2020", " \u2022 ADIT Campus")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", marginTop: "6px", lineHeight: 1.2 } }, currentDept.fullName || `Department of ${currentDept.name}`), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", marginTop: "4px" } }, "Autonomous Department Administration Panel \u2022 Curriculum, Faculty Workload & Division Matrix"))), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#1d4ed8", fontWeight: "800", fontSize: "12px" } }, currentDept.code), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b", fontWeight: "600" } }, "Est. ", currentDept.established || "2020", " \u2022 ADIT Campus")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", marginTop: "6px", lineHeight: 1.2 } }, currentDept.fullName || `Department of ${currentDept.name}`), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", marginTop: "4px" } }, "Autonomous Department Administration Panel \u2022 Curriculum & Faculty Roster"))), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -8518,7 +8656,6 @@ function DepartmentAdminPanel({
       className: "no-print"
     },
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Faculty Strength"), /* @__PURE__ */ React.createElement(Users, { size: 18, style: { color: "#2563eb" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, deptFaculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#059669", fontWeight: "600" } }, "Full-time Teaching Faculty")),
-    /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Active Divisions"), /* @__PURE__ */ React.createElement(Layers, { size: 18, style: { color: "#7c3aed" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, (currentDept.divisions || []).length || 3), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#7c3aed", fontWeight: "600" } }, "Div 1, Div 2, Div 3")),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Department Subjects"), /* @__PURE__ */ React.createElement(BookOpen, { size: 18, style: { color: "#d97706" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, deptSubjects.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b", fontWeight: "600" } }, "Active Course Catalog")),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Labs & Classrooms"), /* @__PURE__ */ React.createElement(Laptop, { size: 18, style: { color: "#0284c7" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, (currentDept.labs || []).length + (currentDept.classrooms || []).length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#0284c7", fontWeight: "600" } }, (currentDept.labs || []).length, " Labs \u2022 ", (currentDept.classrooms || []).length, " Classrooms")),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Weekly Lecture Load"), /* @__PURE__ */ React.createElement(Clock, { size: 18, style: { color: "#059669" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, totalWeeklyHours, " Hrs"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#059669", fontWeight: "600" } }, "Across 6 Working Days"))
@@ -8536,11 +8673,9 @@ function DepartmentAdminPanel({
       className: "no-print"
     },
     [
-      { id: "faculty", label: "Faculty Roster & Workload", icon: Users, count: deptFaculties.length },
-      { id: "divisions", label: "Divisions & Batches", icon: Layers, count: (currentDept.divisions || []).length || 3 },
+      { id: "faculty", label: "Faculty Roster", icon: Users, count: deptFaculties.length },
       { id: "labs", label: "Classrooms & Laboratories", icon: Laptop, count: (currentDept.labs || []).length },
-      { id: "subjects", label: "Curriculum & Subjects", icon: BookOpen, count: deptSubjects.length },
-      { id: "master-timetable", label: "Department Master Timetable", icon: Calendar }
+      { id: "subjects", label: "Curriculum & Subjects", icon: BookOpen, count: deptSubjects.length }
     ].map((tab) => {
       const Icon = tab.icon;
       const isActive = deptSubTab === tab.id;
@@ -8639,69 +8774,50 @@ function DepartmentAdminPanel({
       },
       load.totalLectures,
       " Lectures/wk"
-    )), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569" } }, load.activeDays, " Days"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569" } }, load.activeDays, " Days"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right", whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "8px" } }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
         className: "btn btn-secondary btn-sm",
-        onClick: () => {
-          if (onOpenFacultyTimetable) onOpenFacultyTimetable(fac.id);
-        },
-        style: { padding: "4px 10px", fontSize: "12px", fontWeight: "700", color: "#2563eb" }
-      },
-      /* @__PURE__ */ React.createElement(Calendar, { size: 13, style: { marginRight: "4px" } }),
-      " Timetable"
-    )));
-  })))))), deptSubTab === "divisions" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" } }, (currentDept.divisions || [
-    { id: "1", name: "Div 1", counselor: "Prof. Priya Shah", cr: "Aarav Patel", studentCount: 60 },
-    { id: "2", name: "Div 2", counselor: "Prof. Rahul Patel", cr: "Ananya Sharma", studentCount: 60 },
-    { id: "3", name: "Div 3", counselor: "Prof. A. Kumar", cr: "Devansh Verma", studentCount: 60 }
-  ]).map((div) => /* @__PURE__ */ React.createElement(
-    "div",
-    {
-      key: div.id,
-      className: "card",
-      style: {
-        padding: "24px",
-        borderRadius: "14px",
-        border: "1px solid #e2e8f0",
-        position: "relative"
-      }
-    },
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: {
-      width: "38px",
-      height: "38px",
-      borderRadius: "10px",
-      backgroundColor: "#eff6ff",
-      color: "#2563eb",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontWeight: "800"
-    } }, div.id), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a" } }, "Division ", div.id, " (", div.name, ")"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, selectedSem, " \u2022 ", currentDept.code))), /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#ecfdf5", color: "#059669", fontWeight: "800" } }, div.studentCount || 60, " Students")),
-    /* @__PURE__ */ React.createElement("div", { style: { marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #f1f5f9", display: "flex", flexDirection: "column", gap: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b", fontWeight: "600" } }, "Class Counselor:"), /* @__PURE__ */ React.createElement("strong", { style: { color: "#0f172a" } }, div.counselor || "Assigned Faculty")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b", fontWeight: "600" } }, "Class Representative (CR):"), /* @__PURE__ */ React.createElement("strong", { style: { color: "#0f172a" } }, div.cr || "Student CR")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b", fontWeight: "600" } }, "Designated Classroom:"), /* @__PURE__ */ React.createElement("strong", { style: { color: "#2563eb" } }, "Room 20", div.id))),
-    /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "btn btn-secondary btn-sm",
-        onClick: () => {
-          if (onOpenFacultyTimetable) onOpenFacultyTimetable();
-        },
+        title: "Replace Faculty Assignment",
+        onClick: () => handleOpenReplaceModal(fac),
         style: {
-          width: "100%",
-          marginTop: "16px",
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
-          justifyContent: "center",
-          gap: "6px",
-          fontWeight: "700"
+          gap: "5px",
+          padding: "5px 10px",
+          fontSize: "12px",
+          fontWeight: "700",
+          color: "#2563eb",
+          backgroundColor: "#eff6ff",
+          border: "1px solid #bfdbfe"
         }
       },
-      /* @__PURE__ */ React.createElement(Calendar, { size: 14 }),
-      " View Division Schedule"
-    )
-  )))), deptSubTab === "labs" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a" } }, "Specialized Department Laboratories"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Hardware & software testing facilities assigned to ", currentDept.name, ".")), /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement(ArrowRightLeft, { size: 13 }),
+      /* @__PURE__ */ React.createElement("span", null, "Replace")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        title: "Remove Faculty Member",
+        onClick: () => handleOpenRemoveModal(fac),
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "5px",
+          padding: "5px 10px",
+          fontSize: "12px",
+          fontWeight: "700",
+          color: "#e11d48",
+          backgroundColor: "#fff1f2",
+          border: "1px solid #fecdd3"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Trash2, { size: 13 }),
+      /* @__PURE__ */ React.createElement("span", null, "Remove")
+    ))));
+  })))))), deptSubTab === "labs" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a" } }, "Specialized Department Laboratories"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Hardware & software testing facilities assigned to ", currentDept.name, ".")), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -8761,22 +8877,7 @@ function DepartmentAdminPanel({
       style: { color: "#e11d48", padding: "4px 8px" }
     },
     /* @__PURE__ */ React.createElement(Trash2, { size: 13 })
-  ))))))))), deptSubTab === "master-timetable" && /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, "Department Master Timetable Matrix - ", currentDept.name), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Consolidated weekly view across all classrooms & laboratories.")), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-secondary btn-sm",
-      onClick: () => window.print(),
-      style: { display: "flex", alignItems: "center", gap: "6px" }
-    },
-    /* @__PURE__ */ React.createElement(Printer, { size: 14 }),
-    " Print Master Matrix"
-  )), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 14px", width: "110px", textAlign: "left", fontWeight: "700" } }, "Time Slot"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "10px 8px", fontWeight: "700" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((slotTime) => {
-    if (slotTime === "12:40 - 1:25") {
-      return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b" } }, slotTime), /* @__PURE__ */ React.createElement("td", { colSpan: 6, style: { padding: "8px", letterSpacing: "0.1em", fontWeight: "800", color: "#64748b", textTransform: "uppercase", backgroundColor: "#e2e8f0" } }, "LUNCH BREAK"));
-    }
-    return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 14px", textAlign: "left", fontWeight: "700", color: "#475569", backgroundColor: "#fafbfc", whiteSpace: "nowrap" } }, slotTime), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("td", { key: day, style: { padding: "6px", borderRight: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontSize: "11px", display: "inline-block" } }, currentDept.code, " \u2022 Scheduled"))));
-  }))))), showEditDeptModal && deptEditForm && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "580px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(Building2, { size: 20 }), "Edit Department Profile"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowEditDeptModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveDeptEdit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "120px 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Code *"), /* @__PURE__ */ React.createElement(
+  ))))))))), showEditDeptModal && deptEditForm && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "580px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(Building2, { size: 20 }), "Edit Department Profile"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowEditDeptModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveDeptEdit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "120px 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Code *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
@@ -8967,7 +9068,122 @@ function DepartmentAdminPanel({
     },
     /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Choose Faculty --"),
     deptFaculties.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.name }, f.name))
-  ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowAddLabModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Laboratory"))))));
+  ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowAddLabModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Laboratory"))))), showReplaceModal && facultyToReplace && (() => {
+    const activeLectures = entriesForReplace;
+    const eligibleFaculties = faculties.filter((f) => {
+      if (f.id === facultyToReplace.id) return false;
+      if (!replaceSearch.trim()) return true;
+      const q = replaceSearch.toLowerCase();
+      return f.name && f.name.toLowerCase().includes(q) || f.dept && f.dept.toLowerCase().includes(q) || f.id && f.id.toLowerCase().includes(q);
+    });
+    const targetFaculty = faculties.find((f) => f.id === targetReplacementFacultyId);
+    const selectedLectures = activeLectures.filter((l) => selectedLectureIdsForReplace.includes(l.id));
+    const affectedSubjects = Array.from(new Set(selectedLectures.map((l) => l.subjectName || l.subjectCode))).filter(Boolean);
+    const affectedClasses = Array.from(new Set(selectedLectures.map((l) => l.division || l.className))).filter(Boolean);
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "640px", maxHeight: "90vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a", fontSize: "18px" } }, /* @__PURE__ */ React.createElement(ArrowRightLeft, { size: 20, style: { color: "#2563eb" } }), "Replace Faculty Assignment"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowReplaceModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { overflowY: "auto", display: "flex", flexDirection: "column", gap: "18px" } }, /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Currently Selected Faculty"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a" } }, facultyToReplace.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "2px" } }, "ID: ", /* @__PURE__ */ React.createElement("strong", null, facultyToReplace.id), " \u2022 ", facultyToReplace.designation || "Assistant Professor", " \u2022 ", facultyToReplace.dept || currentDept.name)), /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "700" } }, activeLectures.length, " Total Lectures"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a", display: "block", marginBottom: "6px" } }, "Select Replacement Faculty *"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement(Search, { size: 14, style: { position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "Search eligible faculty by name, department, or ID...",
+        value: replaceSearch,
+        onChange: (e) => setReplaceSearch(e.target.value),
+        style: { paddingLeft: "32px", height: "36px", fontSize: "12.5px" }
+      }
+    )), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: targetReplacementFacultyId,
+        onChange: (e) => setTargetReplacementFacultyId(e.target.value),
+        style: { fontWeight: "700", fontSize: "13px" },
+        required: true
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Choose Replacement Faculty Member --"),
+      eligibleFaculties.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id }, f.name, " (", f.id, " \u2022 ", f.dept || "Engineering", " \u2022 ", f.designation || "Faculty", ")"))
+    ), eligibleFaculties.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#e11d48", marginTop: "4px" } }, 'No eligible replacement faculty found matching "', replaceSearch, '".')), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a" } }, "Select Scheduled Lectures to Transfer"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, "Choose individual lectures or transfer all scheduled lectures.")), activeLectures.length > 0 && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: handleSelectAllLectures,
+        style: {
+          fontSize: "11.5px",
+          color: "#2563eb",
+          backgroundColor: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          padding: "4px 10px",
+          borderRadius: "6px",
+          fontWeight: "700",
+          cursor: "pointer"
+        }
+      },
+      selectedLectureIdsForReplace.length === activeLectures.length ? "Deselect All" : "Select All"
+    )), activeLectures.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { padding: "16px", backgroundColor: "#f8fafc", borderRadius: "8px", textAlign: "center", fontSize: "12.5px", color: "#64748b" } }, "This faculty member currently has no scheduled timetable assignments.") : /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "180px", overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: "8px" } }, activeLectures.map((lec) => {
+      const isChecked = selectedLectureIdsForReplace.includes(lec.id);
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: lec.id,
+          onClick: () => handleToggleLectureSelect(lec.id),
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 14px",
+            borderBottom: "1px solid #f1f5f9",
+            backgroundColor: isChecked ? "#eff6ff" : "white",
+            cursor: "pointer",
+            transition: "background-color 0.1s"
+          }
+        },
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+          "input",
+          {
+            type: "checkbox",
+            checked: isChecked,
+            onChange: () => handleToggleLectureSelect(lec.id),
+            onClick: (e) => e.stopPropagation(),
+            style: { cursor: "pointer", width: "16px", height: "16px" }
+          }
+        ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#0f172a" } }, lec.subjectName || lec.subjectCode), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, lec.day, " \u2022 ", lec.timeSlot, " \u2022 ", lec.division || "Div", " \u2022 ", lec.room || "Room"))),
+        /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: isChecked ? "#dbeafe" : "#f1f5f9", color: isChecked ? "#1d4ed8" : "#64748b", fontSize: "11px", fontWeight: "700" } }, lec.day)
+      );
+    }))), /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", fontWeight: "800", color: "#92400e", display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 15 }), "Transfer Confirmation Summary"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#78350f", fontWeight: "600" } }, "Previous Faculty:"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a" } }, facultyToReplace.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#78350f", fontWeight: "600" } }, "New Faculty:"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: targetFaculty ? targetFaculty.name : "#e11d48" } }, targetFaculty ? targetFaculty.name : "\u2014 Select faculty above \u2014")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#78350f", fontWeight: "600" } }, "Lectures Transferring:"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a" } }, selectedLectureIdsForReplace.length, " of ", activeLectures.length, " selected")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#78350f", fontWeight: "600" } }, "Affected Classes & Subjects:"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a" } }, affectedClasses.join(", ") || "None", " ", affectedSubjects.length > 0 ? `(${affectedSubjects.join(", ")})` : ""))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "8px", fontSize: "11px", color: "#92400e", fontStyle: "italic" } }, "Historical attendance sessions and student records will remain preserved and unaffected."))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { borderTop: "1px solid #e2e8f0", padding: "14px 20px", display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowReplaceModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-primary",
+        onClick: handleConfirmReplaceFaculty,
+        disabled: !targetReplacementFacultyId || selectedLectureIdsForReplace.length === 0,
+        style: { display: "flex", alignItems: "center", gap: "6px" }
+      },
+      /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }),
+      /* @__PURE__ */ React.createElement("span", null, "Confirm & Replace Assignments")
+    ))));
+  })(), showRemoveFacultyModal && facultyToRemove && (() => {
+    const activeLectures = entriesForRemove;
+    const hasActiveLectures = activeLectures.length > 0;
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "540px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#e11d48", fontSize: "18px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 20 }), "Remove Faculty Member"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowRemoveFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "10px", padding: "14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#9f1239", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Faculty Member to be Removed"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a", marginTop: "4px" } }, facultyToRemove.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "2px" } }, "ID: ", /* @__PURE__ */ React.createElement("strong", null, facultyToRemove.id), " \u2022 ", facultyToRemove.designation || "Faculty", " \u2022 ", facultyToRemove.dept || currentDept.name)), hasActiveLectures ? /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fef2f2", border: "1px solid #fee2e2", borderRadius: "10px", padding: "14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#b91c1c", fontWeight: "800", fontSize: "13.5px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 18 }), "Active Timetable Assignments Warning"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#991b1b", marginTop: "6px", lineHeight: 1.5 } }, "This faculty member currently has ", /* @__PURE__ */ React.createElement("strong", null, activeLectures.length, " active scheduled lecture(s)"), " across the academic timetable. Removing this faculty member will unassign all their lecture slots."), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "120px", overflowY: "auto", marginTop: "10px", border: "1px solid #fecaca", borderRadius: "6px", backgroundColor: "white" } }, activeLectures.map((lec) => /* @__PURE__ */ React.createElement("div", { key: lec.id, style: { padding: "6px 10px", borderBottom: "1px solid #fef2f2", fontSize: "11.5px", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700", color: "#0f172a" } }, lec.subjectName || lec.subjectCode, " (", lec.division || "Class", ")"), /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b" } }, lec.day, " \u2022 ", lec.timeSlot)))), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "flex-start", gap: "8px", marginTop: "14px", cursor: "pointer", fontSize: "12.5px", fontWeight: "700", color: "#7f1d1d" } }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "checkbox",
+        checked: removeWarningAcknowledged,
+        onChange: (e) => setRemoveWarningAcknowledged(e.target.checked),
+        style: { marginTop: "2px", width: "16px", height: "16px" }
+      }
+    ), /* @__PURE__ */ React.createElement("span", null, "I understand and acknowledge that ", activeLectures.length, " scheduled lecture(s) will be unassigned from the timetable."))) : /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "12px 14px", fontSize: "12.5px", color: "#166534" } }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, style: { display: "inline", verticalAlign: "middle", marginRight: "6px" } }), "This faculty member has ", /* @__PURE__ */ React.createElement("strong", null, "0 active timetable assignments"), ". They can be safely removed."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", padding: "10px 12px", backgroundColor: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("strong", null, "Data Preservation Guarantee:"), " Student records, class definitions, and all historical attendance sessions previously recorded by ", facultyToRemove.name, " will remain permanently preserved in the system.")), /* @__PURE__ */ React.createElement("div", { className: "modal-footer", style: { borderTop: "1px solid #e2e8f0", padding: "14px 20px", display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowRemoveFacultyModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-danger",
+        onClick: handleConfirmRemoveFaculty,
+        disabled: hasActiveLectures && !removeWarningAcknowledged,
+        style: { display: "flex", alignItems: "center", gap: "6px" }
+      },
+      /* @__PURE__ */ React.createElement(Trash2, { size: 16 }),
+      /* @__PURE__ */ React.createElement("span", null, "Confirm & Remove Faculty")
+    ))));
+  })());
 }
 function AdminPanel({ showToast, onExit }) {
   const [adminTab, setAdminTab] = useState("faculty");
@@ -8989,9 +9205,8 @@ function AdminPanel({ showToast, onExit }) {
   const [pinChangeMsg, setPinChangeMsg] = useState("");
   const adminMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "faculty", label: "Faculty Timetables", icon: Users },
-    { id: "class-timetables", label: "Class Timetables", icon: Layers },
-    { id: "classes", label: "Classes", icon: GraduationCap },
+    { id: "faculty", label: "Faculty Roster", icon: Users },
+    { id: "classes", label: "Student Management", icon: GraduationCap },
     { id: "subjects", label: "Subjects", icon: BookOpen },
     { id: "departments", label: "Departments", icon: Building2 },
     { id: "settings", label: "Settings", icon: SettingsIcon }
@@ -9117,30 +9332,15 @@ function AdminPanel({ showToast, onExit }) {
     /* @__PURE__ */ React.createElement(LogOut, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Logout")
   ))), /* @__PURE__ */ React.createElement("div", { className: "admin-main-viewport" }, adminTab === "faculty" && /* @__PURE__ */ React.createElement(
-    FacultyTimetablePanel,
+    DepartmentAdminPanel,
     {
-      departments,
-      faculties,
-      subjects,
-      onSaveFaculty: handleSaveFaculty,
-      onSwitchToClassTimetable: () => setAdminTab("class-timetables"),
-      showToast
-    }
-  ), adminTab === "class-timetables" && /* @__PURE__ */ React.createElement(
-    ClassTimetablePanel,
-    {
-      departments,
-      faculties,
-      subjects,
-      onSwitchToFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
   ), adminTab === "classes" && /* @__PURE__ */ React.createElement(
     ClassManagementPanel,
     {
       departments,
-      showToast,
-      onOpenClassTimetable: (dept, sem, div) => setAdminTab("class-timetables")
+      showToast
     }
   ), adminTab === "dashboard" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Administration Dashboard"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "High-level academic structure, faculty distribution, and timetable coverage.")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Total Departments"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Building2, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, departments.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#059669", fontWeight: "600" } }, "Active Engineering Programs")), /* @__PURE__ */ React.createElement(
     "div",
@@ -9152,14 +9352,14 @@ function AdminPanel({ showToast, onExit }) {
     /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Active Classes"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#e0f2fe", color: "#0284c7", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(GraduationCap, { size: 18 }))),
     /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, getClasses().length),
     /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#0284c7", fontWeight: "600" } }, "Dept \u2022 Sem \u2022 Div Rosters")
-  ), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Faculty Members"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Users, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, faculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#2563eb", fontWeight: "600" } }, "Configured Across Depts")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Active Subjects"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, subjects.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Odd & Even Semesters")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Timetables Active"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#f3e8ff", color: "#7e22ce", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, faculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#7e22ce", fontWeight: "600" } }, "Individual Faculty Schedules"))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, "Departments Overview"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Faculty Members"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Users, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, faculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#2563eb", fontWeight: "600" } }, "Configured Across Depts")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Active Subjects"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, subjects.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b" } }, "Odd & Even Semesters")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b" } }, "Faculty Strength"), /* @__PURE__ */ React.createElement("div", { style: { width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#f3e8ff", color: "#7e22ce", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(Users, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "28px", fontWeight: "800", color: "#0f172a", marginTop: "10px" } }, faculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#7e22ce", fontWeight: "600" } }, "Active Teaching Roster"))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a" } }, "Departments Overview"), /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "btn btn-primary btn-sm",
       onClick: () => setAdminTab("faculty"),
       style: { display: "flex", alignItems: "center", gap: "6px" }
     },
-    /* @__PURE__ */ React.createElement("span", null, "Open Faculty Timetables"),
+    /* @__PURE__ */ React.createElement("span", null, "Open Faculty Roster"),
     /* @__PURE__ */ React.createElement(ArrowRight, { size: 14 })
   )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" } }, departments.map((d) => {
     const facCount = faculties.filter((f) => f.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
@@ -9202,70 +9402,11 @@ function AdminPanel({ showToast, onExit }) {
             cursor: "pointer"
           }
         },
-        /* @__PURE__ */ React.createElement("span", null, "View Timetables"),
+        /* @__PURE__ */ React.createElement("span", null, "View Faculty Roster"),
         /* @__PURE__ */ React.createElement(ChevronRight, { size: 14 })
       )
     );
-  })))), adminTab === "timetables" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Department Master Timetables"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Comprehensive schedule matrix for ", activeDept, " (", activeSem, ").")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "btn btn-secondary btn-sm",
-      onClick: () => setAdminTab("faculty")
-    },
-    /* @__PURE__ */ React.createElement(Users, { size: 14 }),
-    " Individual Faculty Timetables"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      className: "btn btn-primary btn-sm",
-      onClick: () => window.print()
-    },
-    /* @__PURE__ */ React.createElement(Download, { size: 14 }),
-    " Export Schedule"
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "12px", marginBottom: "18px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "form-control",
-      value: activeDept,
-      onChange: (e) => setActiveDept(e.target.value),
-      style: { maxWidth: "280px", fontWeight: "700" }
-    },
-    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
-  ), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "form-control",
-      value: activeSem,
-      onChange: (e) => setActiveSem(e.target.value),
-      style: { maxWidth: "180px", fontWeight: "700" }
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "1st Semester" }, "1st Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "2nd Semester" }, "2nd Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "3rd Semester" }, "3rd Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "4th Semester" }, "4th Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "5th Semester" }, "5th Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "6th Semester" }, "6th Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "7th Semester" }, "7th Semester"),
-    /* @__PURE__ */ React.createElement("option", { value: "8th Semester" }, "8th Semester")
-  )), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a", marginBottom: "16px" } }, "Weekly Department Matrix - ", activeDept), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 14px", width: "120px" } }, "Time Slot"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "10px", textAlign: "center" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((slotTime) => {
-    if (slotTime === "12:40 - 1:25") {
-      return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", fontWeight: "700", color: "#64748b" } }, slotTime), /* @__PURE__ */ React.createElement("td", { colSpan: 6, style: { textAlign: "center", fontWeight: "800", color: "#64748b", letterSpacing: "0.1em", fontSize: "11px", textTransform: "uppercase" } }, "LUNCH BREAK"));
-    }
-    return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 14px", fontWeight: "700", color: "#475569", backgroundColor: "#fafbfc" } }, slotTime), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("td", { key: day, style: { padding: "8px", borderRight: "1px solid #f1f5f9", textAlign: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b", fontSize: "12px" } }, "Scheduled Lectures"))));
-  })))))), adminTab === "upload" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Timetable Upload Hub"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Upload official class or faculty timetable files in Excel (.xlsx, .csv), Image, or PDF format.")), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "720px" } }, /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "30px" } }, /* @__PURE__ */ React.createElement(
-    TimetableUploadModal,
-    {
-      selectedFaculty: faculties[0],
-      departmentName: activeDept,
-      semesterName: activeSem,
-      onClose: () => setAdminTab("faculty"),
-      onTimetableUpdated: () => {
-        if (showToast) showToast("Timetable successfully loaded!");
-        setAdminTab("faculty");
-      },
-      showToast
-    }
-  )))), adminTab === "subjects" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Subjects Management"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage course subjects, credits, and syllabus codes for ", activeDept, ".")), /* @__PURE__ */ React.createElement(
+  })))), adminTab === "subjects" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Subjects Management"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage course subjects, credits, and syllabus codes for ", activeDept, ".")), /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "btn btn-primary btn-sm",
