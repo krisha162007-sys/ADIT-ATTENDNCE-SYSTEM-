@@ -643,7 +643,7 @@ const generateDBMSSessions = () => {
     };
   });
 };
-const DEFAULT_SESSIONS = [...generateDSSessions(), ...generateDBMSSessions()];
+const DEFAULT_SESSIONS = [];
 const initializeStorage = () => {
   const storedCollege = localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME);
   if (!storedCollege || storedCollege.includes("G H Patel") || storedCollege.includes("GCET") || storedCollege.includes("GH Patel")) {
@@ -654,7 +654,8 @@ const initializeStorage = () => {
   if (!currentSubjs || !currentSubjs.includes("102040304") || !currentStudents || !currentStudents.includes("12502040501127")) {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
@@ -680,17 +681,12 @@ const initializeStorage = () => {
   } catch (e) {
   }
   const currentSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-  if (currentSessions) {
-    try {
-      const parsedSessions = JSON.parse(currentSessions);
-      if (!parsedSessions.some((s) => s.subjectId === "SUB_AI_DBMS")) {
-        const dbmsSessions = generateDBMSSessions();
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([...parsedSessions, ...dbmsSessions]));
-      }
-    } catch (e) {
-    }
-  } else {
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+  if (!currentSessions) {
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  }
+  const currentExceptions = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  if (!currentExceptions) {
+    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   }
   const existingClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
   if (!existingClasses) {
@@ -2447,19 +2443,34 @@ const resetToDefault = () => {
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
   localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
-  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
   localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
   localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+    window.dispatchEvent(new CustomEvent("adit-exceptions-updated"));
+  }
   return {
     classes: DEFAULT_CLASSES,
     students: DEFAULT_STUDENTS,
     subjects: DEFAULT_SUBJECTS,
-    sessions: DEFAULT_SESSIONS,
+    sessions: [],
+    exceptions: [],
     electiveGroups: DEFAULT_ELECTIVE_GROUPS,
     electiveAssignments: DEFAULT_ELECTIVE_ASSIGNMENTS
   };
+};
+const clearAllAttendanceData = () => {
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+    window.dispatchEvent(new CustomEvent("adit-exceptions-updated"));
+  }
+  return { success: true };
 };
 const calculateAnalytics = (targetSubjectId = null) => {
   const students = getStudents();
@@ -4290,6 +4301,8 @@ if (typeof window !== "undefined") {
   window.saveSession = saveSession;
   window.deleteSession = deleteSession;
   window.initializeStorage = initializeStorage;
+  window.resetToDefault = resetToDefault;
+  window.clearAllAttendanceData = clearAllAttendanceData;
   window.getExceptions = getExceptions;
   window.saveException = saveException;
   window.deleteException = deleteException;
@@ -13813,6 +13826,13 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       setPinChangeMsg("Incorrect current PIN.");
     }
   };
+  const handleClearAttendanceData = () => {
+    if (window.confirm("Are you sure you want to clear all recorded attendance sessions and exceptions? Academic data (departments, classes, faculties, subjects, timetables, and student rosters) will be preserved.")) {
+      clearAllAttendanceData();
+      refreshState();
+      if (showToast) showToast("All recorded attendance sessions and exceptions have been cleared!");
+    }
+  };
   const handleResetDefaults = () => {
     if (window.confirm("Reset all academic departments, faculty, subjects and timetables back to default sample records?")) {
       resetToDefault();
@@ -14003,7 +14023,17 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onChange: (e) => setNewPin(e.target.value),
       required: true
     }
-  ))), pinChangeMsg && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", marginTop: "10px", fontWeight: "700", color: pinChangeMsg.includes("success") ? "#059669" : "#e11d48" } }, pinChangeMsg), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px", textAlign: "right" } }, /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary btn-sm" }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 14 }), " Update PIN Code")))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), "Reset System Database"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Restore all faculties, timetables, subjects, and departments to default sample data."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
+  ))), pinChangeMsg && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", marginTop: "10px", fontWeight: "700", color: pinChangeMsg.includes("success") ? "#059669" : "#e11d48" } }, pinChangeMsg), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px", textAlign: "right" } }, /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary btn-sm" }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 14 }), " Update PIN Code")))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#d97706", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Trash2, { size: 18 }), "Clear Recorded Attendance Sessions"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Wipe all saved attendance registers, lecture sessions, and student exception logs clean. All students, departments, classes, faculties, subjects, and timetables remain preserved."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-sm",
+      onClick: handleClearAttendanceData,
+      style: { display: "flex", alignItems: "center", gap: "6px", background: "#d97706", color: "#ffffff", border: "none" }
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 14 }),
+    " Clear All Attendance Records & Exceptions"
+  ))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), "Reset System Database"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Restore all faculties, timetables, subjects, and departments to default sample data."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",

@@ -49,6 +49,7 @@ import {
   verifyAdminPin, 
   updateAdminPin, 
   resetToDefault,
+  clearAllAttendanceData,
   getCollegeName,
   setCollegeName,
   getClasses
@@ -197,6 +198,15 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
       if (showToast) showToast('Security PIN updated!');
     } else {
       setPinChangeMsg('Incorrect current PIN.');
+    }
+  };
+
+  // Clear all attendance records & exceptions (keeps academic database intact)
+  const handleClearAttendanceData = () => {
+    if (window.confirm('Are you sure you want to clear all recorded attendance sessions and exceptions? Academic data (departments, classes, faculties, subjects, timetables, and student rosters) will be preserved.')) {
+      clearAllAttendanceData();
+      refreshState();
+      if (showToast) showToast('All recorded attendance sessions and exceptions have been cleared!');
     }
   };
 
@@ -649,6 +659,28 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Clear Attendance Sessions Option */}
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#d97706', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trash2 size={18} />
+                Clear Recorded Attendance Sessions
+              </h3>
+              <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+                Wipe all saved attendance registers, lecture sessions, and student exception logs clean. All students, departments, classes, faculties, subjects, and timetables remain preserved.
+              </p>
+
+              <div style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={handleClearAttendanceData}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#d97706', color: '#ffffff', border: 'none' }}
+                >
+                  <Trash2 size={14} /> Clear All Attendance Records & Exceptions
+                </button>
+              </div>
             </div>
 
             {/* Database Reset Option */}

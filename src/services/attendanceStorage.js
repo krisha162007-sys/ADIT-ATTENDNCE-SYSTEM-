@@ -710,7 +710,7 @@ const generateDBMSSessions = () => {
   });
 };
 
-export const DEFAULT_SESSIONS = [...generateDSSessions(), ...generateDBMSSessions()];
+export const DEFAULT_SESSIONS = [];
 
 // Helper to initialize LocalStorage if empty or outdated
 export const initializeStorage = () => {
@@ -727,7 +727,8 @@ export const initializeStorage = () => {
   if (!currentSubjs || !currentSubjs.includes('102040304') || !currentStudents || !currentStudents.includes('12502040501127')) {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
@@ -754,18 +755,14 @@ export const initializeStorage = () => {
     }
   } catch(e) {}
 
-  // Ensure DBMS sessions exist in current storage
+  // Ensure sessions storage key is initialized as a clean array
   const currentSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-  if (currentSessions) {
-    try {
-      const parsedSessions = JSON.parse(currentSessions);
-      if (!parsedSessions.some(s => s.subjectId === 'SUB_AI_DBMS')) {
-        const dbmsSessions = generateDBMSSessions();
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([...parsedSessions, ...dbmsSessions]));
-      }
-    } catch(e) {}
-  } else {
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+  if (!currentSessions) {
+    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  }
+  const currentExceptions = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  if (!currentExceptions) {
+    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   }
 
   const existingClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
@@ -2888,19 +2885,35 @@ export const resetToDefault = () => {
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
   localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
-  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
   localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
   localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+    window.dispatchEvent(new CustomEvent('adit-exceptions-updated'));
+  }
   return {
     classes: DEFAULT_CLASSES,
     students: DEFAULT_STUDENTS,
     subjects: DEFAULT_SUBJECTS,
-    sessions: DEFAULT_SESSIONS,
+    sessions: [],
+    exceptions: [],
     electiveGroups: DEFAULT_ELECTIVE_GROUPS,
     electiveAssignments: DEFAULT_ELECTIVE_ASSIGNMENTS
   };
+};
+
+export const clearAllAttendanceData = () => {
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+    window.dispatchEvent(new CustomEvent('adit-exceptions-updated'));
+  }
+  return { success: true };
 };
 
 
@@ -5183,6 +5196,8 @@ if (typeof window !== 'undefined') {
 
   // Storage & Exceptions API
   window.initializeStorage = initializeStorage;
+  window.resetToDefault = resetToDefault;
+  window.clearAllAttendanceData = clearAllAttendanceData;
   window.getExceptions = getExceptions;
   window.saveException = saveException;
   window.deleteException = deleteException;
