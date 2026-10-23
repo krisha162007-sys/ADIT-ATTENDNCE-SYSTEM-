@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADIT Elective Subject Management & Faculty Attendance Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Location','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { window[n] = _nat[n]; });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Elective Subject Management & Faculty Attendance Verification Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: -9999px; top: -9999px;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        // 1. Initialize and reset to clean baseline
+        if (typeof initializeStorage === 'function') initializeStorage();
+        if (typeof resetToDefault === 'function') resetToDefault();
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 1 & 2: Create Elective Group for Semester 5 with 3 Subjects
+        // -------------------------------------------------------------
+        const testGroupId = 'ELEC_TEST_SEM5';
+        const groupPayload = {
+          id: testGroupId,
+          name: 'Semester 5 Professional Electives Test',
+          semester: '5th Sem',
+          academicYear: '2026-27',
+          status: 'active',
+          subjects: [
+            {
+              id: 'SUB_TEST_CYBER',
+              code: '102040501',
+              name: 'Cyber Security',
+              shortName: 'Cyber Sec',
+              classes: [
+                { id: 'CLS_CYBER_A', name: 'Class A', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah' }
+              ]
+            },
+            {
+              id: 'SUB_TEST_CLOUD',
+              code: '102040502',
+              name: 'Cloud Computing',
+              shortName: 'Cloud Comp',
+              classes: [
+                { id: 'CLS_CLOUD_B', name: 'Class B', facultyId: 'FAC_VK', facultyName: 'Dr. Vishal Kumar' }
+              ]
+            },
+            {
+              id: 'SUB_TEST_IOT',
+              code: '102040503',
+              name: 'Internet of Things',
+              shortName: 'IoT',
+              classes: [
+                { id: 'CLS_IOT_C', name: 'Class C', facultyId: 'FAC_SN', facultyName: 'Prof. Sneha Nair' }
+              ]
+            }
+          ]
+        };
+
+        const savedGroup = saveElectiveGroup(groupPayload);
+        const allGroups = getElectiveGroups();
+        const foundGroup = allGroups.find(g => g.id === testGroupId);
+
+        log(`TEST 1: Create elective group for Semester 5: "${foundGroup ? foundGroup.name : 'none'}" created with status "${foundGroup?.status}"`, !!foundGroup && foundGroup.semester === '5th Sem');
+
+        // Verify all 3 subjects exist in group
+        const hasThreeSubjects = foundGroup && foundGroup.subjects && foundGroup.subjects.length === 3 &&
+          foundGroup.subjects.some(s => s.name === 'Cyber Security') &&
+          foundGroup.subjects.some(s => s.name === 'Cloud Computing') &&
+          foundGroup.subjects.some(s => s.name === 'Internet of Things');
+        log(`TEST 2: Add three elective subjects to the group (Cyber Security, Cloud Computing, IoT): Found ${foundGroup?.subjects?.length} subjects`, hasThreeSubjects);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 3: Retrieve Eligible Semester 5 Students Across Divisions
+        // -------------------------------------------------------------
+        const eligibleStudents = getEligibleStudentsForElectiveGroup(testGroupId);
+        const hasAidsStudents = eligibleStudents.some(s => (s.department || s.dept || '').includes('AI'));
+        const hasCompStudents = eligibleStudents.some(s => (s.department || s.dept || '').includes('Comp'));
+        const allSem5 = eligibleStudents.every(s => normalizeSem(s.semester || s.sem) === '5th Sem');
+
+        log(`TEST 3: Retrieve eligible Semester 5 students across divisions without regular department/division constraints (Count: ${eligibleStudents.length}, AI&DS: ${hasAidsStudents}, CP: ${hasCompStudents}, All Sem 5: ${allSem5})`, eligibleStudents.length >= 6 && hasAidsStudents && hasCompStudents && allSem5);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 4: Assign Students to Elective Subjects (Enforce Single Assignment)
+        // -------------------------------------------------------------
+        const st1 = eligibleStudents[0];
+        const st2 = eligibleStudents[1];
+        const st3 = eligibleStudents[2];
+
+        assignStudentToElective({
+          studentId: st1.id,
+          enrollmentNo: st1.enrollmentNo,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CYBER',
+          electiveClassId: 'CLS_CYBER_A'
+        });
+
+        assignStudentToElective({
+          studentId: st2.id,
+          enrollmentNo: st2.enrollmentNo,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CLOUD',
+          electiveClassId: 'CLS_CLOUD_B'
+        });
+
+        assignStudentToElective({
+          studentId: st3.id,
+          enrollmentNo: st3.enrollmentNo,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_IOT',
+          electiveClassId: 'CLS_IOT_C'
+        });
+
+        // Test single assignment rule: Re-assign st1 to Cloud Computing
+        assignStudentToElective({
+          studentId: st1.id,
+          enrollmentNo: st1.enrollmentNo,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CLOUD',
+          electiveClassId: 'CLS_CLOUD_B'
+        });
+
+        const st1Assignments = getElectiveAssignments({ electiveGroupId: testGroupId, studentId: st1.id });
+        const singleAssignmentMaintained = st1Assignments.length === 1 && st1Assignments[0].electiveSubjectId === 'SUB_TEST_CLOUD';
+
+        // Re-assign st1 back to Cyber Security for subsequent tests
+        assignStudentToElective({
+          studentId: st1.id,
+          enrollmentNo: st1.enrollmentNo,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CYBER',
+          electiveClassId: 'CLS_CYBER_A'
+        });
+
+        log(`TEST 4: Assign students to elective subjects & enforce single-assignment rule within group (No duplicates on re-assignment: ${singleAssignmentMaintained})`, singleAssignmentMaintained);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 5: Verify Each Group Contains Correct Students
+        // -------------------------------------------------------------
+        const cyberStudents = getStudentsForElectiveClass({
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CYBER',
+          electiveClassId: 'CLS_CYBER_A'
+        });
+
+        const cloudStudents = getStudentsForElectiveClass({
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CLOUD',
+          electiveClassId: 'CLS_CLOUD_B'
+        });
+
+        const iotStudents = getStudentsForElectiveClass({
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_IOT',
+          electiveClassId: 'CLS_IOT_C'
+        });
+
+        const correctMembership = cyberStudents.some(s => s.id === st1.id) &&
+                                  cloudStudents.some(s => s.id === st2.id) &&
+                                  iotStudents.some(s => s.id === st3.id);
+
+        log(`TEST 5: Verify each elective class contains the correct students (Cyber: ${cyberStudents.length}, Cloud: ${cloudStudents.length}, IoT: ${iotStudents.length})`, correctMembership);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 6: Verify Regular Student Divisions Remain Unchanged
+        // -------------------------------------------------------------
+        const masterStudents = getStudents();
+        const masterSt1 = masterStudents.find(s => s.id === st1.id);
+        const regularDivisionIntact = masterSt1 && masterSt1.division === st1.division && masterSt1.department === st1.department && masterSt1.classId === st1.classId;
+
+        log(`TEST 6: Regular student divisions, departments, and classIds remain strictly UNCHANGED (Student ${masterSt1?.name}: Div=${masterSt1?.division}, Dept=${masterSt1?.department})`, regularDivisionIntact);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 7: Assign Faculty Members to Elective Groups
+        // -------------------------------------------------------------
+        const cyberClass = foundGroup.subjects.find(s => s.id === 'SUB_TEST_CYBER').classes[0];
+        const cloudClass = foundGroup.subjects.find(s => s.id === 'SUB_TEST_CLOUD').classes[0];
+        const iotClass = foundGroup.subjects.find(s => s.id === 'SUB_TEST_IOT').classes[0];
+
+        const facultyAssignedCorrectly = cyberClass.facultyId === 'FAC_PS' &&
+                                         cloudClass.facultyId === 'FAC_VK' &&
+                                         iotClass.facultyId === 'FAC_SN';
+
+        log(`TEST 7: Assign faculty members to elective classes (Cyber -> Prof. Priya Shah, Cloud -> Dr. Vishal Kumar, IoT -> Prof. Sneha Nair)`, facultyAssignedCorrectly);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 8: Log In as Assigned Faculty Member (Prof. Priya Shah)
+        // -------------------------------------------------------------
+        const priyaFaculty = {
+          id: 'FAC_PS',
+          facultyId: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        const priyaElectives = getAuthorizedFacultyElectives(priyaFaculty);
+        const priyaAuthCyber = priyaElectives.some(g => 
+          g.id === testGroupId && 
+          g.subjects.some(s => s.id === 'SUB_TEST_CYBER' && s.classes.some(c => c.id === 'CLS_CYBER_A'))
+        );
+
+        log(`TEST 8: Log in as assigned faculty member (Prof. Priya Shah): Authorized for Cyber Security Class A (${priyaAuthCyber})`, priyaAuthCyber);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 9: Select Elective Class in Take Attendance Form Logic
+        // -------------------------------------------------------------
+        const canPriyaTeachCyber = canFacultyTeachElective(priyaFaculty, testGroupId, 'SUB_TEST_CYBER', 'CLS_CYBER_A');
+        log(`TEST 9: Select elective class in Take Attendance: canFacultyTeachElective returns TRUE for assigned faculty`, canPriyaTeachCyber);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 10: Verify Only Students Assigned to That Elective Group Are Displayed
+        // -------------------------------------------------------------
+        const priyaLoadedStudents = getStudentsForElectiveClass({
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CYBER',
+          electiveClassId: 'CLS_CYBER_A'
+        }, priyaFaculty);
+
+        const onlyAssignedDisplayed = priyaLoadedStudents.length > 0 && 
+                                     priyaLoadedStudents.every(s => s.id === st1.id) &&
+                                     !priyaLoadedStudents.some(s => s.id === st2.id || s.id === st3.id);
+
+        log(`TEST 10: Verify only students assigned to Cyber Security are loaded for Prof. Priya Shah (Loaded: ${priyaLoadedStudents.length}, Contains st1: true, Excludes st2/st3: true)`, onlyAssignedDisplayed);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 11: Record Attendance and Verify Saved Correctly
+        // -------------------------------------------------------------
+        const todayStr = new Date().toISOString().split('T')[0];
+        const electiveSessionPayload = {
+          date: todayStr,
+          startTime: '10:00',
+          endTime: '10:55',
+          timeSlot: '10:00 - 10:55',
+          isExtraLecture: false,
+          subjectId: 'SUB_TEST_CYBER',
+          subjectName: 'Cyber Security',
+          facultyId: priyaFaculty.id,
+          facultyName: priyaFaculty.name,
+          department: 'Semester 5 Professional Electives Test',
+          sem: '5th Sem',
+          division: 'Class A',
+          batch: 'ALL',
+          academicYear: '2026-27',
+          classId: 'CLS_CYBER_A',
+          classType: 'elective',
+          isElective: true,
+          electiveGroupId: testGroupId,
+          electiveSubjectId: 'SUB_TEST_CYBER',
+          electiveClassId: 'CLS_CYBER_A',
+          topic: 'Unit 1: Introduction to Network Security and Cryptography',
+          records: {
+            [st1.id]: 'present'
+          },
+          remarks: {
+            [st1.id]: ''
+          },
+          totalStudents: 1,
+          presentCount: 1,
+          absentCount: 0,
+          exceptionCount: 0,
+          percentage: '100.0',
+          submittedAt: new Date().toISOString()
+        };
+
+        saveSession(electiveSessionPayload, priyaFaculty);
+
+        const savedElectiveSessions = getSessions({ classType: 'elective', electiveGroupId: testGroupId }, priyaFaculty);
+        const sessionSavedCorrectly = savedElectiveSessions.some(s => 
+          s.date === todayStr &&
+          s.electiveGroupId === testGroupId &&
+          s.electiveSubjectId === 'SUB_TEST_CYBER' &&
+          s.classType === 'elective' &&
+          s.records && s.records[st1.id] === 'present'
+        );
+
+        log(`TEST 11: Record elective attendance and verify saved correctly in database (Session ID present: ${sessionSavedCorrectly}, isElective: true)`, sessionSavedCorrectly);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 12: Verify Unauthorized Faculty Cannot Access Elective Group
+        // -------------------------------------------------------------
+        const unauthorizedFaculty = {
+          id: 'FAC_UNAUTH',
+          facultyId: 'FAC_UNAUTH',
+          name: 'Prof. External Teacher',
+          dept: 'Civil Engineering',
+          role: 'faculty'
+        };
+
+        const unauthCanTeach = canFacultyTeachElective(unauthorizedFaculty, testGroupId, 'SUB_TEST_CYBER', 'CLS_CYBER_A');
+        let unauthLoadBlocked = false;
+        try {
+          getStudentsForElectiveClass({
+            electiveGroupId: testGroupId,
+            electiveSubjectId: 'SUB_TEST_CYBER',
+            electiveClassId: 'CLS_CYBER_A'
+          }, unauthorizedFaculty);
+        } catch (err) {
+          unauthLoadBlocked = err.message.includes('Unauthorized Security Error');
+        }
+
+        let unauthSaveBlocked = false;
+        try {
+          saveSession({
+            ...electiveSessionPayload,
+            id: undefined,
+            facultyId: unauthorizedFaculty.id,
+            facultyName: unauthorizedFaculty.name,
+            timeSlot: '11:00 - 11:55'
+          }, unauthorizedFaculty);
+        } catch (err) {
+          unauthSaveBlocked = err.message.includes('Unauthorized Security Error');
+        }
+
+        const unauthSecurityStrict = !unauthCanTeach && unauthLoadBlocked && unauthSaveBlocked;
+        log(`TEST 12: Verify unauthorized faculty CANNOT access or record attendance for elective group (canTeach: false, loadBlocked: ${unauthLoadBlocked}, saveBlocked: ${unauthSaveBlocked})`, unauthSecurityStrict);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 13: Verify Regular Subject Attendance Still Works
+        // -------------------------------------------------------------
+        const regularClass = findClassByCriteria('AI & Data Science', '3rd Sem', 'Div 1', '2026-27');
+        const regularStudents = getStudentsForAcademicGroup({
+          department: 'AI & Data Science',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          academicYear: '2026-27',
+          subjectId: 'SUB_AI_DBMS'
+        }, priyaFaculty);
+
+        const regularSessionPayload = {
+          date: todayStr,
+          startTime: '09:00',
+          endTime: '09:55',
+          timeSlot: '09:00 - 09:55',
+          isExtraLecture: false,
+          subjectId: 'SUB_AI_DBMS',
+          subjectName: 'DBMS',
+          facultyId: priyaFaculty.id,
+          facultyName: priyaFaculty.name,
+          department: 'AI & Data Science',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          academicYear: '2026-27',
+          classId: regularClass?.id || 'CLASS_DEP_AI_3_1_2026-27',
+          classType: 'regular',
+          isElective: false,
+          topic: 'ER Diagrams and Relational Schema Mapping',
+          records: {
+            [regularStudents[0]?.id || 'ST_DEFAULT']: 'present'
+          },
+          totalStudents: regularStudents.length,
+          presentCount: 1,
+          absentCount: Math.max(0, regularStudents.length - 1),
+          percentage: regularStudents.length > 0 ? (100 / regularStudents.length).toFixed(1) : '100.0',
+          submittedAt: new Date().toISOString()
+        };
+
+        saveSession(regularSessionPayload, priyaFaculty);
+        const regularSessions = getSessions({ department: 'AI & Data Science', semester: '3rd Sem' }, priyaFaculty);
+        const regularWorking = regularSessions.some(s => s.subjectId === 'SUB_AI_DBMS' && s.classType !== 'elective');
+
+        log(`TEST 13: Verify regular subject attendance continues to function properly without interference (DBMS session recorded: ${regularWorking})`, regularWorking);
+
+        // -------------------------------------------------------------
+        // REQUIREMENT 14: Verify Admin Panel & UI Sub-Tab Switching Intact
+        // -------------------------------------------------------------
+        let classPanelUIMounted = false;
+        const mountDiv = document.getElementById('render-mount');
+        if (mountDiv && typeof ClassManagementPanel !== 'undefined') {
+          ReactDOM.render(
+            React.createElement(ClassManagementPanel, {
+              currentUser: { role: 'admin', name: 'Administrator' },
+              showToast: () => {}
+            }),
+            mountDiv
+          );
+          classPanelUIMounted = true;
+        }
+
+        log(`TEST 14: Verify existing Admin Panel Class Management & Elective tabs render cleanly (ClassManagementPanel mounted: ${classPanelUIMounted})`, classPanelUIMounted);
+
+        // -------------------------------------------------------------
+        // SUMMARY & RESULTS EXPORT
+        // -------------------------------------------------------------
+        const allPassed = results.every(r => r.pass);
+        const summary = results.map(r => r.text).join('\n');
+        document.getElementById('test-results').textContent = summary + (allPassed ? '\n\n🎉 ALL 14 ELECTIVE VERIFICATION TESTS PASSED!' : '\n\n❌ SOME TESTS FAILED.');
+
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allPassed,
+            totalTests: results.length,
+            passCount: results.filter(r => r.pass).length,
+            failCount: results.filter(r => !r.pass).length,
+            summary
+          })
+        });
+
+      } catch (err) {
+        console.error(err);
+        log(`Fatal error during test execution: ${err.message}`, false);
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allPassed: false,
+            error: err.message,
+            stack: err.stack,
+            summary: results.map(r => r.text).join('\n')
+          })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

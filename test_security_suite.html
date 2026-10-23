@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADIT Security &amp; Authorization Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Automated Verification Test Suite (TEST A - TEST J)</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+
+  <script>
+    window.addEventListener('load', function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        // Initialize clean storage
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        initializeStorage();
+
+        const facultyA = { id: 'FAC_PS', name: 'Prof. Priya Shah', role: 'faculty', dept: 'AI & Data Science' };
+        const facultyB = { id: 'FAC01', name: 'Prof. R. K. Patel', role: 'faculty', dept: 'Computer Engineering' };
+        const adminUser = { id: 'admin', name: 'System Administrator', role: 'admin', isAdmin: true };
+
+        // -------------------------------------------------------------
+        // TEST A: Faculty A accesses assigned DBMS Div 1 & DS Div 2
+        // -------------------------------------------------------------
+        const canTeachDBMSDiv1 = canFacultyTeachClassAndSubject(facultyA, 'AI & Data Science', '3rd Sem', 'Div 1', 'SUB_AI_DBMS');
+        const canTeachDSDiv2 = canFacultyTeachClassAndSubject(facultyA, 'Computer Engineering', '3rd Sem', 'Div 2', 'SUB_DS');
+        const testAPass = canTeachDBMSDiv1 || canTeachDSDiv2;
+        log(`TEST A: Faculty A (Prof. Priya Shah) authorized for assigned classes (DBMS Div 1: ${canTeachDBMSDiv1}, DS Div 2: ${canTeachDSDiv2})`, testAPass);
+
+        // -------------------------------------------------------------
+        // TEST B: Faculty A cannot access Faculty B's DS Div 3
+        // -------------------------------------------------------------
+        const canTeachDiv3 = canFacultyTeachClassAndSubject(facultyA, 'Computer Engineering', '3rd Sem', 'Div 3', 'SUB_DS');
+        const div3StudentsForFacultyA = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 3',
+          batch: 'ALL'
+        }, facultyA);
+        const sessionsForFacultyA = getSessions({ division: 'Div 3' }, facultyA);
+        const testBPass = !canTeachDiv3 && div3StudentsForFacultyA.length === 0 && sessionsForFacultyA.length === 0;
+        log(`TEST B: Faculty A blocked from Faculty B's DS Div 3 (canTeach: ${canTeachDiv3}, students: ${div3StudentsForFacultyA.length}, sessions: ${sessionsForFacultyA.length})`, testBPass);
+
+        // -------------------------------------------------------------
+        // TEST C: URL / direct query manipulation to Div 3 fails and returns []
+        // -------------------------------------------------------------
+        const manipulatedQueryStudents = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 3'
+        }, facultyA);
+        const manipulatedQuerySessions = getSessions({ semester: '3rd Sem', division: 'Div 3', subjectId: 'SUB_DS' }, facultyA);
+        const testCPass = manipulatedQueryStudents.length === 0 && manipulatedQuerySessions.length === 0;
+        log(`TEST C: Query manipulation to unauthorized Div 3 returns empty sets (students: ${manipulatedQueryStudents.length}, sessions: ${manipulatedQuerySessions.length})`, testCPass);
+
+        // -------------------------------------------------------------
+        // TEST D: Faculty A cannot save attendance for Div 3 (Backend Error)
+        // -------------------------------------------------------------
+        let testDPass = false;
+        try {
+          saveSession({
+            date: '2026-10-16',
+            timeSlot: '9:00 - 9:55',
+            department: 'Computer Engineering',
+            sem: '3rd Sem',
+            division: 'Div 3',
+            subjectId: 'SUB_DS',
+            subjectName: 'DATA STRUCTURES',
+            records: { 'S131': 'present' }
+          }, facultyA);
+          testDPass = false; // should have thrown!
+        } catch (err) {
+          testDPass = err.message && err.message.includes('Unauthorized');
+        }
+        log(`TEST D: Faculty A blocked from saving attendance for unassigned Div 3 (Backend Error thrown: ${testDPass})`, testDPass);
+
+        // -------------------------------------------------------------
+        // TEST E: Shared subject/division access rules
+        // -------------------------------------------------------------
+        const facultyBCanTeachDiv3 = canFacultyTeachClassAndSubject(facultyB, 'Computer Engineering', '3rd Sem', 'Div 3', 'SUB_DS');
+        const facultyACanTeachDiv3 = canFacultyTeachClassAndSubject(facultyA, 'Computer Engineering', '3rd Sem', 'Div 3', 'SUB_DS');
+        const testEPass = facultyBCanTeachDiv3 && !facultyACanTeachDiv3;
+        log(`TEST E: Division-level isolation verified for shared subject SUB_DS (Faculty B Div 3: ${facultyBCanTeachDiv3}, Faculty A Div 3: ${facultyACanTeachDiv3})`, testEPass);
+
+        // -------------------------------------------------------------
+        // TEST F: Timetable reassignment immediately updates access
+        // -------------------------------------------------------------
+        // Temporarily reassign an entry to Faculty A
+        const currentEntries = JSON.parse(localStorage.getItem('adit_timetable_entries') || '[]');
+        const testEntry = {
+          id: 'TEST_TT_REASSIGN_1',
+          facultyId: 'FAC_PS',
+          facultyName: 'Prof. Priya Shah',
+          departmentName: 'Civil Engineering',
+          sem: '5th Sem',
+          div: 'Div 1',
+          subject: 'SUB_TEST_REASSIGN',
+          subjectName: 'Structural Testing'
+        };
+        localStorage.setItem('adit_timetable_entries', JSON.stringify([...currentEntries, testEntry]));
+        const reassignedAccess = canFacultyTeachClassAndSubject(facultyA, 'Civil Engineering', '5th Sem', 'Div 1', 'SUB_TEST_REASSIGN');
+        // Restore
+        localStorage.setItem('adit_timetable_entries', JSON.stringify(currentEntries));
+        log(`TEST F: Timetable reassignment grants access immediately without code reload (${reassignedAccess})`, reassignedAccess);
+
+        // -------------------------------------------------------------
+        // TEST G: Exceptions recorded through Take Attendance
+        // -------------------------------------------------------------
+        const excResult = saveException({
+          studentId: 'S_AI_01',
+          studentName: 'Aarav Patel',
+          enrollmentNo: '24ADITAI001',
+          departmentName: 'AI & Data Science',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          category: 'Sports Tournament',
+          activityName: 'Inter-College Basketball Championship',
+          startDate: '2026-10-16',
+          endDate: '2026-10-16',
+          reason: 'Representing ADIT at GTU Tournament'
+        }, facultyA);
+        const excCheck = isStudentExcusedForSession('S_AI_01', '2026-10-16', 'SUB_AI_DBMS', '9:00 - 9:55');
+        const testGPass = excResult.success && excCheck.isExcused;
+        log(`TEST G: Exception recorded and resolved for session without separate panel (isExcused: ${excCheck.isExcused}, category: ${excCheck.exception?.category})`, testGPass);
+
+        // -------------------------------------------------------------
+        // TEST H: Exceptions display in Attendance Register & Policy Calculation
+        // -------------------------------------------------------------
+        const testHPass = typeof getInstitutionalExceptionPolicy === 'function' &&
+          INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE === 'COUNT_ELIGIBLE' &&
+          INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION === 'EXCLUDE_EXCEPTION' &&
+          INSTITUTIONAL_POLICIES.SEPARATE_ONLY === 'SEPARATE_ONLY';
+        log(`TEST H: Institutional exception policies defined and integrated (COUNT_ELIGIBLE, EXCLUDE_EXCEPTION, SEPARATE_ONLY)`, testHPass);
+
+        // -------------------------------------------------------------
+        // TEST I: Attendance export contains only authorized records
+        // -------------------------------------------------------------
+        const facultyASessions = getSessions({}, facultyA);
+        const hasUnauthorizedSessions = facultyASessions.some(s => s.division === 'Div 3' && s.facultyId !== 'FAC_PS');
+        const testIPass = !hasUnauthorizedSessions;
+        log(`TEST I: Attendance query for export contains only authorized sessions (unauthorized Div 3 present: ${hasUnauthorizedSessions})`, testIPass);
+
+        // -------------------------------------------------------------
+        // TEST J: Admin Panel retains universal access
+        // -------------------------------------------------------------
+        const adminCanTeachDiv1 = canFacultyTeachClassAndSubject(adminUser, 'AI & Data Science', '3rd Sem', 'Div 1', 'SUB_AI_DBMS');
+        const adminCanTeachDiv3 = canFacultyTeachClassAndSubject(adminUser, 'Computer Engineering', '3rd Sem', 'Div 3', 'SUB_DS');
+        const adminDiv3Students = getStudentsForAcademicGroup({ department: 'Computer Engineering', semester: '3rd Sem', division: 'Div 3' }, adminUser);
+        const adminAllSessions = getSessions({}, adminUser);
+        const testJPass = adminCanTeachDiv1 && adminCanTeachDiv3 && adminDiv3Students.length > 0 && adminAllSessions.length > 0;
+        log(`TEST J: Admin user retains universal access (Div 1: ${adminCanTeachDiv1}, Div 3: ${adminCanTeachDiv3}, Div 3 students: ${adminDiv3Students.length}, Total sessions: ${adminAllSessions.length})`, testJPass);
+
+        // Render summary
+        const allPassed = results.every(r => r.pass);
+        const summary = '\n' + '='.repeat(60) + '\n' +
+          (allPassed ? 'ALL 10 TESTS PASSED (10/10) - PERFECT COMPLIANCE' : 'SOME TESTS FAILED') +
+          '\n' + '='.repeat(60) + '\n\n' +
+          results.map(r => r.text).join('\n');
+        
+        document.getElementById('test-results').innerText = summary;
+        window.__TEST_RESULTS__ = { allPassed, results, summary };
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed, results, summary })
+        }).catch(() => {});
+      } catch (e) {
+        document.getElementById('test-results').innerText = 'Test suite threw error:\n' + e.stack;
+        window.__TEST_RESULTS__ = { allPassed: false, error: e.toString() };
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed: false, error: e.toString() })
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

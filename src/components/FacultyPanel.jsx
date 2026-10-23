@@ -20,6 +20,7 @@ import {
   Check, 
   AlertCircle, 
   ChevronRight, 
+  ArrowLeft,
   ArrowRight, 
   Table2, 
   List, 
@@ -76,9 +77,20 @@ import {
   calculateOverlappingLectures,
   calculateStudentAttendanceWithPolicy,
   getInstitutionalExceptionPolicy,
+  getStudentsForAcademicGroup,
+  canFacultyTeachClassAndSubject,
+  getAuthorizedFacultyClasses,
+  getAuthorizedFacultySubjects,
+  getElectiveGroups,
+  getAuthorizedFacultyElectives,
+  getStudentsForElectiveClass,
+  canFacultyTeachElective,
+  getElectiveAssignments,
   EXCEPTION_CATEGORIES,
-  INSTITUTIONAL_POLICIES
+  INSTITUTIONAL_POLICIES,
+  SEMESTERS
 } from '../services/attendanceStorage';
+import AttendanceSheetView from './AttendanceSheetView';
 import { 
   getFacultyTimetable, 
   getFacultyScheduledLecturesForDate, 
@@ -86,7 +98,10 @@ import {
   TIME_SLOTS, 
   TIMETABLE_DAYS, 
   getSubjectColor,
-  notifyTimetableSync
+  notifyTimetableSync,
+  getDateForDayName,
+  normalizeTimeSlot,
+  doTimeSlotsOverlap
 } from '../services/timetableStorage';
 
 const SUBJECT_COLOR_THEMES = {
@@ -135,8 +150,9 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   const [studentsTick, setStudentsTick] = useState(0);
   const [classesTick, setClassesTick] = useState(0);
   const [exceptionsTick, setExceptionsTick] = useState(0);
+  const [electivesTick, setElectivesTick] = useState(0);
 
-  // Listen for admin timetable, faculty, student, class, session, and exception updates
+  // Listen for admin timetable, faculty, student, class, session, exception, and elective updates
   useEffect(() => {
     const handleSync = () => setTimetableSyncTick(t => t + 1);
     const handleFacultyUpdate = () => setFacultiesList(getFaculties());
@@ -144,6 +160,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     const handleClassesUpdate = () => setClassesTick(t => t + 1);
     const handleSessionsUpdate = () => setAllSessions(getSessions());
     const handleExceptionsUpdate = () => setExceptionsTick(t => t + 1);
+    const handleElectivesUpdate = () => setElectivesTick(t => t + 1);
 
     window.addEventListener('adit-timetable-synced', handleSync);
     window.addEventListener('adit-faculty-updated', handleFacultyUpdate);
@@ -151,6 +168,8 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     window.addEventListener('adit-classes-updated', handleClassesUpdate);
     window.addEventListener('adit-sessions-updated', handleSessionsUpdate);
     window.addEventListener('adit-exceptions-updated', handleExceptionsUpdate);
+    window.addEventListener('adit-elective-groups-updated', handleElectivesUpdate);
+    window.addEventListener('adit-elective-assignments-updated', handleElectivesUpdate);
     return () => {
       window.removeEventListener('adit-timetable-synced', handleSync);
       window.removeEventListener('adit-faculty-updated', handleFacultyUpdate);
@@ -158,6 +177,8 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
       window.removeEventListener('adit-classes-updated', handleClassesUpdate);
       window.removeEventListener('adit-sessions-updated', handleSessionsUpdate);
       window.removeEventListener('adit-exceptions-updated', handleExceptionsUpdate);
+      window.removeEventListener('adit-elective-groups-updated', handleElectivesUpdate);
+      window.removeEventListener('adit-elective-assignments-updated', handleElectivesUpdate);
     };
   }, []);
 
@@ -206,8 +227,12 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   // -------------------------------------------------------------
   // 3. ATTENDANCE SESSIONS & STATS
   // -------------------------------------------------------------
-  const [allSessions, setAllSessions] = useState(getSessions());
-  const reloadSessions = () => setAllSessions(getSessions());
+  const [allSessions, setAllSessions] = useState(() => getSessions({}, currentFaculty));
+  const reloadSessions = () => setAllSessions(getSessions({}, currentFaculty));
+
+  useEffect(() => {
+    reloadSessions();
+  }, [currentFaculty]);
 
   // Filter sessions recorded by THIS faculty
   const facultySessions = useMemo(() => {
@@ -245,84 +270,441 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   const pendingTodayCount = todayLecturesWithStatus.filter(l => !l.isCompleted).length;
 
   // -------------------------------------------------------------
-  // 4. TAKE ATTENDANCE FORM STATE
+  // 4. TAKE ATTENDANCE MODULE (Completely Independent of Faculty Timetable)
   // -------------------------------------------------------------
+  const [attendanceStep, setAttendanceStep] = useState('setup'); // 'setup' | 'marking'
+  const [loadedStudents, setLoadedStudents] = useState([]);
+
   const [attDate, setAttDate] = useState(todayDateStr);
-  const [attTimeSlot, setAttTimeSlot] = useState(todayScheduledLectures[0]?.time || '9:00 - 9:55');
-  const [attDept, setAttDept] = useState(currentFaculty.dept || 'AI & Data Science');
+  const [attStartTime, setAttStartTime] = useState('09:00');
+  const [attEndTime, setAttEndTime] = useState('09:55');
+  const [attTimeSlot, setAttTimeSlot] = useState('09:00 - 09:55');
+
+  const [attDept, setAttDept] = useState(() => currentFaculty?.dept || 'Computer Engineering');
   const [attSem, setAttSem] = useState('3rd Sem');
   const [attDiv, setAttDiv] = useState('Div 1');
+  const [attBatch, setAttBatch] = useState('ALL');
   const [attYear, setAttYear] = useState(DEFAULT_ACADEMIC_YEAR);
-  const [attSubjectId, setAttSubjectId] = useState(todayScheduledLectures[0]?.subjectId || 'DBMS');
-  const [attSubjectName, setAttSubjectName] = useState(todayScheduledLectures[0]?.subjectName || 'Database Management Systems');
+  const [attSubjectId, setAttSubjectId] = useState('SUB_DS');
+  const [attSubjectName, setAttSubjectName] = useState('DATA STRUCTURES');
+
+  // Multi-lecture & Register Navigation Synchronization
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [regNavDept, setRegNavDept] = useState(() => currentFaculty?.dept || 'Computer Engineering');
+  const [regNavSem, setRegNavSem] = useState('3rd Sem');
+  const [regNavDiv, setRegNavDiv] = useState('Div 1');
+  const [regNavBatch, setRegNavBatch] = useState('ALL');
+  const [regNavSubId, setRegNavSubId] = useState('SUB_DS');
+
+  // Dropdown data sources restricted strictly to authorized faculty scope
+  const authorizedClasses = useMemo(() => {
+    return getAuthorizedFacultyClasses(currentFaculty);
+  }, [currentFaculty, classesTick]);
+
+  const authorizedSubjects = useMemo(() => {
+    return getAuthorizedFacultySubjects(currentFaculty);
+  }, [currentFaculty, timetableSyncTick]);
+
+  const takeAvailableSubjects = useMemo(() => {
+    let list = (authorizedSubjects && authorizedSubjects.length > 0) ? [...authorizedSubjects] : getSubjects();
+    const electiveClasses = getClasses().filter(c => c.isElective);
+    electiveClasses.forEach(c => {
+      const matchFac = (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') ||
+        (c.facultyId && (c.facultyId === currentFaculty.id || c.facultyId === currentFaculty.facultyId)) ||
+        (c.facultyName && c.facultyName.trim().toLowerCase() === (currentFaculty.name || '').trim().toLowerCase());
+      if (matchFac && c.subjectId && !list.some(s => s.id === c.subjectId || s.name === c.subjectName)) {
+        list.push({
+          id: c.subjectId,
+          code: c.subjectId,
+          name: c.subjectName || c.subjectId,
+          shortName: c.subjectName || c.subjectId,
+          isElective: true,
+          sem: c.semester,
+          dept: 'Elective (No Department)'
+        });
+      }
+    });
+    if (attSubjectId && !list.some(s => s.id === attSubjectId)) {
+      const allSub = getSubjects();
+      const s = allSub.find(sub => sub.id === attSubjectId || sub.code === attSubjectId);
+      if (s) list.push(s);
+      else list.push({ id: attSubjectId, name: attSubjectName || attSubjectId, shortName: attSubjectName || attSubjectId });
+    }
+    return list;
+  }, [authorizedSubjects, attSubjectId, attSubjectName]);
+
+  const takeAvailableDepts = useMemo(() => {
+    const allDepts = getDepartments();
+    const hasElective = authorizedClasses.some(c => c.isElective) || 
+      (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') ||
+      getClasses().some(c => c.isElective && (c.facultyId === currentFaculty.id || c.facultyName?.toLowerCase() === (currentFaculty.name || '').toLowerCase()));
+
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      const res = [...allDepts];
+      if (!res.some(d => d.name === 'Elective (No Department)')) {
+        res.push({ id: 'DEP_ELECTIVE', name: 'Elective (No Department)' });
+      }
+      return res;
+    }
+    const deptSet = new Set();
+    if (currentFaculty.dept) deptSet.add(currentFaculty.dept);
+    authorizedClasses.forEach(c => {
+      if (c.departmentName) deptSet.add(c.departmentName);
+      if (c.dept) deptSet.add(c.dept);
+    });
+    authorizedSubjects.forEach(s => {
+      if (s.dept) deptSet.add(s.dept);
+    });
+    if (attDept) deptSet.add(attDept);
+    const depts = getDepartments().filter(d => deptSet.has(d.name) || deptSet.has(d.id));
+    if ((deptSet.has('Elective (No Department)') || hasElective) && !depts.some(d => d.name === 'Elective (No Department)')) {
+      depts.push({ id: 'DEP_ELECTIVE', name: 'Elective (No Department)' });
+    }
+    if (depts.length > 0) return depts;
+    return [{ id: 'DEP_ACTIVE', name: attDept || currentFaculty.dept || 'Computer Engineering' }];
+  }, [authorizedClasses, authorizedSubjects, currentFaculty, attDept]);
+
+  const takeAvailableSemesters = useMemo(() => {
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      return (SEMESTERS && SEMESTERS.length > 0) ? SEMESTERS.map(s => s.id) : ['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'];
+    }
+    const semSet = new Set();
+    authorizedClasses.forEach(c => {
+      if (c.semester || c.sem) semSet.add(normalizeSem(c.semester || c.sem));
+    });
+    authorizedSubjects.forEach(s => {
+      if (s.sem) semSet.add(normalizeSem(s.sem));
+    });
+    if (attSem) semSet.add(normalizeSem(attSem));
+    if (semSet.size === 0) return ['3rd Sem'];
+    return Array.from(semSet).sort();
+  }, [authorizedClasses, authorizedSubjects, currentFaculty, attSem]);
+
+  const takeAvailableDivisions = useMemo(() => {
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      const classes = getClasses();
+      const divSet = new Set(classes.map(c => normalizeDiv(c.division)).filter(Boolean));
+      ['Div 1', 'Div 2', 'Div 3'].forEach(d => divSet.add(d));
+      return Array.from(divSet).sort();
+    }
+    const divSet = new Set();
+    authorizedClasses.forEach(c => {
+      if (c.division || c.div) divSet.add(normalizeDiv(c.division || c.div));
+    });
+    if (attDiv) divSet.add(normalizeDiv(attDiv));
+    if (divSet.size === 0) divSet.add('Div 1');
+    return Array.from(divSet).sort();
+  }, [authorizedClasses, currentFaculty, attDiv]);
+
+  const takeAvailableBatches = useMemo(() => [
+    { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
+    { value: 'Batch A', label: 'Batch A (Lab / Practical)' },
+    { value: 'Batch B', label: 'Batch B (Lab / Practical)' },
+    { value: 'Batch C', label: 'Batch C (Lab / Practical)' }
+  ], []);
+
   const [attTopic, setAttTopic] = useState('');
   const [attRecords, setAttRecords] = useState({});
   const [attRemarks, setAttRemarks] = useState({});
   const [studentSearch, setStudentSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'present', 'absent'
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'present', 'absent', 'unmarked', 'exceptions'
+  const [isExtraLecture, setIsExtraLecture] = useState(false);
+  const [hasLoadedStudents, setHasLoadedStudents] = useState(false);
+  const [unmarkedAlert, setUnmarkedAlert] = useState(null);
 
-  // Pre-fill lecture handler (e.g. from Dashboard or Timetable click)
-  const selectLectureForAttendance = (lec, targetDate = todayDateStr) => {
-    setAttDate(targetDate);
-    setAttTimeSlot(lec.time || '9:00 - 9:55');
-    setAttSubjectId(lec.subjectId || 'DBMS');
-    setAttSubjectName(lec.subjectName || lec.name || lec.subjectId || 'Subject');
-    if (lec.sem) setAttSem(normalizeSem(lec.sem));
-    if (lec.div) setAttDiv(normalizeDiv(lec.div));
-    if (lec.departmentId) {
-      const depts = getDepartments();
-      const f = depts.find(d => d.id === lec.departmentId || d.name.toLowerCase().includes(lec.departmentId.toLowerCase()));
-      if (f) setAttDept(f.name);
+
+
+  // Sync defaults when faculty changes
+  useEffect(() => {
+    if (takeAvailableSubjects.length > 0 && !takeAvailableSubjects.some(s => s.id === attSubjectId)) {
+      setAttSubjectId(takeAvailableSubjects[0].id);
+      setAttSubjectName(takeAvailableSubjects[0].shortName || takeAvailableSubjects[0].name);
     }
+    if (takeAvailableDepts.length > 0 && !takeAvailableDepts.some(d => d.name === attDept)) {
+      setAttDept(takeAvailableDepts[0].name);
+    }
+    if (takeAvailableSemesters.length > 0 && !takeAvailableSemesters.includes(attSem)) {
+      setAttSem(takeAvailableSemesters[0]);
+    }
+    if (takeAvailableDivisions.length > 0 && !takeAvailableDivisions.includes(attDiv)) {
+      setAttDiv(takeAvailableDivisions[0]);
+    }
+  }, [currentFaculty, takeAvailableSubjects, takeAvailableDepts, takeAvailableSemesters, takeAvailableDivisions]);
+
+  // Pre-fill lecture handler with automatic student loading (from Dashboard or Timetable click)
+  const selectLectureForAttendance = (lec, targetDate = null) => {
+    // 1. Resolve Date
+    let dateToUse = lec.rescheduledDate || targetDate;
+    if (!dateToUse) {
+      if (lec.date) dateToUse = lec.date;
+      else if (lec.day) dateToUse = getDateForDayName(lec.day);
+      else dateToUse = todayDateStr;
+    }
+    setAttDate(dateToUse);
+
+    // 2. Resolve Timings
+    const timeSlotStr = lec.time || lec.timeSlot || '09:00 - 09:55';
+    const times = timeSlotStr.split('-');
+    let sTime = times[0]?.trim() || '09:00';
+    let eTime = times[1]?.trim() || '09:55';
+    if (sTime.length === 4 && sTime[1] === ':') sTime = '0' + sTime;
+    if (eTime.length === 4 && eTime[1] === ':') eTime = '0' + eTime;
+    setAttStartTime(sTime);
+    setAttEndTime(eTime);
+    setAttTimeSlot(`${sTime} - ${eTime}`);
+
+    // 3. Resolve Subject
+    const allSubjects = getSubjects();
+    const rawSubId = lec.subjectId || lec.subject || '';
+    const foundSub = allSubjects.find(s => 
+      s.id === rawSubId || 
+      s.code === rawSubId || 
+      (s.name && s.name.toLowerCase() === rawSubId.toLowerCase()) || 
+      (s.shortName && s.shortName.toLowerCase() === rawSubId.toLowerCase())
+    );
+    const resolvedSubjectId = foundSub ? foundSub.id : rawSubId;
+    const resolvedSubjectName = foundSub ? (foundSub.shortName || foundSub.name) : (lec.subjectName || lec.name || rawSubId);
+    setAttSubjectId(resolvedSubjectId);
+    setAttSubjectName(resolvedSubjectName);
+
+    // 4. Resolve Department
+    const isLecElective = Boolean(lec.isElective || foundSub?.isElective || lec.dept === 'Elective' || lec.dept === 'Elective (No Department)' || lec.departmentId === 'Elective' || lec.departmentId === 'ELECTIVE');
+    const depts = getDepartments();
+    let resolvedDept = '';
+    if (isLecElective) {
+      resolvedDept = 'Elective (No Department)';
+    } else {
+      if (lec.departmentId) {
+        const f = depts.find(d => d.id === lec.departmentId || d.name.toLowerCase() === lec.departmentId.toLowerCase());
+        if (f) resolvedDept = f.name;
+      }
+      if (!resolvedDept && lec.dept) {
+        const f = depts.find(d => d.id === lec.dept || d.name.toLowerCase() === lec.dept.toLowerCase());
+        if (f) resolvedDept = f.name;
+        else resolvedDept = lec.dept;
+      }
+      if (!resolvedDept) {
+        resolvedDept = currentFaculty?.dept || (depts.length > 0 ? depts[0].name : 'AI & Data Science');
+      }
+    }
+    setAttDept(resolvedDept);
+
+    // 5. Resolve Semester, Division, Batch
+    const resolvedSem = normalizeSem(lec.sem || '3rd Sem');
+    const resolvedDiv = normalizeDiv(lec.div || 'Div 1');
+    const resolvedBatch = lec.batch || 'ALL';
+    setAttSem(resolvedSem);
+    setAttDiv(resolvedDiv);
+    setAttBatch(resolvedBatch);
+
     setAttTopic('');
+    setIsExtraLecture(false);
+
+    // 6. AUTOMATICALLY RETRIEVE AND DISPLAY THE CORRECT STUDENTS FOR THIS LECTURE
+    let students = [];
+    try {
+      students = getStudentsForAcademicGroup({
+        department: resolvedDept,
+        semester: resolvedSem,
+        division: resolvedDiv,
+        batch: resolvedBatch,
+        academicYear: attYear,
+        subjectId: resolvedSubjectId
+      }, currentFaculty);
+    } catch (err) {
+      console.warn('Could not load students with full criteria:', err);
+    }
+
+    if (!students || students.length === 0) {
+      try {
+        students = getStudentsForAcademicGroup({
+          semester: resolvedSem,
+          division: resolvedDiv,
+          batch: resolvedBatch,
+          academicYear: attYear,
+          subjectId: resolvedSubjectId
+        }, currentFaculty);
+      } catch (err) {}
+    }
+
+    setHasLoadedStudents(true);
+
+    if (students && students.length > 0) {
+      setLoadedStudents(students);
+      const initialRecords = {};
+      const initialRemarks = {};
+      students.forEach(st => {
+        initialRecords[st.id] = null; // All students initially unmarked!
+        initialRemarks[st.id] = '';
+      });
+      setAttRecords(initialRecords);
+      setAttRemarks(initialRemarks);
+      setAttendanceStep('marking');
+      setUnmarkedAlert(null);
+    } else {
+      setLoadedStudents([]);
+      setAttRecords({});
+      setAttRemarks({});
+      setAttendanceStep('marking');
+    }
+
+    // 7. Direct Navigation to Take Attendance View
     setFacultyTab('take');
+
     if (showToast) {
-      showToast(`Selected: ${lec.subjectName || lec.subjectId} (${lec.time})`);
+      showToast(`Selected: ${resolvedSubjectName} (${sTime} - ${eTime}). ${students.length} student(s) loaded.`);
     }
   };
 
+
   // Resolve Class entity for current Take Attendance selection
   const activeClass = useMemo(() => {
+    const classes = getClasses();
+    const electiveCls = classes.find(c => c.isElective && 
+      (c.subjectId === attSubjectId || c.subjectName === attSubjectName || c.division === attDiv || c.name === attDiv) &&
+      (!attSem || normalizeSem(c.semester) === normalizeSem(attSem))
+    );
+    if (electiveCls) return electiveCls;
+
     return findClassByCriteria(attDept, attSem, attDiv, attYear) || 
            getOrCreateClass(attDept, attSem, attDiv, attYear);
-  }, [attDept, attSem, attDiv, attYear]);
+  }, [attDept, attSem, attDiv, attYear, attSubjectId, attSubjectName]);
 
-  // Retrieve enrolled students for this Class strictly from database
-  const classStudents = useMemo(() => {
-    if (activeClass && activeClass.id) {
-      const enrolled = getStudentsByClassId(activeClass.id);
-      if (enrolled && enrolled.length > 0) return enrolled;
+  // Handle Loading Students for Step 2
+  const handleLoadStudents = (e) => {
+    if (e) e.preventDefault();
+
+    if (!attSubjectId) {
+      if (showToast) showToast('Please select a subject.', 'error');
+      setUnmarkedAlert('Please select a subject.');
+      return;
     }
-    const criteriaEnrolled = getStudentsForClassCriteria(attDept, attSem, attDiv, attYear);
-    if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
-    return [];
-  }, [activeClass, attDept, attSem, attDiv, attYear, studentsTick]);
+    if (!attDate) {
+      if (showToast) showToast('Please enter a session date.', 'error');
+      setUnmarkedAlert('Please enter a session date.');
+      return;
+    }
+    if (!attStartTime || !attEndTime) {
+      if (showToast) showToast('Please enter session start and end times.', 'error');
+      setUnmarkedAlert('Please enter session start and end times.');
+      return;
+    }
+    if (attStartTime >= attEndTime) {
+      if (showToast) showToast('Session start time must be earlier than session end time.', 'error');
+      setUnmarkedAlert('Session start time must be earlier than session end time.');
+      return;
+    }
 
-  // Initialize records when student list, date, or time slot changes
-  useEffect(() => {
+    const isElective = Boolean(activeClass?.isElective || attDept === 'Elective (No Department)' || attDept === 'Elective');
+
+    if (!isElective && !attDept) {
+      if (showToast) showToast('Please select a department.', 'error');
+      setUnmarkedAlert('Please select a department.');
+      return;
+    }
+    if (!attSem) {
+      if (showToast) showToast('Please select a semester.', 'error');
+      setUnmarkedAlert('Please select a semester.');
+      return;
+    }
+    if (!attDiv) {
+      if (showToast) showToast('Please select a division.', 'error');
+      setUnmarkedAlert('Please select a division.');
+      return;
+    }
+
+    // Backend & Frontend Authorization check
+    const isAuthorized = canFacultyTeachClassAndSubject(currentFaculty, attDept, attSem, attDiv, attSubjectId);
+    if (!isAuthorized) {
+      const msg = `Access Denied: You are not authorized to take attendance for ${attSubjectName || attSubjectId} in ${attSem} ${attDiv}${attDept ? ` of ${attDept}` : ''}.`;
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
+      return;
+    }
+
+    const slotStr = `${attStartTime} - ${attEndTime}`;
+    setAttTimeSlot(slotStr);
+
+    const sub = takeAvailableSubjects.find(s => s.id === attSubjectId || s.code === attSubjectId);
+    if (sub) {
+      setAttSubjectName(sub.shortName || sub.name);
+    }
+
+    // Retrieve students: for elective classes, getStudentsForAcademicGroup returns the uploaded roster directly!
+    const students = getStudentsForAcademicGroup({
+      department: isElective ? 'Elective (No Department)' : attDept,
+      semester: attSem,
+      division: attDiv,
+      batch: attBatch,
+      academicYear: attYear,
+      subjectId: attSubjectId,
+      classId: activeClass?.id
+    }, currentFaculty);
+
+    setHasLoadedStudents(true);
+
+    if (!students || students.length === 0) {
+      setLoadedStudents([]);
+      setAttRecords({});
+      setAttRemarks({});
+      setAttendanceStep('setup');
+      return;
+    }
+
+    setLoadedStudents(students);
+
+    // Requirement 4: When students are loaded, all checkboxes start UNCHECKED and completely UNMARKED.
+    // Do NOT automatically mark any student as Present or Absent!
     const initialRecords = {};
     const initialRemarks = {};
-    classStudents.forEach(st => {
-      const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
-      if (excCheck && excCheck.isExcused) {
-        initialRecords[st.id] = 'od';
-        initialRemarks[st.id] = `Approved Exception: ${excCheck.exception.category || 'Official College Duty'}`;
-      } else {
-        initialRecords[st.id] = 'present';
-        initialRemarks[st.id] = '';
-      }
+    students.forEach(st => {
+      initialRecords[st.id] = null; // Unmarked! Checkbox is unchecked
+      initialRemarks[st.id] = '';
     });
+
     setAttRecords(initialRecords);
     setAttRemarks(initialRemarks);
-  }, [classStudents, attDate, attTimeSlot, attSubjectId, exceptionsTick]);
+    setAttendanceStep('marking');
+    setUnmarkedAlert(null);
+
+    if (showToast) {
+      showToast(`Loaded ${students.length} students. Checkboxes start unmarked.`);
+    }
+  };
+
+  // Sync loaded students with student updates if currently in marking view
+  useEffect(() => {
+    if (attendanceStep === 'marking' && hasLoadedStudents) {
+      const refreshed = getStudentsForAcademicGroup({
+        department: attDept,
+        semester: attSem,
+        division: attDiv,
+        batch: attBatch,
+        academicYear: attYear,
+        subjectId: attSubjectId
+      }, currentFaculty);
+      if (refreshed && refreshed.length > 0) {
+        setLoadedStudents(refreshed);
+      }
+    }
+  }, [studentsTick, electivesTick, attDept, attSem, attDiv, attBatch, attYear, attSubjectId]);
+
+  const classStudents = loadedStudents;
 
   // Attendance counts
   const presentCount = useMemo(() => {
-    return classStudents.filter(s => (attRecords[s.id] || 'present') === 'present').length;
+    return classStudents.filter(s => attRecords[s.id] === 'present').length;
   }, [classStudents, attRecords]);
 
   const absentCount = useMemo(() => {
     return classStudents.filter(s => attRecords[s.id] === 'absent').length;
+  }, [classStudents, attRecords]);
+
+  const unmarkedCount = useMemo(() => {
+    return classStudents.filter(s => {
+      const st = attRecords[s.id];
+      return !st || (st !== 'present' && st !== 'absent' && st !== 'od');
+    }).length;
   }, [classStudents, attRecords]);
 
   const exceptionCount = useMemo(() => {
@@ -350,14 +732,36 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     classStudents.forEach(s => {
       const excCheck = isStudentExcusedForSession(s.id, attDate, attTimeSlot, attSubjectId);
       if (excCheck && excCheck.isExcused && status === 'absent') {
-        // Retain approved exception when marking absent to prevent erasing authorized duty
         updated[s.id] = 'od';
       } else {
         updated[s.id] = status;
       }
     });
     setAttRecords(updated);
+    setUnmarkedAlert(null);
     if (showToast) showToast(`All ${classStudents.length} students marked as ${status.toUpperCase()}`);
+  };
+
+  const handleMarkRemainingAbsent = () => {
+    setAttRecords(prev => {
+      const updated = { ...prev };
+      classStudents.forEach(s => {
+        if (updated[s.id] !== 'present' && updated[s.id] !== 'od') {
+          updated[s.id] = 'absent';
+        }
+      });
+      return updated;
+    });
+    setUnmarkedAlert(null);
+    if (showToast) showToast('Remaining unmarked students marked as Absent');
+  };
+
+  const handleResetAllUnmarked = () => {
+    const reset = {};
+    classStudents.forEach(s => { reset[s.id] = null; });
+    setAttRecords(reset);
+    setUnmarkedAlert(null);
+    if (showToast) showToast('Attendance reset: all students unmarked');
   };
 
   const handleStudentStatusToggle = (studentId, newStatus) => {
@@ -365,66 +769,135 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
       ...prev,
       [studentId]: newStatus
     }));
+    setUnmarkedAlert(null);
   };
 
-  // Submit attendance to database
-  const handleSubmitAttendance = (e) => {
-    if (e) e.preventDefault();
+  // Submit attendance to database (Completely independent of timetable)
+  const executeSaveAttendance = (recordsToSave) => {
+    if (isSavingAttendance) return;
+    setIsSavingAttendance(true);
 
-    if (classStudents.length === 0) {
-      alert('Cannot save attendance: No students enrolled in this class.');
-      return;
-    }
+    const slotStr = `${attStartTime} - ${attEndTime}`;
+    const normCurSlot = normalizeTimeSlot(slotStr);
+    const isElective = Boolean(activeClass?.isElective || attDept === 'Elective (No Department)' || attDept === 'Elective');
 
     // Check for duplicate attendance record for this exact lecture slot
     const duplicate = facultySessions.find(s => 
       s.date === attDate &&
-      s.timeSlot === attTimeSlot &&
+      normalizeTimeSlot(s.timeSlot || `${s.startTime} - ${s.endTime}`) === normCurSlot &&
       (s.subjectId === attSubjectId || s.subjectName === attSubjectName) &&
-      (s.classId === activeClass?.id || (s.sem === attSem && s.division === attDiv))
+      (s.classId === activeClass?.id || (normalizeSem(s.sem) === normalizeSem(attSem) && normalizeDiv(s.division) === normalizeDiv(attDiv))) &&
+      (s.batch || 'ALL') === (attBatch || 'ALL')
     );
 
-    if (duplicate) {
-      const confirmOverwrite = window.confirm(
-        `Attendance for this lecture session (${attSubjectName} at ${attTimeSlot} on ${attDate}) was already recorded.\n\nDo you want to update/overwrite the existing record?`
-      );
-      if (!confirmOverwrite) return;
-    }
+    // Finalize records: preserve explicit present, mark approved exception only if excused, and enrich with enrollmentNo
+    const finalRecords = { ...recordsToSave };
+    classStudents.forEach(st => {
+      const cur = finalRecords[st.id];
+      const excCheck = isStudentExcusedForSession(st.id, attDate, slotStr, attSubjectId);
+      if (cur === 'absent' && excCheck && excCheck.isExcused) {
+        finalRecords[st.id] = 'od';
+      }
+      if (st.enrollmentNo && finalRecords[st.id] !== undefined) {
+        finalRecords[st.enrollmentNo] = finalRecords[st.id];
+      }
+    });
+
+    const curPresent = classStudents.filter(s => finalRecords[s.id] === 'present').length;
+    const curAbsent = classStudents.filter(s => finalRecords[s.id] === 'absent').length;
+    const curException = classStudents.filter(s => {
+      const st = finalRecords[s.id];
+      const excCheck = isStudentExcusedForSession(s.id, attDate, slotStr, attSubjectId);
+      return st === 'od' || st === 'exception' || excCheck.isExcused;
+    }).length;
+    const curPct = classStudents.length > 0 ? ((curPresent / classStudents.length) * 100).toFixed(1) : '0.0';
 
     const sessionPayload = {
-      id: duplicate ? duplicate.id : undefined,
+      id: (!isExtraLecture && duplicate) ? duplicate.id : undefined,
       date: attDate,
-      timeSlot: attTimeSlot,
+      startTime: attStartTime,
+      endTime: attEndTime,
+      timeSlot: slotStr,
+      isExtraLecture: !!isExtraLecture,
       subjectId: attSubjectId,
       subjectName: attSubjectName,
       facultyId: currentFaculty.id,
       facultyName: currentFaculty.name,
-      department: attDept,
+      department: isElective ? 'Elective (No Department)' : attDept,
       sem: attSem,
       division: attDiv,
+      batch: isElective ? 'ALL' : attBatch,
       academicYear: attYear,
       classId: activeClass ? activeClass.id : null,
+      classType: isElective ? 'elective' : 'regular',
+      isElective: isElective,
       topic: attTopic.trim() || 'General Lecture',
-      records: attRecords,
+      records: finalRecords,
       remarks: attRemarks,
       totalStudents: classStudents.length,
-      presentCount: presentCount,
-      absentCount: absentCount,
-      exceptionCount: exceptionCount,
-      percentage: attendancePct,
+      presentCount: curPresent,
+      absentCount: curAbsent,
+      exceptionCount: curException,
+      percentage: curPct,
       submittedAt: new Date().toISOString()
     };
 
-    saveSession(sessionPayload);
-    reloadSessions();
-    if (showToast) {
-      showToast(`Attendance saved! (${presentCount} Present, ${absentCount} Absent${exceptionCount > 0 ? `, ${exceptionCount} Excused` : ''})`);
+    try {
+      const saveRes = saveSession(sessionPayload, currentFaculty);
+      if (saveRes && saveRes.success === false) {
+        throw new Error(saveRes.error || 'Failed to save attendance record.');
+      }
+      reloadSessions();
+      if (showToast) {
+        showToast(`Attendance saved successfully! (${curPresent} Present, ${curAbsent} Absent${curException > 0 ? `, ${curException} Excused` : ''})`);
+      }
+
+      // Synchronize register navigation state
+      setRegNavDept(attDept);
+      setRegNavSem(attSem);
+      setRegNavDiv(attDiv);
+      setRegNavBatch(attBatch);
+      setRegNavSubId(attSubjectId);
+
+      // Automatically transition to Attendance Register
+      if (activeClass?.id) setRegClassId(activeClass.id);
+      if (attSubjectId) setRegSubjectId(attSubjectId);
+      setAttendanceStep('setup');
+      setHasLoadedStudents(false);
+      setFacultyTab('register');
+    } catch (err) {
+      if (showToast) showToast(`Failed to save attendance: ${err.message}`, 'error');
+      setUnmarkedAlert(`Failed to save attendance: ${err.message}`);
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  };
+
+  const handleSubmitAttendance = (e) => {
+    if (e) e.preventDefault();
+
+    if (classStudents.length === 0) {
+      const msg = 'Cannot save attendance: No students loaded for this class. Please click "Load Students" first.';
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
+      return;
     }
 
-    // Automatically transition to Attendance Register with this class and subject selected
-    if (activeClass?.id) setRegClassId(activeClass.id);
-    if (attSubjectId) setRegSubjectId(attSubjectId);
-    setFacultyTab('register');
+    const unmarkList = classStudents.filter(s => {
+      const st = attRecords[s.id];
+      return !st || (st !== 'present' && st !== 'absent' && st !== 'od');
+    });
+
+    if (unmarkList.length > 0) {
+      const msg = `Attendance submission blocked: ${unmarkList.length} of ${classStudents.length} student(s) remain unmarked. Every student must be explicitly marked. Click "Mark Remaining as Absent" to resolve.`;
+      setUnmarkedAlert(msg);
+      if (showToast) {
+        showToast(`Cannot submit: ${unmarkList.length} student(s) remain unmarked. Please mark all students before saving.`, 'error');
+      }
+      return;
+    }
+
+    executeSaveAttendance(attRecords);
   };
 
   // -------------------------------------------------------------
@@ -782,73 +1255,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     window.print();
   };
 
-  // -------------------------------------------------------------
-  // 5. ATTENDANCE HISTORY VIEW & EDIT MODALS
-  // -------------------------------------------------------------
-  const [viewingSession, setViewingSession] = useState(null);
-  const [editingSession, setEditingSession] = useState(null);
-  const [editRecords, setEditRecords] = useState({});
-  const [editTopic, setEditTopic] = useState('');
-  const [historySearch, setHistorySearch] = useState('');
 
-  const filteredHistorySessions = useMemo(() => {
-    return facultySessions
-      .filter(sess => {
-        if (!historySearch) return true;
-        const q = historySearch.toLowerCase();
-        return (
-          (sess.subjectName && sess.subjectName.toLowerCase().includes(q)) ||
-          (sess.subjectId && sess.subjectId.toLowerCase().includes(q)) ||
-          (sess.date && sess.date.includes(q)) ||
-          (sess.topic && sess.topic.toLowerCase().includes(q)) ||
-          (sess.division && sess.division.toLowerCase().includes(q))
-        );
-      })
-      .sort((a, b) => new Date(b.date + 'T' + (b.timeSlot || '00:00')) - new Date(a.date + 'T' + (a.timeSlot || '00:00')));
-  }, [facultySessions, historySearch]);
-
-  const handleOpenEditSession = (sess) => {
-    setEditingSession(sess);
-    setEditRecords({ ...(sess.records || {}) });
-    setEditTopic(sess.topic || '');
-  };
-
-  const handleSaveEditedSession = (e) => {
-    e.preventDefault();
-    if (!editingSession) return;
-
-    let pCount = 0;
-    let aCount = 0;
-    Object.values(editRecords).forEach(st => {
-      if (st === 'present') pCount++;
-      else aCount++;
-    });
-    const total = Object.keys(editRecords).length;
-    const pct = total > 0 ? ((pCount / total) * 100).toFixed(1) : '0.0';
-
-    const updated = {
-      ...editingSession,
-      topic: editTopic,
-      records: editRecords,
-      presentCount: pCount,
-      absentCount: aCount,
-      percentage: pct,
-      updatedAt: new Date().toISOString()
-    };
-
-    saveSession(updated);
-    reloadSessions();
-    setEditingSession(null);
-    if (showToast) showToast('Attendance records updated successfully.');
-  };
-
-  const handleDeleteSession = (sessionId) => {
-    if (window.confirm('Are you sure you want to delete this attendance session record?')) {
-      deleteSession(sessionId);
-      reloadSessions();
-      if (showToast) showToast('Attendance session deleted.');
-    }
-  };
 
   // Filtered student list for Take Attendance view
   const filteredStudents = useMemo(() => {
@@ -858,17 +1265,23 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
         (st.enrollmentNo && st.enrollmentNo.toLowerCase().includes(studentSearch.toLowerCase())) ||
         (st.rollNo && String(st.rollNo).includes(studentSearch));
       
-      const stStatus = attRecords[st.id] || 'present';
-      const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
-      const isExc = excCheck.isExcused || stStatus === 'od' || stStatus === 'exception';
+      const rawStatus = attRecords[st.id];
+      const isUnmarked = !rawStatus || (rawStatus !== 'present' && rawStatus !== 'absent' && rawStatus !== 'od' && rawStatus !== 'exception');
+      const isPres = rawStatus === 'present';
+      const isAbs = rawStatus === 'absent';
+      const currentActiveSubjectId = attSubjectId;
+      const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, currentActiveSubjectId);
+      const isExc = excCheck.isExcused || rawStatus === 'od' || rawStatus === 'exception';
 
       let matchFilter = true;
       if (statusFilter === 'all') {
         matchFilter = true;
       } else if (statusFilter === 'present') {
-        matchFilter = stStatus === 'present';
+        matchFilter = isPres;
       } else if (statusFilter === 'absent') {
-        matchFilter = stStatus === 'absent';
+        matchFilter = isAbs;
+      } else if (statusFilter === 'unmarked') {
+        matchFilter = isUnmarked;
       } else if (statusFilter === 'exceptions') {
         matchFilter = isExc;
       }
@@ -883,8 +1296,6 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
     { id: 'timetable', label: 'My Timetable', icon: Calendar },
     { id: 'take', label: 'Take Attendance', icon: UserCheck },
     { id: 'register', label: 'Attendance Register', icon: FileSpreadsheet },
-    { id: 'exceptions', label: 'Attendance Exceptions', icon: Award },
-    { id: 'history', label: 'Attendance History', icon: FileText },
     { id: 'profile', label: 'My Profile', icon: User },
   ];
 
@@ -994,7 +1405,10 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 <li key={item.id}>
                   <button
                     type="button"
-                    onClick={() => setFacultyTab(item.id)}
+                    onClick={() => {
+                      setFacultyTab(item.id);
+                      if (item.id === 'take') setAttendanceStep('setup');
+                    }}
                     style={{
                       width: '100%',
                       display: 'flex',
@@ -1103,7 +1517,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
-                  onClick={() => setFacultyTab('take')}
+                  onClick={() => { setAttendanceStep('setup'); setFacultyTab('take'); }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1171,7 +1585,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
             {/* KPI Metric Stats Grid */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 320px))',
               gap: '20px',
               marginBottom: '28px'
             }}>
@@ -1187,51 +1601,6 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </div>
                 <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
                   {currentDayName || 'Today'} schedule
-                </span>
-              </div>
-
-              <div className="card" style={{ padding: '20px', borderRadius: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Attendance Completed</span>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckSquare size={18} />
-                  </div>
-                </div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#059669' }}>
-                  {completedTodayCount}
-                </div>
-                <span style={{ fontSize: '12px', color: '#059669', fontWeight: '600' }}>
-                  Recorded today
-                </span>
-              </div>
-
-              <div className="card" style={{ padding: '20px', borderRadius: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Attendance Pending</span>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#fffbeb', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Clock size={18} />
-                  </div>
-                </div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: pendingTodayCount > 0 ? '#d97706' : '#64748b' }}>
-                  {pendingTodayCount}
-                </div>
-                <span style={{ fontSize: '12px', color: pendingTodayCount > 0 ? '#d97706' : '#64748b', fontWeight: '600' }}>
-                  {pendingTodayCount > 0 ? 'Action required' : 'All up to date'}
-                </span>
-              </div>
-
-              <div className="card" style={{ padding: '20px', borderRadius: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Total Sessions Saved</span>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#f3e8ff', color: '#9333ea', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <FileText size={18} />
-                  </div>
-                </div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a' }}>
-                  {facultySessions.length}
-                </div>
-                <span style={{ fontSize: '12px', color: '#9333ea', fontWeight: '600' }}>
-                  Historical logs
                 </span>
               </div>
             </div>
@@ -1419,37 +1788,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </div>
               </div>
 
-              <div 
-                className="card" 
-                style={{ padding: '20px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #bfdbfe', backgroundColor: '#f0f7ff' }}
-                onClick={() => setFacultyTab('exceptions')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#dbeafe', color: '#1e40af', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Award size={22} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#1e3a8a', margin: 0 }}>Attendance Exceptions</h4>
-                    <p style={{ fontSize: '12.5px', color: '#3b82f6', margin: '2px 0 0' }}>Sports, hackathon &amp; official duty exemptions</p>
-                  </div>
-                </div>
-              </div>
 
-              <div 
-                className="card" 
-                style={{ padding: '20px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0' }}
-                onClick={() => setFacultyTab('history')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <FileText size={22} />
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Attendance History</h4>
-                    <p style={{ fontSize: '12.5px', color: '#64748b', margin: '2px 0 0' }}>Review past sessions, view &amp; edit logs</p>
-                  </div>
-                </div>
-              </div>
 
               <div 
                 className="card" 
@@ -1607,16 +1946,30 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                         return (
                           <div
                             key={time}
+                            className="timetable-day-card"
+                            onClick={() => selectLectureForAttendance({
+                              ...slot,
+                              time: slot.timeSlot || time,
+                              day: selectedTimetableDay,
+                              subjectId: slot.subjectId || slot.subject,
+                              subjectName: slot.name || slot.subject,
+                              sem: slot.sem,
+                              div: slot.div,
+                              batch: slot.batch || 'ALL',
+                              room: slot.room
+                            }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay))}
                             style={{
                               padding: '18px',
                               borderRadius: '12px',
-                              border: '1px solid #e2e8f0',
-                              backgroundColor: '#ffffff',
+                              border: `1px solid ${slot.isRescheduled ? '#f59e0b' : '#e2e8f0'}`,
+                              backgroundColor: slot.isRescheduled ? '#fffbeb' : '#ffffff',
                               boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
                               display: 'flex',
                               flexDirection: 'column',
-                              justifyContent: 'space-between'
+                              justifyContent: 'space-between',
+                              cursor: 'pointer'
                             }}
+                            title="Click to take attendance"
                           >
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -1630,55 +1983,79 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                 }}>
                                   {time}
                                 </span>
-                                <span style={{
-                                  fontSize: '11px',
-                                  fontWeight: '700',
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#475569',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px'
-                                }}>
-                                  {slot.type || 'Lecture'}
-                                </span>
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                  {slot.isRescheduled && (
+                                    <span style={{
+                                      fontSize: '10px',
+                                      fontWeight: '800',
+                                      backgroundColor: '#fef3c7',
+                                      color: '#b45309',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      border: '1px solid #fde68a'
+                                    }}>
+                                      Rescheduled
+                                    </span>
+                                  )}
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    backgroundColor: '#f1f5f9',
+                                    color: '#475569',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px'
+                                  }}>
+                                    {slot.type || 'Lecture'}
+                                  </span>
+                                </div>
                               </div>
 
                               <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: '0 0 4px' }}>
                                 {slot.name || slot.subject}
                               </h4>
                               <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px', fontWeight: '600' }}>
-                                {slot.sem} • {slot.div} {slot.room ? `• ${slot.room}` : ''}
+                                {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `(${slot.batch})` : ''} {slot.room ? `• ${slot.room}` : ''}
                               </p>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => selectLectureForAttendance({
-                                time,
-                                subjectId: slot.subject,
-                                subjectName: slot.name || slot.subject,
-                                sem: slot.sem,
-                                div: slot.div,
-                                room: slot.room
-                              })}
-                              style={{
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                padding: '8px 12px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                backgroundColor: '#2563eb',
-                                color: '#ffffff',
-                                fontWeight: '700',
-                                fontSize: '12.5px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <UserCheck size={14} />
-                              <span>Take Attendance</span>
-                            </button>
+                            <div style={{ marginTop: '8px' }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="btn-take-attendance"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectLectureForAttendance({
+                                    ...slot,
+                                    time: slot.timeSlot || time,
+                                    day: selectedTimetableDay,
+                                    subjectId: slot.subjectId || slot.subject,
+                                    subjectName: slot.name || slot.subject,
+                                    sem: slot.sem,
+                                    div: slot.div,
+                                    batch: slot.batch || 'ALL',
+                                    room: slot.room
+                                  }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay));
+                                }}
+                                style={{
+                                  width: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  border: 'none',
+                                  backgroundColor: '#2563eb',
+                                  color: '#ffffff',
+                                  fontWeight: '700',
+                                  fontSize: '12.5px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <UserCheck size={14} />
+                                <span>Take Attendance</span>
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -1707,7 +2084,11 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12px', color: '#64748b' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}></span>
-                      Click card for details &amp; class roster
+                      Click card to take attendance immediately
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#fef3c7', border: '1px solid #fde68a' }}></span>
+                      Rescheduled slot
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#f8fafc' }}></span>
@@ -1739,88 +2120,179 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {TIME_SLOTS.map(time => {
-                        const isLunch = time.includes('12:40') || time.includes('LUNCH');
-                        if (isLunch) {
+                      {(() => {
+                        const allSlotsToRender = [];
+                        TIME_SLOTS.forEach(s => allSlotsToRender.push(s));
+                        TIMETABLE_DAYS.forEach(day => {
+                          const dayObj = facultyTimetableGrid[day] || {};
+                          Object.keys(dayObj).forEach(s => {
+                            if (!allSlotsToRender.some(ex => normalizeTimeSlot(ex) === normalizeTimeSlot(s))) {
+                              allSlotsToRender.push(s);
+                            }
+                          });
+                        });
+
+                        return allSlotsToRender.map(time => {
+                          const isLunch = time.includes('12:40') || time.includes('LUNCH');
+                          if (isLunch) {
+                            return (
+                              <tr key={time} style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ textAlign: 'center', fontWeight: '700', color: '#475569', padding: '12px 8px', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
+                                  {time}
+                                </td>
+                                <td colSpan={TIMETABLE_DAYS.length} style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: '800', letterSpacing: '0.08em', fontSize: '12px' }}>
+                                  🍱 LUNCH RECESS (12:40 PM – 1:25 PM)
+                                </td>
+                              </tr>
+                            );
+                          }
+
                           return (
-                            <tr key={time} style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ textAlign: 'center', fontWeight: '700', color: '#475569', padding: '12px 8px', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
+                            <tr key={time} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <td style={{ textAlign: 'center', fontWeight: '700', color: '#1e3a8a', padding: '12px 8px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
                                 {time}
                               </td>
-                              <td colSpan={TIMETABLE_DAYS.length} style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: '800', letterSpacing: '0.08em', fontSize: '12px' }}>
-                                🍱 LUNCH RECESS (12:40 PM – 1:25 PM)
-                              </td>
-                            </tr>
-                          );
-                        }
+                              {TIMETABLE_DAYS.map(dayName => {
+                                const normT = normalizeTimeSlot(time);
+                                let slot = facultyTimetableGrid[dayName]?.[time];
+                                if (!slot && facultyTimetableGrid[dayName]) {
+                                  for (const k of Object.keys(facultyTimetableGrid[dayName])) {
+                                    if (normalizeTimeSlot(k) === normT) {
+                                      slot = facultyTimetableGrid[dayName][k];
+                                      break;
+                                    }
+                                  }
+                                }
 
-                        return (
-                          <tr key={time} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ textAlign: 'center', fontWeight: '700', color: '#1e3a8a', padding: '12px 8px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
-                              {time}
-                            </td>
-                            {TIMETABLE_DAYS.map(dayName => {
-                              const slot = facultyTimetableGrid[dayName]?.[time];
-                              if (!slot || !slot.subject) {
+                                if (!slot || !slot.subject) {
+                                  return (
+                                    <td key={dayName} style={{ textAlign: 'center', color: '#cbd5e1', padding: '14px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+                                      <span style={{ fontSize: '16px', color: '#94a3b8' }}>–</span>
+                                    </td>
+                                  );
+                                }
+
+                                const theme = getCardStyleForSubject(slot.subject);
                                 return (
-                                  <td key={dayName} style={{ textAlign: 'center', color: '#cbd5e1', padding: '14px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
-                                    <span style={{ fontSize: '16px', color: '#94a3b8' }}>–</span>
+                                  <td 
+                                    key={dayName}
+                                    style={{
+                                      padding: '8px',
+                                      borderRight: '1px solid #e2e8f0',
+                                      verticalAlign: 'top',
+                                      backgroundColor: '#ffffff'
+                                    }}
+                                  >
+                                    <div
+                                      className="timetable-lecture-card"
+                                      data-entry-id={slot.id}
+                                      data-subject={slot.subject}
+                                      data-time={time}
+                                      data-day={dayName}
+                                      onClick={() => {
+                                        selectLectureForAttendance({
+                                          ...slot,
+                                          day: dayName,
+                                          time: slot.timeSlot || time,
+                                          subjectId: slot.subjectId || slot.subject,
+                                          subjectName: slot.name || slot.subjectFullName || slot.subject,
+                                          sem: slot.semId || slot.sem,
+                                          div: slot.divId || slot.div,
+                                          batch: slot.batch || 'ALL',
+                                          room: slot.room,
+                                          departmentId: slot.departmentId,
+                                          id: slot.id,
+                                          rescheduledDate: slot.rescheduledDate
+                                        }, slot.rescheduledDate || getDateForDayName(dayName));
+                                      }}
+                                      style={{
+                                        padding: '10px 12px',
+                                        borderRadius: '10px',
+                                        border: `1px solid ${slot.isRescheduled ? '#f59e0b' : theme.border}`,
+                                        backgroundColor: slot.isRescheduled ? '#fffbeb' : theme.bg,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                                        position: 'relative'
+                                      }}
+                                      title="Click to mark attendance for this lecture"
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <span style={{ fontWeight: '800', color: theme.text, fontSize: '13px' }}>
+                                          {slot.subject}
+                                        </span>
+                                        <span style={{
+                                          fontSize: '10px',
+                                          fontWeight: '700',
+                                          color: theme.badgeText,
+                                          backgroundColor: theme.badgeBg,
+                                          padding: '1px 6px',
+                                          borderRadius: '4px'
+                                        }}>
+                                          {time.split(' - ')[0]}
+                                        </span>
+                                      </div>
+
+                                      {slot.isRescheduled && (
+                                        <div style={{ marginBottom: '4px' }}>
+                                          <span style={{
+                                            fontSize: '9.5px',
+                                            fontWeight: '800',
+                                            backgroundColor: '#fef3c7',
+                                            color: '#b45309',
+                                            padding: '1px 6px',
+                                            borderRadius: '4px',
+                                            border: '1px solid #fde68a',
+                                            display: 'inline-block'
+                                          }}>
+                                            ⏱ Rescheduled ({slot.rescheduledDate || slot.day})
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
+                                        {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `(${slot.batch})` : ''}
+                                      </div>
+                                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>
+                                        📍 {slot.room || 'Classroom'}
+                                      </div>
+
+                                      {/* Card Actions: Detail Modal */}
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '6px' }} onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          type="button"
+                                          className="btn-lecture-details"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedLectureDetail({ slot, day: dayName, time });
+                                          }}
+                                          style={{
+                                            fontSize: '11px',
+                                            fontWeight: '700',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #cbd5e1',
+                                            backgroundColor: '#f8fafc',
+                                            color: '#475569',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}
+                                          title="View lecture details & roster"
+                                        >
+                                          <span>Details</span>
+                                          <span>ℹ</span>
+                                        </button>
+                                      </div>
+                                    </div>
                                   </td>
                                 );
-                              }
-
-                              const theme = getCardStyleForSubject(slot.subject);
-                              return (
-                                <td 
-                                  key={dayName}
-                                  style={{
-                                    padding: '8px',
-                                    borderRight: '1px solid #e2e8f0',
-                                    verticalAlign: 'top',
-                                    backgroundColor: '#ffffff'
-                                  }}
-                                >
-                                  <div
-                                    onClick={() => setSelectedLectureDetail({ slot, day: dayName, time })}
-                                    style={{
-                                      padding: '10px 12px',
-                                      borderRadius: '10px',
-                                      border: `1px solid ${theme.border}`,
-                                      backgroundColor: theme.bg,
-                                      cursor: 'pointer',
-                                      transition: 'all 0.15s ease',
-                                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                                    }}
-                                    title="Click to view lecture details, class roster, or take attendance"
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                      <span style={{ fontWeight: '800', color: theme.text, fontSize: '13px' }}>
-                                        {slot.subject}
-                                      </span>
-                                      <span style={{
-                                        fontSize: '10px',
-                                        fontWeight: '700',
-                                        color: theme.badgeText,
-                                        backgroundColor: theme.badgeBg,
-                                        padding: '1px 6px',
-                                        borderRadius: '4px'
-                                      }}>
-                                        {time.split(' - ')[0]}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
-                                      {slot.sem} • {slot.div}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                      📍 {slot.room || 'Classroom'}
-                                    </div>
-                                  </div>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
+                              })}
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -1958,12 +2430,17 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                           const targetClass = findClassByCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
                           if (targetClass?.id) setRegClassId(targetClass.id);
                           if (slot.subject) setRegSubjectId(slot.subject);
+                          if (slot.dept || currentFaculty.dept) setRegNavDept(slot.dept || currentFaculty.dept);
+                          if (slot.sem) setRegNavSem(slot.sem);
+                          if (slot.div) setRegNavDiv(slot.div);
+                          if (slot.batch) setRegNavBatch(slot.batch);
+                          if (slot.subject) setRegNavSubId(slot.subject);
                           setSelectedLectureDetail(null);
                           setFacultyTab('register');
                         }}
                       >
                         <FileSpreadsheet size={15} />
-                        <span>View Attendance History</span>
+                        <span>View Attendance Register</span>
                       </button>
 
                       <button
@@ -1971,13 +2448,19 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                         className="btn btn-primary"
                         onClick={() => {
                           selectLectureForAttendance({
-                            time,
-                            subjectId: slot.subject,
+                            ...slot,
+                            time: slot.timeSlot || time,
+                            day,
+                            subjectId: slot.subjectId || slot.subject,
                             subjectName: slot.name || slot.subject,
                             sem: slot.sem,
                             div: slot.div,
-                            room: slot.room
-                          });
+                            batch: slot.batch || 'ALL',
+                            room: slot.room,
+                            departmentId: slot.departmentId,
+                            id: slot.id,
+                            rescheduledDate: slot.rescheduledDate
+                          }, slot.rescheduledDate || getDateForDayName(day));
                           setSelectedLectureDetail(null);
                         }}
                       >
@@ -1989,132 +2472,292 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </div>
               );
             })()}
+
           </div>
         )}
 
         {/* =================================================================
-            VIEW 3: TAKE ATTENDANCE (CORE ATTENDANCE MODULE)
+            VIEW 3: TAKE ATTENDANCE (CORE ATTENDANCE MODULE - ZERO TIMETABLE DEPENDENCY)
             ================================================================= */}
         {facultyTab === 'take' && (
           <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-            <div className="card" style={{ padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-              
-              {/* Form Title */}
-              <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '20px' }}>
+            
+            {/* -------------------------------------------------------------
+               1. MANUAL LECTURE DETAILS FORM (Zero Timetable Dependency)
+               ------------------------------------------------------------- */}
+            <div className="card" style={{ padding: '28px 32px', borderRadius: '16px', marginBottom: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+              {/* Header */}
+              <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '22px' }}>
                 <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 4px', fontFamily: "'Outfit', sans-serif" }}>
                   Record Lecture Attendance
                 </h2>
                 <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                  Take official attendance for your scheduled lecture. System verifies class roster and prevents duplicates.
+                  Enter or modify lecture details below, then click <strong>"Load Students"</strong> to refresh the student attendance list. This session is recorded independently of your timetable.
                 </p>
               </div>
 
-              {/* Lecture Selection Strip */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '14px',
-                backgroundColor: '#f8fafc',
-                padding: '18px',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                marginBottom: '20px'
-              }}>
-                {/* Date */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
-                    Lecture Date
-                  </label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={attDate}
-                    onChange={(e) => setAttDate(e.target.value)}
-                    style={{ height: '38px', fontSize: '13px', fontWeight: '600' }}
-                  />
-                </div>
+              <form onSubmit={handleLoadStudents}>
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '20px',
+                    marginBottom: '24px'
+                  }}>
+                    {/* 1. Subject */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        1. Subject <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <select
+                        className="form-control"
+                        value={attSubjectId}
+                        onChange={(e) => {
+                          const sId = e.target.value;
+                          setAttSubjectId(sId);
+                          const sub = takeAvailableSubjects.find(s => s.id === sId || s.code === sId);
+                          if (sub) setAttSubjectName(sub.shortName || sub.name);
+                        }}
+                        required
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      >
+                        <option value="">-- Select Subject --</option>
+                        {takeAvailableSubjects.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.code ? `${s.code} - ` : ''}{s.name} {s.shortName ? `(${s.shortName})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                {/* Time Slot */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
-                    Time Slot
-                  </label>
-                  <select
-                    className="form-control"
-                    value={attTimeSlot}
-                    onChange={(e) => setAttTimeSlot(e.target.value)}
-                    style={{ height: '38px', fontSize: '13px', fontWeight: '600' }}
-                  >
-                    {TIME_SLOTS.filter(t => !t.includes('12:40')).map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
+                    {/* 2. Session Date */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        2. Session Date <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={attDate}
+                        onChange={(e) => setAttDate(e.target.value)}
+                        required
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      />
+                    </div>
 
-                {/* Subject */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={attSubjectName}
-                    onChange={(e) => {
-                      setAttSubjectName(e.target.value);
-                      setAttSubjectId(e.target.value);
-                    }}
-                    style={{ height: '38px', fontSize: '13px', fontWeight: '600' }}
-                  />
-                </div>
+                    {/* 3 & 4. Session Start Time & End Time */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        3 &amp; 4. Lecture Timings (Start - End) <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="time"
+                          className="form-control"
+                          value={attStartTime}
+                          onChange={(e) => setAttStartTime(e.target.value)}
+                          required
+                          style={{ height: '42px', fontSize: '14px', fontWeight: '600', flex: 1 }}
+                          title="Session Start Time"
+                        />
+                        <span style={{ color: '#64748b', fontWeight: '700' }}>to</span>
+                        <input
+                          type="time"
+                          className="form-control"
+                          value={attEndTime}
+                          onChange={(e) => setAttEndTime(e.target.value)}
+                          required
+                          style={{ height: '42px', fontSize: '14px', fontWeight: '600', flex: 1 }}
+                          title="Session End Time"
+                        />
+                      </div>
+                      <div style={{ marginTop: '6px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                        {[
+                          { s: '09:00', e: '09:55' },
+                          { s: '09:55', e: '10:50' },
+                          { s: '11:00', e: '11:55' },
+                          { s: '11:55', e: '12:50' },
+                          { s: '13:30', e: '14:25' },
+                          { s: '14:25', e: '15:20' }
+                        ].map(p => (
+                          <button
+                            key={`${p.s}-${p.e}`}
+                            type="button"
+                            onClick={() => { setAttStartTime(p.s); setAttEndTime(p.e); }}
+                            style={{
+                              fontSize: '10.5px',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              border: '1px solid #e2e8f0',
+                              backgroundColor: (attStartTime === p.s && attEndTime === p.e) ? '#e0f2fe' : '#f8fafc',
+                              color: (attStartTime === p.s && attEndTime === p.e) ? '#0369a1' : '#64748b',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {p.s}-{p.e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                {/* Class / Sem / Div */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
-                    Semester &amp; Division
-                  </label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <select
-                      className="form-control"
-                      value={attSem}
-                      onChange={(e) => setAttSem(e.target.value)}
-                      style={{ height: '38px', fontSize: '13px', fontWeight: '600', flex: 1 }}
-                    >
-                      {['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'].map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                    {/* 5. Department */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        5. Department <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <select
+                        className="form-control"
+                        value={attDept}
+                        onChange={(e) => setAttDept(e.target.value)}
+                        required
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      >
+                        {takeAvailableDepts.map(d => (
+                          <option key={d.id} value={d.name}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <select
-                      className="form-control"
-                      value={attDiv}
-                      onChange={(e) => setAttDiv(e.target.value)}
-                      style={{ height: '38px', fontSize: '13px', fontWeight: '600', width: '90px' }}
-                    >
-                      {['Div 1', 'Div 2', 'Div 3'].map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
+                    {/* 6. Semester */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        6. Semester <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <select
+                        className="form-control"
+                        value={attSem}
+                        onChange={(e) => setAttSem(e.target.value)}
+                        required
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      >
+                        {takeAvailableSemesters.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 7. Division */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        7. Division <span style={{ color: '#e11d48' }}>*</span>
+                      </label>
+                      <select
+                        className="form-control"
+                        value={attDiv}
+                        onChange={(e) => setAttDiv(e.target.value)}
+                        required
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      >
+                        {takeAvailableDivisions.map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* 8. Batch */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        8. Batch (Where Applicable)
+                      </label>
+                      <select
+                        className="form-control"
+                        value={attBatch}
+                        onChange={(e) => setAttBatch(e.target.value)}
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      >
+                        {takeAvailableBatches.map(b => (
+                          <option key={b.value} value={b.value}>{b.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Extra Lecture Option */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        Extra Lecture
+                      </label>
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        height: '42px',
+                        padding: '0 14px',
+                        borderRadius: '8px',
+                        border: `1px solid ${isExtraLecture ? '#93c5fd' : '#cbd5e1'}`,
+                        backgroundColor: isExtraLecture ? '#eff6ff' : '#ffffff',
+                        cursor: 'pointer',
+                        fontSize: '13.5px',
+                        fontWeight: '700',
+                        color: isExtraLecture ? '#1e40af' : '#475569',
+                        userSelect: 'none'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={isExtraLecture}
+                          onChange={(e) => setIsExtraLecture(e.target.checked)}
+                          style={{ width: '17px', height: '17px', accentColor: '#2563eb', cursor: 'pointer' }}
+                        />
+                        <span>Extra / Compensatory Lecture</span>
+                      </label>
+                    </div>
+
+                    {/* Topic Covered */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                        Topic / Syllabus Covered (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Unit 3: Relational Algebra & SQL Query Optimization"
+                        value={attTopic}
+                        onChange={(e) => setAttTopic(e.target.value)}
+                        style={{ height: '42px', fontSize: '13.5px' }}
+                      />
+                    </div>
                   </div>
-                </div>
+                
+                {/* Form Footer */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '18px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setFacultyTab('dashboard')}
+                    style={{ padding: '10px 20px', borderRadius: '10px', fontSize: '14px' }}
+                  >
+                    Cancel
+                  </button>
 
-                {/* Topic Covered */}
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#475569', marginBottom: '5px' }}>
-                    Topic Covered in Lecture
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. Unit 3: Relational Algebra & SQL Query Optimization"
-                    value={attTopic}
-                    onChange={(e) => setAttTopic(e.target.value)}
-                    style={{ height: '38px', fontSize: '13px' }}
-                  />
+                  <button
+                    type="submit"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '11px 26px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+                    }}
+                  >
+                    <Users size={16} />
+                    <span>Load Students</span>
+                  </button>
                 </div>
-              </div>
+              </form>
+            </div>
 
-              {/* Roster Controls & Stats Header */}
+            {/* -------------------------------------------------------------
+               2. STUDENT ATTENDANCE LIST (Multi-Column Checkbox Grid)
+               ------------------------------------------------------------- */}
+            <div className="card" style={{ padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+              
+              {/* Header Controls & Live Stats */}
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -2123,7 +2766,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 gap: '12px',
                 marginBottom: '16px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={() => handleMarkAllStatus('present')}
@@ -2165,6 +2808,50 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                     <XSquare size={14} />
                     <span>Mark All Absent</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={handleMarkRemainingAbsent}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #fde68a',
+                      backgroundColor: '#fffbeb',
+                      color: '#b45309',
+                      fontWeight: '700',
+                      fontSize: '12.5px',
+                      cursor: 'pointer'
+                    }}
+                    title="Mark all students who have not been marked yet as Absent"
+                  >
+                    <AlertCircle size={14} />
+                    <span>Mark Remaining as Absent</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetAllUnmarked}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#475569',
+                      fontWeight: '700',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Reset all checkboxes to unmarked"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Reset</span>
+                  </button>
                 </div>
 
                 {/* Live Attendance Counter Badges */}
@@ -2196,6 +2883,18 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                   <span style={{
                     padding: '6px 12px',
                     borderRadius: '20px',
+                    backgroundColor: unmarkedCount > 0 ? '#fffbeb' : '#f8fafc',
+                    color: unmarkedCount > 0 ? '#b45309' : '#64748b',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    border: `1px solid ${unmarkedCount > 0 ? '#fde68a' : '#cbd5e1'}`
+                  }}>
+                    Unmarked: {unmarkedCount}
+                  </span>
+
+                  <span style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
                     backgroundColor: '#eff6ff',
                     color: '#1e40af',
                     fontSize: '12.5px',
@@ -2219,8 +2918,48 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </div>
               </div>
 
+              {/* Validation Warning Alert Banner */}
+              {unmarkedAlert && (
+                <div style={{
+                  padding: '12px 18px',
+                  borderRadius: '10px',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  color: '#92400e',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={18} color="#d97706" />
+                    <span>{unmarkedAlert}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleMarkRemainingAbsent}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      backgroundColor: '#d97706',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontWeight: '700',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Mark Remaining as Absent
+                  </button>
+                </div>
+              )}
+
               {/* Search & Filter Bar */}
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
                   <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                   <input
@@ -2238,6 +2977,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                     { id: 'all', label: 'All' },
                     { id: 'present', label: 'Present' },
                     { id: 'absent', label: 'Absent' },
+                    { id: 'unmarked', label: 'Unmarked' },
                     { id: 'exceptions', label: 'Exceptions (EX)' }
                   ].map(f => (
                     <button
@@ -2261,149 +3001,214 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </div>
               </div>
 
-              {/* Student Roster Table */}
-              <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', maxHeight: '480px', overflowY: 'auto' }}>
-                <table className="data-table" style={{ fontSize: '13px' }}>
-                  <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f8fafc', zIndex: 1 }}>
-                    <tr>
-                      <th style={{ width: '80px' }}>Roll No</th>
-                      <th>Student Name</th>
-                      <th>Enrollment No</th>
-                      <th style={{ textAlign: 'center', width: '280px' }}>Attendance Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                          No students found matching your criteria.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredStudents.map(st => {
-                        const rawStatus = attRecords[st.id] || 'present';
-                        const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
-                        const isExcused = excCheck.isExcused;
-                        const isPresent = rawStatus === 'present';
-                        const isAbsent = rawStatus === 'absent';
-                        const isOD = rawStatus === 'od' || rawStatus === 'exception' || isExcused;
+              {/* Compact Multi-Column Checkbox Student List */}
+              {!hasLoadedStudents ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1.5px dashed #cbd5e1', color: '#64748b' }}>
+                  <Users size={38} color="#94a3b8" style={{ marginBottom: '10px' }} />
+                  <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: '0 0 6px' }}>
+                    Student List Not Loaded
+                  </h4>
+                  <p style={{ fontSize: '13.5px', color: '#64748b', maxWidth: '480px', margin: '0 auto' }}>
+                    Please enter or select lecture details above, then click <strong>"Load Students"</strong> to display the student attendance checklist.
+                  </p>
+                </div>
+              ) : classStudents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#fff1f2', borderRadius: '12px', border: '1.5px dashed #fecdd3', color: '#9f1239' }}>
+                  <AlertCircle size={38} color="#e11d48" style={{ marginBottom: '10px' }} />
+                  <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#9f1239', margin: '0 0 6px' }}>
+                    No Students Enrolled
+                  </h4>
+                  <p style={{ fontSize: '13.5px', color: '#be123c', maxWidth: '520px', margin: '0 auto' }}>
+                    {activeClass?.isElective || attDept === 'Elective (No Department)'
+                      ? `No students are currently allocated to this elective class (${activeClass?.name || attSubjectName || 'Elective'}). Please upload an Excel student roster via Admin Panel -> Class Management.`
+                      : `No students were found for ${attDept} (${attSem} ${attDiv}${attBatch !== 'ALL' ? `, ${attBatch}` : ''}). Please verify the academic selection or ensure students are registered in Admin Panel.`
+                    }
+                  </p>
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 20px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontWeight: '600', fontSize: '14px' }}>No students match your search or filter.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setStudentSearch(''); setStatusFilter('all'); }}
+                    style={{ marginTop: '8px', padding: '4px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              ) : (
+                <div className="student-multi-col-list student-checklist-container">
+                  {filteredStudents.map((st) => {
+                    const rawStatus = attRecords[st.id];
+                    const isPresent = rawStatus === 'present';
+                    const isExplicitOD = rawStatus === 'od' || rawStatus === 'exception';
+                    const isAbsent = rawStatus === 'absent';
+                    const isUnmarked = !rawStatus || (!isPresent && !isAbsent && !isExplicitOD);
+                    const excCheck = isStudentExcusedForSession(st.id, attDate, attTimeSlot, attSubjectId);
+                    const isExcused = excCheck.isExcused;
+                    // Bug 2 Fix: EX only applies if explicitly marked OD or if an absent student has an approved official exception. Never assign EX to unmarked students.
+                    const isOD = !isPresent && (isExplicitOD || (isAbsent && isExcused));
+                    const serialNum = classStudents.findIndex(s => s.id === st.id) + 1;
 
-                        return (
-                          <tr key={st.id} style={{ backgroundColor: isExcused ? '#f8faff' : 'inherit' }}>
-                            <td style={{ fontWeight: '700' }}>{st.rollNo}</td>
-                            <td>
-                              <div style={{ fontWeight: '600', color: '#0f172a' }}>{st.name}</div>
-                              {isExcused && (
-                                <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '2px 8px',
-                                    borderRadius: '12px',
-                                    fontSize: '11px',
-                                    fontWeight: '800',
-                                    backgroundColor: '#dbeafe',
-                                    color: '#1e40af',
-                                    border: '1px solid #93c5fd'
-                                  }}>
-                                    <Award size={11} />
-                                    <span>Approved Exception ({excCheck.exception?.category || 'Duty'})</span>
-                                  </span>
-                                  {excCheck.exception?.title && (
-                                    <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                      {excCheck.exception.title}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                            <td style={{ color: '#64748b', fontSize: '12px' }}>{st.enrollmentNo}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <div style={{ display: 'inline-flex', gap: '4px', backgroundColor: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => handleStudentStatusToggle(st.id, 'present')}
-                                  style={{
-                                    padding: '5px 12px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: isPresent && !isOD ? '#059669' : 'transparent',
-                                    color: isPresent && !isOD ? '#ffffff' : '#64748b',
-                                    fontWeight: '700',
-                                    fontSize: '12px',
-                                    cursor: 'pointer',
-                                    boxShadow: isPresent && !isOD ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                                  }}
-                                >
-                                  Present
-                                </button>
+                    return (
+                      <div
+                        key={st.id}
+                        className={`student-checkbox-card student-checklist-entry ${isOD ? 'is-excused' : isPresent ? 'is-present' : isAbsent ? 'is-absent' : 'is-unmarked'}`}
+                        style={{
+                          breakInside: 'avoid',
+                          WebkitColumnBreakInside: 'avoid',
+                          pageBreakInside: 'avoid',
+                          padding: '7px 8px 9px 8px',
+                          borderBottom: '1px solid #e2e8f0',
+                          backgroundColor: isOD ? '#eff6ff' : isPresent ? '#f0fdf4' : isAbsent ? '#fff1f2' : 'transparent',
+                          borderRadius: '6px',
+                          marginBottom: '6px',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        {/* Top Line: Serial Number + Enrollment Number + Status Badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span style={{ fontWeight: 800, fontSize: '13px', color: '#1e293b' }}>
+                              {serialNum}.
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', letterSpacing: '0.02em' }}>
+                              {st.enrollmentNo || st.rollNo}
+                            </span>
+                            {(activeClass?.isElective || attDept === 'Elective (No Department)') && (st.department || st.dept) && (
+                              <span style={{
+                                fontSize: '10px',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                backgroundColor: '#f1f5f9',
+                                color: '#475569',
+                                border: '1px solid #e2e8f0',
+                                fontWeight: 700
+                              }}>
+                                {(st.department || st.dept).includes('AI') ? 'AI&DS' : (st.department || st.dept).includes('Comp') ? 'CP' : (st.department || st.dept).includes('Info') ? 'IT' : (st.department || st.dept)}
+                              </span>
+                            )}
+                          </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleStudentStatusToggle(st.id, 'absent')}
-                                  style={{
-                                    padding: '5px 12px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: isAbsent ? '#e11d48' : 'transparent',
-                                    color: isAbsent ? '#ffffff' : '#64748b',
-                                    fontWeight: '700',
-                                    fontSize: '12px',
-                                    cursor: 'pointer',
-                                    boxShadow: isAbsent ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                                  }}
-                                >
-                                  Absent
-                                </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {isUnmarked && (
+                              <button
+                                type="button"
+                                onClick={() => handleStudentStatusToggle(st.id, 'absent')}
+                                title="Mark Absent"
+                                style={{
+                                  fontSize: '10px',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #fecdd3',
+                                  backgroundColor: '#fff1f2',
+                                  color: '#e11d48',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Mark A
+                              </button>
+                            )}
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '2px 7px',
+                              borderRadius: '10px',
+                              backgroundColor: isOD ? '#dbeafe' : isPresent ? '#dcfce7' : isAbsent ? '#fee2e2' : '#f1f5f9',
+                              color: isOD ? '#1d4ed8' : isPresent ? '#15803d' : isAbsent ? '#b91c1c' : '#64748b',
+                              border: `1px solid ${isOD ? '#bfdbfe' : isPresent ? '#bbf7d0' : isAbsent ? '#fecdd3' : '#cbd5e1'}`
+                            }}>
+                              {isOD ? 'EX' : isPresent ? 'P' : isAbsent ? 'A' : 'Unmarked'}
+                            </span>
+                          </div>
+                        </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleStudentStatusToggle(st.id, 'od')}
-                                  style={{
-                                    padding: '5px 12px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    backgroundColor: isOD ? '#2563eb' : 'transparent',
-                                    color: isOD ? '#ffffff' : '#64748b',
-                                    fontWeight: '700',
-                                    fontSize: '12px',
-                                    cursor: 'pointer',
-                                    boxShadow: isOD ? '0 1px 3px rgba(0,0,0,0.15)' : 'none'
-                                  }}
-                                  title={isExcused ? `Approved Exception: ${excCheck.exception?.title || excCheck.exception?.category}` : 'Official College Duty / Exception'}
-                                >
-                                  Excused (EX)
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        {/* Bottom Line: Checkbox + Student Name */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            checked={isPresent}
+                            onChange={(e) => {
+                              handleStudentStatusToggle(st.id, e.target.checked ? 'present' : 'absent');
+                            }}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              cursor: 'pointer',
+                              accentColor: '#16a34a',
+                              flexShrink: 0
+                            }}
+                            aria-label={`Attendance for ${st.name}`}
+                          />
+                          <span
+                            title={st.name}
+                            onClick={() => handleStudentStatusToggle(st.id, isPresent ? 'absent' : 'present')}
+                            style={{
+                              fontWeight: 600,
+                              fontSize: '13.5px',
+                              color: '#0f172a',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              flex: 1,
+                              minWidth: 0,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {st.name}
+                          </span>
+                        </div>
 
-              {/* Submit Button Bar */}
-              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setFacultyTab('dashboard')}
-                >
-                  Cancel
-                </button>
+                        {/* Approved Exception details if applicable */}
+                        {isOD && (
+                          <div style={{ marginTop: '4px', paddingTop: '3px', borderTop: '1px dashed #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '10px', color: '#1e40af', fontWeight: 700 }}>
+                              ★ Approved: {excCheck.exception?.category || 'Duty'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExcSelectedStudent(st);
+                                setShowExceptionModal(true);
+                              }}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#2563eb',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textDecoration: 'underline'
+                              }}
+                            >
+                              View
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
+              {/* Bottom Submit Action Bar */}
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap', borderTop: '1px solid #e2e8f0', paddingTop: '18px' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
                     if (activeClass?.id) setRegClassId(activeClass.id);
                     if (attSubjectId) setRegSubjectId(attSubjectId);
+                    setRegNavDept(attDept);
+                    setRegNavSem(attSem);
+                    setRegNavDiv(attDiv);
+                    setRegNavBatch(attBatch);
+                    setRegNavSubId(attSubjectId);
                     setFacultyTab('register');
                   }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '10px' }}
                 >
                   <FileSpreadsheet size={15} color="#059669" />
                   <span>View Class Register</span>
@@ -2412,26 +3217,28 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 <button
                   type="button"
                   onClick={handleSubmitAttendance}
+                  disabled={isSavingAttendance}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    padding: '11px 24px',
+                    padding: '11px 26px',
                     borderRadius: '10px',
                     border: 'none',
-                    backgroundColor: '#2563eb',
+                    backgroundColor: isSavingAttendance ? '#94a3b8' : '#2563eb',
                     color: '#ffffff',
                     fontWeight: '700',
                     fontSize: '14px',
-                    cursor: 'pointer',
+                    cursor: isSavingAttendance ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
                   }}
                 >
                   <Save size={16} />
-                  <span>Submit &amp; Save Attendance</span>
+                  <span>{isSavingAttendance ? 'Saving Attendance...' : 'Submit & Save Attendance'}</span>
                 </button>
               </div>
             </div>
+
           </div>
         )}
 
@@ -2439,814 +3246,31 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
             VIEW 3.5: OFFICIAL COLLEGE ATTENDANCE REGISTER (ERP MATRIX VIEW)
             ================================================================= */}
         {facultyTab === 'register' && (
-          <div className="erp-attendance-view" style={{ maxWidth: '1400px', margin: '0 auto' }}>
-            
-            {/* Control & Filter Bar (Hidden on Print) */}
-            <div className="card no-print" style={{ marginBottom: '20px', padding: '18px 22px', borderRadius: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                
-                {/* Left Side Filters */}
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
-                  
-                  {/* Class / Div Selector */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Class / Division
-                    </label>
-                    <select
-                      className="form-control"
-                      value={regClassId}
-                      onChange={(e) => setRegClassId(e.target.value)}
-                      style={{ height: '38px', minWidth: '220px', fontWeight: '700', fontSize: '13px' }}
-                    >
-                      {facultyClasses.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.departmentName ? (c.departmentName.length > 18 ? c.departmentName.split(' ')[0] : c.departmentName) : 'Dept'} • {c.semester} • {c.division} ({c.academicYear})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Course / Subject Selector */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Course / Subject
-                    </label>
-                    <select
-                      className="form-control"
-                      value={regSubjectId}
-                      onChange={(e) => setRegSubjectId(e.target.value)}
-                      style={{ height: '38px', minWidth: '240px', fontWeight: '700', fontSize: '13px' }}
-                    >
-                      {facultySubjects.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.code ? `${s.code} - ` : ''}{s.shortName || s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Term & Year */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Term &amp; Year
-                    </label>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <select
-                        className="form-control"
-                        value={regTerm}
-                        onChange={(e) => setRegTerm(e.target.value)}
-                        style={{ height: '38px', width: '85px', fontWeight: '600', fontSize: '13px' }}
-                      >
-                        <option value="Odd">Odd</option>
-                        <option value="Even">Even</option>
-                      </select>
-                      <select
-                        className="form-control"
-                        value={regAcademicYear}
-                        onChange={(e) => setRegAcademicYear(e.target.value)}
-                        style={{ height: '38px', width: '105px', fontWeight: '600', fontSize: '13px' }}
-                      >
-                        {ACADEMIC_YEARS.map(y => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Date Range Filter */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Date Range
-                    </label>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={regDateFrom}
-                        onChange={(e) => setRegDateFrom(e.target.value)}
-                        style={{ height: '38px', width: '130px', fontSize: '12px' }}
-                        title="From date"
-                      />
-                      <span style={{ color: '#94a3b8', fontSize: '12px' }}>to</span>
-                      <input
-                        type="date"
-                        className="form-control"
-                        value={regDateTo}
-                        onChange={(e) => setRegDateTo(e.target.value)}
-                        style={{ height: '38px', width: '130px', fontSize: '12px' }}
-                        title="To date"
-                      />
-                      {(regDateFrom || regDateTo) && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => { setRegDateFrom(''); setRegDateTo(''); }}
-                          style={{ height: '36px', padding: '0 8px', fontSize: '11px' }}
-                          title="Clear date filter"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Status Filter */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Attendance Filter
-                    </label>
-                    <select
-                      className="form-control"
-                      value={regStatusFilter}
-                      onChange={(e) => setRegStatusFilter(e.target.value)}
-                      style={{ height: '38px', minWidth: '160px', fontSize: '13px' }}
-                    >
-                      <option value="ALL">All Students ({registerStudents.length})</option>
-                      <option value="SHORTAGE">Shortage &lt; 75% ({shortageStudentsCount})</option>
-                      <option value="ELIGIBLE">Eligible &ge; 75% ({eligibleStudentsCount})</option>
-                    </select>
-                  </div>
-
-                  {/* Search Input */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
-                      Search Student
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Enrollment / Name..."
-                        value={regSearchQuery}
-                        onChange={(e) => setRegSearchQuery(e.target.value)}
-                        style={{ height: '38px', paddingLeft: '32px', width: '170px', fontSize: '13px' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <button 
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleExportExcel}
-                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    title="Export formatted Excel (.xlsx) file"
-                  >
-                    <FileSpreadsheet size={16} color="#059669" />
-                    <span>Export Excel</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handlePrint}
-                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    title="Print official academic sheet"
-                  >
-                    <Printer size={16} color="#2563eb" />
-                    <span>Print Sheet</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => {
-                      if (selectedRegClass) {
-                        setAttDept(selectedRegClass.departmentName || currentFaculty.dept);
-                        setAttSem(selectedRegClass.semester);
-                        setAttDiv(selectedRegClass.division);
-                      }
-                      if (selectedRegSubject) {
-                        setAttSubjectId(selectedRegSubject.id);
-                        setAttSubjectName(selectedRegSubject.name || selectedRegSubject.shortName);
-                      }
-                      setFacultyTab('take');
-                    }}
-                    style={{ height: '38px', padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    title="Record attendance for this class"
-                  >
-                    <UserCheck size={16} />
-                    <span>Take Attendance</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Official College Attendance Matrix Card */}
-            <div className="erp-sheet-card">
-              
-              {/* College Header */}
-              <div className="erp-sheet-header">
-                <h2 className="erp-college-title">{getCollegeName()}</h2>
-                <div className="erp-header-row">
-                  <span>Academic Year : {regAcademicYear}</span>
-                  <span>Term: {regTerm}</span>
-                </div>
-                <div className="erp-header-row erp-course-title">
-                  <span>Course Code : {selectedRegSubject?.code || ''} {selectedRegSubject?.name || selectedRegSubject?.shortName || 'Course'}</span>
-                </div>
-                <div className="erp-header-row">
-                  <span>Department : {selectedRegClass?.departmentName || currentFaculty.dept}</span>
-                  <span>Class : {selectedRegClass?.semester || ''} {selectedRegClass?.division || ''}</span>
-                  <span style={{ color: '#2563eb' }}>Faculty : {currentFaculty.name}</span>
-                </div>
-              </div>
-
-              {/* Attendance Matrix Table */}
-              <div className="erp-table-scroll-container">
-                <table className="erp-attendance-table">
-                  <thead>
-                    <tr>
-                      <th className="erp-th-sticky-sr">Sr No</th>
-                      <th className="erp-th-sticky-enroll">Enrollment No</th>
-                      <th style={{ minWidth: '150px', textAlign: 'left', paddingLeft: '12px' }}>Student Name</th>
-                      
-                      {/* Dynamic Session Date Columns */}
-                      {registerSessions.map((sess) => {
-                        const hdr = formatSessionHeader(sess, registerSessions);
-                        return (
-                          <th 
-                            key={sess.id} 
-                            className="erp-th-date"
-                            title={`Date: ${sess.date}\nTime: ${sess.timeSlot || 'Slot'}\nTopic: ${sess.topic || 'Lecture'}\nFaculty: ${sess.facultyName || currentFaculty.name}`}
-                          >
-                            <div style={{ fontWeight: '700', fontSize: '11px', color: '#0f172a' }}>
-                              {hdr.main}
-                            </div>
-                            {hdr.sub && (
-                              <div style={{ fontSize: '9.5px', color: '#2563eb', fontWeight: '800' }}>
-                                {hdr.sub}
-                              </div>
-                            )}
-                          </th>
-                        );
-                      })}
-
-                      {/* Summary Columns */}
-                      <th className="erp-th-stat" style={{ backgroundColor: '#ecfdf5', color: '#059669', fontWeight: '800' }}>
-                        Total Present
-                      </th>
-                      <th className="erp-th-stat" style={{ backgroundColor: '#eff6ff', color: '#1e40af', fontWeight: '800' }}>
-                        Exceptions (EX)
-                      </th>
-                      <th className="erp-th-stat" style={{ backgroundColor: '#f1f5f9' }}>
-                        Total Lectures
-                      </th>
-                      <th className="erp-th-stat" style={{ backgroundColor: '#eff6ff', color: '#1e3a8a', fontWeight: '800' }}>
-                        Percentage (%)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registerStudentsFiltered.length === 0 ? (
-                      <tr>
-                        <td colSpan={registerSessions.length + 7} style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
-                          <Users size={32} color="#94a3b8" style={{ marginBottom: '8px' }} />
-                          <div style={{ fontWeight: '700', color: '#334155', fontSize: '14px' }}>
-                            {registerStudents.length === 0 
-                              ? `No students enrolled in ${selectedRegClass?.departmentName || currentFaculty.dept} (${selectedRegClass?.semester || ''} ${selectedRegClass?.division || ''}) yet.`
-                              : 'No students found matching your search or status filter.'}
-                          </div>
-                          <div style={{ fontSize: '12.5px', color: '#94a3b8', marginTop: '4px' }}>
-                            {registerStudents.length === 0 
-                              ? 'Students added or imported in the Admin Panel for this class will automatically be loaded here.' 
-                              : 'Try adjusting your search query or attendance filter.'}
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      registerStudentsFiltered.map((student, idx) => {
-                        let presentCount = 0;
-                        let exCount = 0;
-                        const total = registerSessions.length;
-
-                        return (
-                          <tr key={student.id}>
-                            {/* Sr No */}
-                            <td className="erp-td-sticky-sr">{idx + 1}</td>
-                            
-                            {/* Enrollment No */}
-                            <td className="erp-td-sticky-enroll" title={`Enrollment: ${student.enrollmentNo}`}>
-                              {student.enrollmentNo}
-                            </td>
-
-                            {/* Student Name */}
-                            <td style={{ textAlign: 'left', paddingLeft: '12px', fontWeight: '600', color: '#0f172a' }}>
-                              <span>{student.name}</span>
-                              {student.rollNo && (
-                                <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: '400' }}>
-                                  (#{student.rollNo})
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Date Cells: P / A / EX */}
-                            {registerSessions.map(sess => {
-                              const status = (sess.records && sess.records[student.id]) || '';
-                              let cellClass = 'erp-cell-empty';
-                              let displayText = '-';
-                              const excusedCheck = isStudentExcusedForSession(student.id, sess.date, sess.timeSlot, sess.subjectId);
-
-                              if (status === 'present' || status === 'late') {
-                                presentCount++;
-                                cellClass = 'erp-cell-p';
-                                displayText = 'P';
-                              } else if (excusedCheck.isExcused || status === 'od' || status === 'exception') {
-                                exCount++;
-                                cellClass = 'erp-cell-ex';
-                                displayText = 'EX';
-                              } else if (status === 'absent') {
-                                cellClass = 'erp-cell-a';
-                                displayText = 'A';
-                              }
-
-                              return (
-                                <td 
-                                  key={sess.id} 
-                                  className={`erp-attendance-cell ${cellClass}`}
-                                  onClick={() => handleRegisterCellClick(sess, student.id)}
-                                  title={`Click to toggle status for ${student.name} on ${sess.date} ${sess.timeSlot ? `(${sess.timeSlot})` : ''} - Status: ${displayText === 'EX' ? `Approved Exception (${excusedCheck.exception?.activityName || 'Authorized Activity'})` : (status ? status.toUpperCase() : 'NOT RECORDED')}`}
-                                >
-                                  {displayText}
-                                </td>
-                              );
-                            })}
-
-                            {/* Total Present */}
-                            <td className="erp-td-stat" style={{ fontWeight: '800', color: '#059669', backgroundColor: '#f0fdf4' }}>
-                              {presentCount}
-                            </td>
-
-                            {/* Exceptions (EX) */}
-                            <td className="erp-td-stat" style={{ fontWeight: '800', color: '#1e40af', backgroundColor: '#eff6ff' }}>
-                              {exCount}
-                            </td>
-
-                            {/* Total Lectures */}
-                            <td className="erp-td-stat" style={{ color: '#475569' }}>
-                              {total}
-                            </td>
-
-                            {/* Percentage based on active institutional policy */}
-                            {(() => {
-                              let pct = 0;
-                              if (total > 0) {
-                                if (activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
-                                  pct = Math.min(100, ((presentCount + exCount) / total) * 100);
-                                } else if (activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
-                                  const eff = Math.max(0, total - exCount);
-                                  pct = eff > 0 ? Math.min(100, (presentCount / eff) * 100) : 100;
-                                } else {
-                                  pct = Math.min(100, (presentCount / total) * 100);
-                                }
-                              } else {
-                                pct = 100;
-                              }
-                              const rounded = Number(pct.toFixed(2));
-                              const isEligible = rounded >= 75;
-
-                              return (
-                                <td 
-                                  className="erp-td-stat" 
-                                  style={{ 
-                                    fontWeight: '800', 
-                                    color: isEligible ? '#059669' : '#e11d48',
-                                    backgroundColor: isEligible ? '#ecfdf5' : '#fff1f2'
-                                  }}
-                                  title={`Calculation Policy: ${activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? 'Approved exceptions count toward attendance eligibility' : activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? 'Exceptions excluded from denominator' : 'Physical presence only'}`}
-                                >
-                                  {rounded.toFixed(2)}%
-                                </td>
-                              );
-                            })()}
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-
-                  {/* Table Footer: Total Present per Lecture */}
-                  {registerStudentsFiltered.length > 0 && registerSessions.length > 0 && (
-                    <tfoot>
-                      <tr className="erp-footer-row">
-                        <td colSpan="3" style={{ textAlign: 'right', paddingRight: '16px', fontWeight: '800', color: '#0f172a' }}>
-                          Total Present in Lecture:
-                        </td>
-                        {registerSessions.map(sess => {
-                          let count = 0;
-                          registerStudentsFiltered.forEach(st => {
-                            const s = sess.records && sess.records[st.id];
-                            if (s === 'present' || s === 'late' || s === 'od') count++;
-                          });
-                          return (
-                            <td key={sess.id} style={{ fontWeight: '800', color: '#059669' }}>
-                              {count}
-                            </td>
-                          );
-                        })}
-                        <td style={{ fontWeight: '800', color: '#059669', backgroundColor: '#ecfdf5' }}>
-                          -
-                        </td>
-                        <td style={{ color: '#475569' }}>
-                          -
-                        </td>
-                        <td style={{ fontWeight: '800', color: Number(classAveragePct) < 75 ? '#e11d48' : '#059669' }}>
-                          Avg: {classAveragePct}%
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-
-              {/* Register Summary Strip */}
-              <div style={{
-                marginTop: '20px',
-                padding: '16px 20px',
-                borderRadius: '12px',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '16px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: '#475569', flexWrap: 'wrap' }}>
-                  <ShieldCheck size={18} color="#059669" />
-                  <span>
-                    Official Academic Register • 
-                    <span style={{ marginLeft: '6px' }}><strong>LEGEND:</strong> </span>
-                    <span style={{ marginLeft: '4px' }}><b className="erp-cell-p" style={{ padding: '2px 6px', borderRadius: '4px' }}>P</b> Present</span>
-                    <span style={{ marginLeft: '6px' }}><b className="erp-cell-a" style={{ padding: '2px 6px', borderRadius: '4px' }}>A</b> Absent</span>
-                    <span style={{ marginLeft: '6px' }}><b className="erp-cell-ex" style={{ padding: '2px 6px', borderRadius: '4px' }}>EX</b> Approved Exception (Sports/Duty)</span>
-                    <span style={{ marginLeft: '6px' }}><b>–</b> Unrecorded</span>
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#eff6ff', color: '#1e3a8a' }}>
-                    Enrolled: {registerStudents.length} Students
-                  </span>
-
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#f1f5f9', color: '#334155' }}>
-                    Conducted: {registerSessions.length} Sessions
-                  </span>
-
-                  <span style={{ fontSize: '12.5px', fontWeight: '800', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#ecfdf5', color: '#059669' }}>
-                    Eligible (&ge;75%): {eligibleStudentsCount}
-                  </span>
-
-                  <span style={{ fontSize: '12.5px', fontWeight: '800', padding: '5px 10px', borderRadius: '8px', backgroundColor: '#fff1f2', color: '#e11d48' }}>
-                    Shortage (&lt;75%): {shortageStudentsCount}
-                  </span>
-
-                  <span style={{ fontSize: '13px', fontWeight: '800', padding: '5px 12px', borderRadius: '8px', backgroundColor: '#0f172a', color: '#ffffff' }}>
-                    Class Avg: {classAveragePct}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AttendanceSheetView
+            currentUser={currentUser}
+            facultyRole={true}
+            showToast={showToast}
+            initialDepartment={regNavDept || attDept || currentFaculty.dept}
+            initialSemester={regNavSem || attSem}
+            initialDivision={regNavDiv || attDiv}
+            initialBatch={regNavBatch || attBatch}
+            initialSubjectId={regNavSubId || attSubjectId}
+            onNavigateToTake={({ department, semester, division, batch, subjectId }) => {
+              if (department) setAttDept(department);
+              if (semester) setAttSem(semester);
+              if (division && division !== 'ALL') setAttDiv(division);
+              if (batch && batch !== 'ALL') setAttBatch(batch);
+              if (subjectId) {
+                setAttSubjectId(subjectId);
+                const sub = getSubjects().find(s => s.id === subjectId || s.code === subjectId);
+                if (sub) setAttSubjectName(sub.shortName || sub.name);
+              }
+              setFacultyTab('take');
+            }}
+          />
         )}
 
-        {/* =================================================================
-            VIEW 3.7: ATTENDANCE EXCEPTIONS MANAGEMENT MODULE
-            ================================================================= */}
-        {facultyTab === 'exceptions' && (
-          <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-            {/* Header Strip */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Award size={24} color="#2563eb" />
-                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0, fontFamily: "'Outfit', sans-serif" }}>
-                    Attendance Exceptions Management
-                  </h2>
-                </div>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                  Manage authorized exemptions for students representing ADIT in sports, technical hackathons, seminars &amp; official college duties.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{
-                  padding: '8px 14px',
-                  borderRadius: '10px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #bfdbfe',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  color: '#1e3a8a',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <ShieldCheck size={16} color="#2563eb" />
-                  <span>
-                    Active Policy: {activePolicy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE ? 'Approved Exceptions Count Toward Eligibility' : activePolicy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION ? 'Exceptions Deducted from Total' : 'Tracked Separately'}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    setExcSelectedStudent(null);
-                    setExcStudentSearch('');
-                    setExcActivityName('');
-                    setExcCategory('Sports Tournament');
-                    setExcStartDate(new Date().toISOString().split('T')[0]);
-                    setExcEndDate(new Date().toISOString().split('T')[0]);
-                    setExcReason('');
-                    setExcDocName('');
-                    setExcDocSize('');
-                    setExcDocError('');
-                    setShowExceptionModal(true);
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontWeight: '700' }}
-                >
-                  <Award size={16} />
-                  <span>+ Request New Exception</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-              <div className="card" style={{ padding: '18px', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Total Requests</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginTop: '4px' }}>{exceptionsList.length}</div>
-              </div>
-              <div className="card" style={{ padding: '18px', borderRadius: '14px', border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#166534', textTransform: 'uppercase' }}>Approved Exceptions</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#15803d', marginTop: '4px' }}>
-                  {exceptionsList.filter(e => e.status === 'Approved').length}
-                </div>
-              </div>
-              <div className="card" style={{ padding: '18px', borderRadius: '14px', border: '1px solid #fef08a', backgroundColor: '#fefce8' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#854d0e', textTransform: 'uppercase' }}>Pending Admin Review</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#ca8a04', marginTop: '4px' }}>
-                  {exceptionsList.filter(e => e.status === 'Pending').length}
-                </div>
-              </div>
-              <div className="card" style={{ padding: '18px', borderRadius: '14px', border: '1px solid #fecdd3', backgroundColor: '#fff1f2' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#9f1239', textTransform: 'uppercase' }}>Rejected</div>
-                <div style={{ fontSize: '28px', fontWeight: '800', color: '#e11d48', marginTop: '4px' }}>
-                  {exceptionsList.filter(e => e.status === 'Rejected').length}
-                </div>
-              </div>
-            </div>
-
-            {/* Filter and Search Bar */}
-            <div className="card" style={{ padding: '18px 22px', borderRadius: '14px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-                  <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
-                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#94a3b8' }} />
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search student, enrollment, event..."
-                      value={excSearchQuery}
-                      onChange={(e) => setExcSearchQuery(e.target.value)}
-                      style={{ paddingLeft: '36px', height: '38px', fontSize: '13px' }}
-                    />
-                  </div>
-
-                  <select
-                    className="form-control"
-                    value={excFilterStatus}
-                    onChange={(e) => setExcFilterStatus(e.target.value)}
-                    style={{ height: '38px', width: '150px', fontSize: '13px', fontWeight: '600' }}
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Pending">Pending Review</option>
-                    <option value="Approved">Approved Only</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-
-                  <select
-                    className="form-control"
-                    value={excFilterCategory}
-                    onChange={(e) => setExcFilterCategory(e.target.value)}
-                    style={{ height: '38px', width: '190px', fontSize: '13px', fontWeight: '600' }}
-                  >
-                    <option value="All">All Categories</option>
-                    {EXCEPTION_CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setExcSearchQuery('');
-                    setExcFilterStatus('All');
-                    setExcFilterCategory('All');
-                  }}
-                >
-                  <RotateCcw size={14} />
-                  <span>Reset Filters</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Exceptions Requests Table */}
-            <div className="card" style={{ padding: '0', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-              <div className="table-responsive">
-                <table className="data-table" style={{ width: '100%', fontSize: '12.5px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc' }}>
-                      <th style={{ width: '40px' }}>#</th>
-                      <th>Student &amp; Class</th>
-                      <th>Activity / Competition</th>
-                      <th>Category</th>
-                      <th>Event Dates</th>
-                      <th>Affected Lectures</th>
-                      <th>Approval Status</th>
-                      <th>Reviewer Remarks</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      const filtered = exceptionsList.filter(exc => {
-                        const q = excSearchQuery.toLowerCase();
-                        const matchQ = !q || 
-                          exc.studentName.toLowerCase().includes(q) ||
-                          exc.enrollmentNo.includes(q) ||
-                          exc.activityName.toLowerCase().includes(q);
-                        const matchStatus = excFilterStatus === 'All' || exc.status === excFilterStatus;
-                        const matchCat = excFilterCategory === 'All' || exc.category === excFilterCategory;
-                        return matchQ && matchStatus && matchCat;
-                      });
-
-                      if (filtered.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={9} style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
-                              <Award size={32} color="#94a3b8" style={{ marginBottom: '8px' }} />
-                              <div style={{ fontWeight: '700', fontSize: '14px', color: '#334155' }}>
-                                No attendance exceptions found
-                              </div>
-                              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                                Click "+ Request New Exception" to create an attendance exemption for sports tournaments, hackathons or college duty.
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return filtered.map((exc, index) => {
-                        const isApproved = exc.status === 'Approved';
-                        const isPending = exc.status === 'Pending';
-                        const isRejected = exc.status === 'Rejected';
-
-                        return (
-                          <tr key={exc.id}>
-                            <td>{index + 1}</td>
-                            <td>
-                              <div style={{ fontWeight: '800', color: '#0f172a' }}>{exc.studentName}</div>
-                              <div style={{ fontSize: '11.5px', color: '#2563eb', fontWeight: '600' }}>
-                                {exc.enrollmentNo}
-                              </div>
-                              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                {exc.departmentName} • {exc.semester} {exc.division}
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: '700', color: '#1e3a8a' }}>{exc.activityName}</div>
-                              {exc.reason && (
-                                <div style={{ fontSize: '11px', color: '#64748b', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={exc.reason}>
-                                  Reason: {exc.reason}
-                                </div>
-                              )}
-                              {exc.documentName && (
-                                <div style={{ fontSize: '10.5px', color: '#059669', fontWeight: '700', marginTop: '2px' }}>
-                                  📎 {exc.documentName} {exc.documentSize ? `(${exc.documentSize})` : ''}
-                                </div>
-                              )}
-                            </td>
-                            <td>
-                              <span style={{
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                backgroundColor: exc.category === 'Sports Tournament' ? '#f0fdf4' : exc.category === 'Technical Competition' ? '#faf5ff' : '#eff6ff',
-                                color: exc.category === 'Sports Tournament' ? '#166534' : exc.category === 'Technical Competition' ? '#6b21a8' : '#1e40af',
-                                border: '1px solid rgba(0,0,0,0.06)'
-                              }}>
-                                {exc.category}
-                              </span>
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: '700', color: '#334155', fontSize: '12px' }}>
-                                {exc.startDate} to {exc.endDate}
-                              </div>
-                            </td>
-                            <td>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedExceptionView(exc)}
-                                style={{
-                                  padding: '4px 8px',
-                                  borderRadius: '6px',
-                                  fontSize: '11.5px',
-                                  fontWeight: '700',
-                                  backgroundColor: '#eff6ff',
-                                  color: '#2563eb',
-                                  border: '1px solid #bfdbfe',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {exc.affectedLecturesCount || (exc.overlappingLectures && exc.overlappingLectures.length) || 0} Lectures →
-                              </button>
-                            </td>
-                            <td>
-                              {isApproved && (
-                                <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', backgroundColor: '#dcfce7', color: '#15803d' }}>
-                                  ✓ Approved
-                                </span>
-                              )}
-                              {isPending && (
-                                <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', backgroundColor: '#fef9c3', color: '#854d0e' }}>
-                                  ⏳ Awaiting Admin Approval
-                                </span>
-                              )}
-                              {isRejected && (
-                                <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', backgroundColor: '#ffe4e6', color: '#be123c' }}>
-                                  ✕ Rejected
-                                </span>
-                              )}
-                            </td>
-                            <td>
-                              {exc.reviewedBy ? (
-                                <div>
-                                  <div style={{ fontSize: '11px', color: '#0f172a', fontWeight: '700' }}>
-                                    By: {exc.reviewedBy}
-                                  </div>
-                                  {exc.reviewerRemarks && (
-                                    <div style={{ fontSize: '10.5px', color: '#64748b', fontStyle: 'italic', maxWidth: '200px' }} title={exc.reviewerRemarks}>
-                                      "{exc.reviewerRemarks}"
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Pending review</span>
-                              )}
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedExceptionView(exc)}
-                                  className="btn btn-secondary btn-sm"
-                                  style={{ padding: '4px 8px' }}
-                                  title="View details and affected lectures"
-                                >
-                                  <Eye size={13} />
-                                </button>
-                                {isPending && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (window.confirm(`Cancel exception request for ${exc.studentName}?`)) {
-                                        deleteException(exc.id);
-                                        if (showToast) showToast('Request cancelled.');
-                                      }
-                                    }}
-                                    style={{
-                                      padding: '4px 8px',
-                                      borderRadius: '6px',
-                                      fontSize: '11px',
-                                      backgroundColor: '#fff1f2',
-                                      color: '#e11d48',
-                                      border: '1px solid #fecdd3',
-                                      cursor: 'pointer'
-                                    }}
-                                    title="Cancel Request"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        {/* Integrated Attendance Exception Modals (Rendered globally for Take Attendance) */}
 
             {/* Modal: Request New Attendance Exception */}
             {showExceptionModal && (() => {
@@ -3323,10 +3347,26 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                         documentSize: excDocSize || '1.1 MB',
                         submittedBy: currentFaculty.name,
                         submittedByRole: 'faculty'
-                      }, currentUser);
+                      }, currentUser || currentFaculty);
 
                       if (res.success) {
-                        if (showToast) showToast(`Exception request submitted for ${excSelectedStudent.name}. Sent for Admin Approval.`);
+                        if (showToast) showToast(`Exception recorded and approved for ${excSelectedStudent.name}.`);
+                        // Only mark active session as od if current attendance date falls within the exception date range
+                        if (attDate >= excStartDate && attDate <= excEndDate) {
+                          setAttRecords(prev => ({
+                            ...prev,
+                            [excSelectedStudent.id]: 'od'
+                          }));
+                          setAttRemarks(prev => ({
+                            ...prev,
+                            [excSelectedStudent.id]: `Approved Exception: ${excCategory}`
+                          }));
+                        }
+                        // Clean up form state
+                        setExcSelectedStudent(null);
+                        setExcStudentSearch('');
+                        setExcActivityName('');
+                        setExcReason('');
                         setShowExceptionModal(false);
                       }
                     }}>
@@ -3626,136 +3666,6 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
               </div>
             )}
 
-          </div>
-        )}
-
-        {/* =================================================================
-            VIEW 4: ATTENDANCE HISTORY
-            ================================================================= */}
-        {facultyTab === 'history' && (
-          <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-            <div className="card" style={{ padding: '24px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                  <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 4px', fontFamily: "'Outfit', sans-serif" }}>
-                    Attendance History &amp; Records
-                  </h2>
-                  <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                    Log of past attendance sessions recorded by {currentFaculty.name}.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setFacultyTab('take')}
-                  >
-                    <UserCheck size={15} />
-                    <span>Record New Attendance</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Search Filter */}
-              <div style={{ marginBottom: '16px', maxWidth: '320px' }}>
-                <div style={{ position: 'relative' }}>
-                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search history by subject, date, topic..."
-                    value={historySearch}
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    style={{ height: '36px', paddingLeft: '32px', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
-
-              {/* History Table */}
-              <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-                <table className="data-table" style={{ fontSize: '13px' }}>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time Slot</th>
-                      <th>Subject</th>
-                      <th>Class / Div</th>
-                      <th>Topic Covered</th>
-                      <th style={{ textAlign: 'center' }}>Attendance</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredHistorySessions.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '36px', color: '#64748b' }}>
-                          No attendance records found. Start taking attendance from your schedule!
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredHistorySessions.map(sess => (
-                        <tr key={sess.id}>
-                          <td style={{ fontWeight: '700', color: '#0f172a' }}>{sess.date}</td>
-                          <td style={{ color: '#475569', fontSize: '12px' }}>{sess.timeSlot || '-'}</td>
-                          <td style={{ fontWeight: '600' }}>{sess.subjectName || sess.subjectId}</td>
-                          <td>{sess.sem} • {sess.division}</td>
-                          <td style={{ color: '#64748b', fontSize: '12.5px' }}>{sess.topic || '-'}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '3px 8px',
-                              borderRadius: '20px',
-                              backgroundColor: '#ecfdf5',
-                              color: '#059669',
-                              fontSize: '11.5px',
-                              fontWeight: '700'
-                            }}>
-                              {sess.presentCount || 0} / {(sess.presentCount || 0) + (sess.absentCount || 0)} ({sess.percentage || '0'}%)
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => setViewingSession(sess)}
-                                title="View Student Records"
-                                style={{ padding: '4px 8px' }}
-                              >
-                                <Eye size={13} />
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleOpenEditSession(sess)}
-                                title="Edit Attendance"
-                                style={{ padding: '4px 8px' }}
-                              >
-                                <Edit3 size={13} />
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => handleDeleteSession(sess.id)}
-                                title="Delete Record"
-                                style={{ padding: '4px 8px', color: '#e11d48' }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* =================================================================
             VIEW 5: FACULTY PROFILE
@@ -3843,161 +3753,6 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
         )}
 
       </main>
-
-      {/* ===================================================================
-          MODAL 1: VIEW ATTENDANCE SESSION DETAILS
-          =================================================================== */}
-      {viewingSession && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '640px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CalendarCheck size={20} color="#2563eb" />
-                <span>Attendance Session Details</span>
-              </h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setViewingSession(null)}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div style={{ backgroundColor: '#eff6ff', padding: '14px', borderRadius: '10px', marginBottom: '16px' }}>
-                <div style={{ fontWeight: '800', color: '#1e3a8a', fontSize: '15px' }}>
-                  {viewingSession.subjectName || viewingSession.subjectId}
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#475569', marginTop: '3px' }}>
-                  {viewingSession.date} • {viewingSession.timeSlot || 'Time N/A'} • {viewingSession.sem} • {viewingSession.division}
-                </div>
-                <div style={{ fontSize: '12.5px', color: '#2563eb', fontWeight: '600', marginTop: '4px' }}>
-                  Topic: {viewingSession.topic || 'N/A'}
-                </div>
-              </div>
-
-              <div className="table-responsive" style={{ maxHeight: '360px', overflowY: 'auto' }}>
-                <table className="data-table" style={{ fontSize: '12.5px' }}>
-                  <thead>
-                    <tr>
-                      <th>Roll No</th>
-                      <th>Student Name</th>
-                      <th style={{ textAlign: 'center' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classStudents.map(st => {
-                      const stStatus = viewingSession.records ? viewingSession.records[st.id] : 'absent';
-                      const isPresent = stStatus === 'present';
-                      return (
-                        <tr key={st.id}>
-                          <td style={{ fontWeight: '700' }}>{st.rollNo}</td>
-                          <td>{st.name}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '2px 10px',
-                              borderRadius: '12px',
-                              backgroundColor: isPresent ? '#ecfdf5' : '#fff1f2',
-                              color: isPresent ? '#059669' : '#e11d48',
-                              fontWeight: '700',
-                              fontSize: '11px'
-                            }}>
-                              {isPresent ? 'Present' : 'Absent'}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setViewingSession(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================================
-          MODAL 2: EDIT ATTENDANCE SESSION
-          =================================================================== */}
-      {editingSession && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '640px' }}>
-            <div className="modal-header">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Edit3 size={20} color="#2563eb" />
-                <span>Edit Attendance Record</span>
-              </h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setEditingSession(null)}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditedSession}>
-              <div className="modal-body">
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '4px' }}>
-                    Topic Covered
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={editTopic}
-                    onChange={(e) => setEditTopic(e.target.value)}
-                  />
-                </div>
-
-                <div className="table-responsive" style={{ maxHeight: '340px', overflowY: 'auto' }}>
-                  <table className="data-table" style={{ fontSize: '12.5px' }}>
-                    <thead>
-                      <tr>
-                        <th>Roll No</th>
-                        <th>Student Name</th>
-                        <th style={{ textAlign: 'center' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {classStudents.map(st => {
-                        const stStatus = editRecords[st.id] || 'present';
-                        const isPresent = stStatus === 'present';
-                        return (
-                          <tr key={st.id}>
-                            <td style={{ fontWeight: '700' }}>{st.rollNo}</td>
-                            <td>{st.name}</td>
-                            <td style={{ textAlign: 'center' }}>
-                              <select
-                                className="form-control"
-                                value={stStatus}
-                                onChange={(e) => setEditRecords({ ...editRecords, [st.id]: e.target.value })}
-                                style={{ height: '32px', fontSize: '12px', padding: '2px 8px' }}
-                              >
-                                <option value="present">Present</option>
-                                <option value="absent">Absent</option>
-                              </select>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setEditingSession(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

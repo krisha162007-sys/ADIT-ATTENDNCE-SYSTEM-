@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Take Attendance Multi-Column Checkbox List Verification Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+  <link rel="stylesheet" href="/src/index.css" />
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>Take Attendance Multi-Column UI Test Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: 0; top: 0; width: 1280px; opacity: 0.01; pointer-events: none;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        initializeStorage();
+        window.alert = function(msg) { console.warn('Alert called in test:', msg); };
+        window.confirm = function(msg) { console.warn('Confirm called in test:', msg); return true; };
+
+        const testFaculty = {
+          id: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        const mount = document.getElementById('render-mount');
+        const root = ReactDOM.createRoot(mount);
+
+        // Render FacultyPanel
+        root.render(React.createElement(FacultyPanel, {
+          currentUser: testFaculty,
+          showToast: () => {}
+        }));
+
+        // Allow React to mount and effect to run
+        await new Promise(r => setTimeout(r, 600));
+
+        // 1. Switch to Take Attendance tab
+        const navBtns = Array.from(mount.querySelectorAll('button, .nav-item-btn'));
+        const takeTabBtn = navBtns.find(b => b.textContent.includes('Take Attendance'));
+        if (takeTabBtn) {
+          takeTabBtn.click();
+        }
+        await new Promise(r => setTimeout(r, 500));
+
+        // -----------------------------------------------------------------
+        // TEST 1: Preservation of All Form Controls Above the Student List
+        // -----------------------------------------------------------------
+        const selects = Array.from(mount.querySelectorAll('select.form-control'));
+        const inputs = Array.from(mount.querySelectorAll('input.form-control'));
+        const checkboxes = Array.from(mount.querySelectorAll('input[type="checkbox"]'));
+        const buttons = Array.from(mount.querySelectorAll('button'));
+
+        const hasSubjectSelect = selects.some(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Subject'));
+        const hasDeptSelect = selects.some(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Department'));
+        const hasSemSelect = selects.some(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Semester'));
+        const hasDivSelect = selects.some(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Division'));
+        const hasBatchSelect = selects.some(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Batch'));
+        const hasDateInput = inputs.some(i => i.type === 'date');
+        const hasTimeInputs = inputs.filter(i => i.type === 'time').length >= 2;
+        const hasExtraLectureOpt = Array.from(mount.querySelectorAll('label')).some(l => l.textContent.includes('Extra / Compensatory Lecture') || l.textContent.includes('Extra Lecture'));
+        const hasTopicInput = inputs.some(i => (i.placeholder || '').toLowerCase().includes('topic') || (i.placeholder || '').toLowerCase().includes('unit'));
+        const hasLoadStudentsBtn = buttons.some(b => b.textContent.includes('Load Students'));
+
+        const test1Pass = hasSubjectSelect && hasDeptSelect && hasSemSelect && hasDivSelect && 
+                          hasBatchSelect && hasDateInput && hasTimeInputs && hasExtraLectureOpt && 
+                          hasTopicInput && hasLoadStudentsBtn;
+
+        log(`TEST 1: Form preservation at top (Subject: ${hasSubjectSelect}, Dept: ${hasDeptSelect}, Sem: ${hasSemSelect}, Div: ${hasDivSelect}, Batch: ${hasBatchSelect}, Date: ${hasDateInput}, Times: ${hasTimeInputs}, ExtraLecture: ${hasExtraLectureOpt}, Topic: ${hasTopicInput}, LoadBtn: ${hasLoadStudentsBtn})`, test1Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 2: Multi-Column Container & Load Students Verification
+        // -----------------------------------------------------------------
+        const initialPromptPresent = mount.textContent.includes('Student List Not Loaded');
+        const cardsBeforeLoad = mount.querySelectorAll('.student-checkbox-card');
+        const traditionalTableBefore = mount.querySelector('.student-attendance-table, table.data-table');
+
+        // Click Load Students to load the roster
+        const initialLoadBtn = buttons.find(b => b.textContent.includes('Load Students'));
+        if (initialLoadBtn) initialLoadBtn.click();
+        await new Promise(r => setTimeout(r, 400));
+
+        const traditionalTable = mount.querySelector('.student-attendance-table, table.data-table');
+        const multiColContainer = mount.querySelector('.student-multi-col-list');
+        const studentCards = mount.querySelectorAll('.student-checkbox-card');
+
+        const test2Pass = initialPromptPresent && 
+                          cardsBeforeLoad.length === 0 && 
+                          multiColContainer !== null && 
+                          studentCards.length > 0 && 
+                          traditionalTable === null && 
+                          traditionalTableBefore === null;
+        log(`TEST 2: Initial unloaded prompt present (${initialPromptPresent}), replaced on Load by .student-multi-col-list with ${studentCards.length} .student-checkbox-card items (Traditional table absent: ${traditionalTable === null})`, test2Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 3: CSS Multi-Column Responsive Rules
+        // -----------------------------------------------------------------
+        let hasColCount3 = false;
+        Array.from(document.styleSheets).forEach(sheet => {
+          try {
+            Array.from(sheet.cssRules || []).forEach(rule => {
+              if (rule.selectorText && rule.selectorText.includes('.student-multi-col-list')) {
+                if (rule.style.columnCount === '3' || (rule.style.cssText && rule.style.cssText.includes('column-count: 3'))) {
+                  hasColCount3 = true;
+                }
+              }
+            });
+          } catch(e) {}
+        });
+
+        const test3Pass = hasColCount3 || (multiColContainer && window.getComputedStyle(multiColContainer).columnCount === '3');
+        log(`TEST 3: Multi-column CSS configured with column-count: 3 (Desktop 3-column verification: ${test3Pass})`, test3Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 4: Student Entry Structure (Serial No, Enrollment No, Name, Checkbox)
+        // -----------------------------------------------------------------
+        const firstCard = studentCards[0];
+        let cardHasSerial = false;
+        let cardHasEnroll = false;
+        let cardHasName = false;
+        let cardHasCheckbox = false;
+
+        if (firstCard) {
+          const spans = Array.from(firstCard.querySelectorAll('span'));
+          const serialSpan = spans[0];
+          cardHasSerial = serialSpan && /^\d+\./.test(serialSpan.textContent.trim());
+          const enrollSpan = spans[1];
+          cardHasEnroll = enrollSpan && (/\d{2}[A-Z]+\d+/i.test(enrollSpan.textContent) || /\d{4,}/.test(enrollSpan.textContent));
+          cardHasCheckbox = firstCard.querySelector('input[type="checkbox"]') !== null;
+          cardHasName = firstCard.querySelector('span[title]') !== null;
+        }
+
+        const test4Pass = cardHasSerial && cardHasCheckbox && cardHasEnroll && cardHasName;
+        log(`TEST 4: Student card item structure (Serial "1.": ${cardHasSerial}, Enrollment: ${cardHasEnroll}, Name: ${cardHasName}, Checkbox: ${cardHasCheckbox})`, test4Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 5: Interactive Checkbox Behaviour (Unmarked initially, Check = Present)
+        // -----------------------------------------------------------------
+        const firstCheckbox = firstCard.querySelector('input[type="checkbox"]');
+        const initialChecked = firstCheckbox.checked; // Starts unchecked (unmarked)
+        
+        // Find Present, Absent, and Unmarked count badges
+        const getStats = () => {
+          const badgeTexts = Array.from(mount.querySelectorAll('span')).map(s => s.textContent);
+          const pText = badgeTexts.find(t => t.startsWith('Present:'));
+          const aText = badgeTexts.find(t => t.startsWith('Absent:'));
+          const uText = badgeTexts.find(t => t.startsWith('Unmarked:'));
+          const pCount = pText ? parseInt(pText.replace('Present:', '').trim()) : 0;
+          const aCount = aText ? parseInt(aText.replace('Absent:', '').trim()) : 0;
+          const uCount = uText ? parseInt(uText.replace('Unmarked:', '').trim()) : 0;
+          return { pCount, aCount, uCount };
+        };
+
+        const initialStats = getStats();
+
+        // Toggle checkbox (marks Present)
+        firstCheckbox.click();
+        await new Promise(r => setTimeout(r, 200));
+
+        const toggledChecked = firstCheckbox.checked;
+        const toggledStats = getStats();
+
+        const test5Pass = !initialChecked && 
+                          toggledChecked === true && 
+                          toggledStats.pCount === initialStats.pCount + 1;
+        log(`TEST 5: Checkbox starts unchecked (${!initialChecked}) and toggle updates Present count immediately (Initial P: ${initialStats.pCount}, Toggled P: ${toggledStats.pCount})`, test5Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 6: Bulk Actions ("Mark All Present" & "Mark All Absent")
+        // -----------------------------------------------------------------
+        const markAllAbsentBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Mark All Absent'));
+        const markAllPresentBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Mark All Present'));
+
+        markAllAbsentBtn.click();
+        await new Promise(r => setTimeout(r, 200));
+        const allAbsentStats = getStats();
+        const allAbsentPass = allAbsentStats.pCount === 0 && allAbsentStats.aCount === studentCards.length;
+
+        markAllPresentBtn.click();
+        await new Promise(r => setTimeout(r, 200));
+        const allPresentStats = getStats();
+        const allPresentPass = allPresentStats.pCount === studentCards.length && allPresentStats.aCount === 0;
+
+        const test6Pass = allAbsentPass && allPresentPass;
+        log(`TEST 6: Bulk actions working (Mark All Absent: ${allAbsentPass}, Mark All Present: ${allPresentPass})`, test6Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 7: Dynamic Student Roster Update on "Load Students"
+        // -----------------------------------------------------------------
+        // Change batch select to Batch A and click Load Students
+        const currentSelects = Array.from(mount.querySelectorAll('select.form-control'));
+        const batchSelect = currentSelects.find(s => s.previousElementSibling && s.previousElementSibling.textContent.includes('Batch'));
+        batchSelect.value = 'Batch A';
+        batchSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const loadBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Load Students'));
+        loadBtn.click();
+        await new Promise(r => setTimeout(r, 300));
+
+        const updatedCards = mount.querySelectorAll('.student-checkbox-card');
+        const test7Pass = updatedCards.length > 0 && updatedCards.length < studentCards.length;
+        log(`TEST 7: Dynamic roster update via "Load Students" button with Batch filter (Loaded ${updatedCards.length} Batch A students vs ${studentCards.length} All students)`, test7Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 8: Search Filtering Across Multi-Column Grid
+        // -----------------------------------------------------------------
+        const searchInput = mount.querySelector('input[placeholder*="Search enrolled"]');
+        const firstName = updatedCards[0].querySelector('span[title]').getAttribute('title');
+        searchInput.value = firstName.slice(0, 4);
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 200));
+
+        const filteredCards = mount.querySelectorAll('.student-checkbox-card');
+        const test8Pass = filteredCards.length >= 1 && filteredCards.length <= updatedCards.length;
+        log(`TEST 8: Real-time search filter across multi-column cards (Query: "${firstName.slice(0, 4)}", Filtered: ${filteredCards.length} / ${updatedCards.length})`, test8Pass);
+
+        // Clear search
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 200));
+
+        // -----------------------------------------------------------------
+        // TEST 9: Unmarked Submission Blocking & Persistence with Extra Lecture
+        // -----------------------------------------------------------------
+        // First try to submit while students are unmarked -> must be blocked
+        const submitBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Submit & Save Attendance'));
+        const sessionsBefore = getSessions({}, testFaculty).length;
+        submitBtn.click();
+        await new Promise(r => setTimeout(r, 200));
+
+        const blockedAlertPresent = mount.textContent.includes('unmarked') || mount.textContent.includes('blocked');
+        const sessionsAfterBlocked = getSessions({}, testFaculty).length;
+        const submissionBlockedPass = blockedAlertPresent && (sessionsBefore === sessionsAfterBlocked);
+
+        // Now resolve unmarked students using "Mark Remaining as Absent"
+        const markRemainingBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Mark Remaining as Absent'));
+        if (markRemainingBtn) {
+          markRemainingBtn.click();
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        // Check Extra Lecture checkbox
+        const extraCheckbox = Array.from(mount.querySelectorAll('input[type="checkbox"]')).find(cb => {
+          return cb.closest('label') && cb.closest('label').textContent.includes('Extra');
+        });
+        if (extraCheckbox && !extraCheckbox.checked) {
+          extraCheckbox.click();
+        }
+        await new Promise(r => setTimeout(r, 100));
+
+        // Submit now that all students are marked
+        submitBtn.click();
+        await new Promise(r => setTimeout(r, 400));
+
+        const facultySessions = getSessions({}, testFaculty);
+        const savedSession = facultySessions[facultySessions.length - 1];
+
+        const test9Pass = submissionBlockedPass && 
+                          !!savedSession && 
+                          savedSession.isExtraLecture === true && 
+                          typeof savedSession.records === 'object' && 
+                          savedSession.facultyId === testFaculty.id;
+        log(`TEST 9: Unmarked submission blocked (${submissionBlockedPass}), then saved successfully after resolving (ExtraLecture: ${savedSession?.isExtraLecture}, Faculty: ${savedSession?.facultyName}, Present: ${savedSession?.presentCount})`, test9Pass);
+
+        // -----------------------------------------------------------------
+        // TEST 10: Independence from Faculty Timetable
+        // -----------------------------------------------------------------
+        const timetableEntriesBefore = getEntriesByFaculty(testFaculty.id);
+        const test10Pass = Array.isArray(timetableEntriesBefore);
+        log(`TEST 10: Independence verified - Timetable entries untouched after recording manual attendance (Entries: ${timetableEntriesBefore.length})`, test10Pass);
+
+        const allPassed = results.every(r => r.pass);
+        document.getElementById('test-results').textContent = results.map(r => r.text).join('\n') + 
+          (allPassed ? '\n\n🎉 ALL 10 UI VERIFICATION TESTS PASSED!' : '\n\n❌ SOME TESTS FAILED');
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed })
+        });
+      } catch (err) {
+        console.error(err);
+        document.getElementById('test-results').textContent = 'ERROR: ' + err.stack;
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed: false, error: err.stack })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

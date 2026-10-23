@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADIT Campus Attendance - Student Panel Test Suite</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #0f172a; color: #f8fafc; }
+    h1 { color: #60a5fa; font-size: 20px; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; font-weight: bold; }
+    #root-test-mount { background: #ffffff; color: #000; padding: 20px; margin-top: 20px; border-radius: 8px; display: none; }
+  </style>
+
+  <!-- Local vendor libs -->
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+
+  <script>
+    // Save native globals BEFORE Lucide setup
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Location','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { window[n] = _nat[n]; });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+
+  <!-- Pre-compiled application bundle -->
+  <script src="/app-bundle.js"></script>
+</head>
+<body>
+  <h1>ADIT Campus Attendance - Student Panel Automated Verification Suite</h1>
+  <div id="output"></div>
+  <div id="root-test-mount"></div>
+
+  <script>
+    const outputEl = document.getElementById('output');
+    const results = [];
+
+    function log(message, pass = true) {
+      const div = document.createElement('div');
+      div.className = pass ? 'pass' : 'fail';
+      div.innerText = (pass ? '✓ PASS: ' : '✗ FAIL: ') + message;
+      outputEl.appendChild(div);
+      results.push({ text: div.innerText, pass });
+    }
+
+    function assert(cond, msg) {
+      if (!cond) {
+        log(msg, false);
+        throw new Error(msg);
+      } else {
+        log(msg, true);
+      }
+    }
+
+    async function sendResults() {
+      try {
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results })
+        });
+      } catch (e) {
+        console.error('Failed to report test results', e);
+      }
+    }
+
+    async function runSuite() {
+      try {
+        localStorage.clear();
+
+        // -------------------------------------------------------------
+        // TEST 1: Storage Initialization & Seed Data Setup
+        // -------------------------------------------------------------
+        assert(typeof window.loginUser === 'function', 'Auth API loginUser exists');
+        assert(typeof window.getStudentProfile === 'function', 'Student profile service exists');
+        assert(typeof window.getStudentEnrolledSubjects === 'function', 'Enrolled subjects service exists');
+        assert(typeof window.calculateStudentAttendanceStats === 'function', 'Attendance stats service exists');
+        assert(typeof window.updateStudentProfile === 'function', 'Profile update service exists');
+
+        // Seed a known student into database
+        const testStudent = {
+          id: 'STUDENT_TEST_101',
+          name: 'Aarav H. Patel',
+          enrollmentNo: '125020405001',
+          rollNo: '24CP101',
+          department: 'Computer Engineering',
+          dept: 'Computer Engineering',
+          semester: '3rd Sem',
+          sem: '3rd Sem',
+          division: 'Div 3',
+          class: 'Div 3',
+          batch: 'Batch A',
+          academicYear: '2026-27',
+          email: 'aarav.patel@adit.ac.in',
+          phone: '9876543210'
+        };
+
+        const studentsList = window.getStudents();
+        const existingIdx = studentsList.findIndex(s => s.enrollmentNo === testStudent.enrollmentNo);
+        if (existingIdx !== -1) {
+          studentsList[existingIdx] = testStudent;
+        } else {
+          studentsList.push(testStudent);
+        }
+        localStorage.setItem('adit_attendance_students', JSON.stringify(studentsList));
+
+        // -------------------------------------------------------------
+        // TEST 2: Shared Login - Auto-Detects Student Role via Enrollment No
+        // -------------------------------------------------------------
+        const loginRes = window.loginUser('125020405001', '125020405001');
+        assert(loginRes.success === true, 'Student login succeeds with enrollment number default credentials');
+        assert(loginRes.user.role === 'student', 'Role is auto-detected as "student"');
+        assert(loginRes.user.enrollmentNo === '125020405001', 'Student enrollment number matches in session');
+        assert(loginRes.user.name === 'Aarav H. Patel', 'Student name matches in session');
+
+        // Check fallback password 'student123'
+        const loginFallback = window.loginUser('125020405001', 'student123');
+        assert(loginFallback.success === true, 'Student login succeeds with standard initial fallback student123');
+
+        // Check invalid password rejection
+        const badLogin = window.loginUser('125020405001', 'wrong_password_999');
+        assert(badLogin.success === false, 'Invalid student password is rejected');
+
+        // Verify Admin and Faculty login continue working unchanged
+        const adminLogin = window.loginUser('admin', '1234');
+        assert(adminLogin.success === true && adminLogin.user.role === 'admin', 'Admin login preserved');
+        const facLogin = window.loginUser('FAC01', 'faculty123');
+        assert(facLogin.success === true && facLogin.user.role === 'faculty', 'Faculty login preserved');
+
+        // Re-establish student session
+        window.setCurrentUser(loginRes.user);
+        const activeStudent = window.getCurrentUser();
+        assert(activeStudent.role === 'student', 'Active session is verified student');
+
+        // -------------------------------------------------------------
+        // TEST 3: Student Profile Service (Protected Academic Credentials)
+        // -------------------------------------------------------------
+        const studentProfile = window.getStudentProfile(activeStudent);
+        assert(studentProfile !== null, 'getStudentProfile returns valid profile object');
+        assert(studentProfile.enrollmentNo === '125020405001', 'Profile enrollment number matches');
+        assert(studentProfile.department === 'Computer Engineering', 'Profile department matches');
+        assert(studentProfile.semester === '3rd Sem', 'Profile semester matches');
+        assert(studentProfile.division === 'Div 3', 'Profile division matches');
+        assert(studentProfile.isProfileLocked === true, 'Academic information is flagged as locked / protected');
+
+        // -------------------------------------------------------------
+        // TEST 4: My Subjects - Regular Department & Semester Subjects
+        // -------------------------------------------------------------
+        const enrolledSubjects = window.getStudentEnrolledSubjects(activeStudent);
+        assert(Array.isArray(enrolledSubjects), 'getStudentEnrolledSubjects returns an array');
+        assert(enrolledSubjects.length > 0, `Student has enrolled regular subjects (found ${enrolledSubjects.length})`);
+        
+        const dsSub = enrolledSubjects.find(s => s.code === '102040304' || s.shortName === 'DS' || s.name.toUpperCase().includes('DATA STRUCTURES'));
+        assert(dsSub !== undefined, 'Regular subject Data Structures is present in enrolled subjects');
+        assert(dsSub.type === 'regular' && dsSub.isElective === false, 'Regular subject is properly flagged');
+        assert(dsSub.facultyName && dsSub.facultyName.length > 0, 'Assigned faculty is resolved');
+
+        // -------------------------------------------------------------
+        // TEST 5: My Subjects - Elective Subject via Class Roster Membership
+        // -------------------------------------------------------------
+        // Create an elective class for "Cloud Computing" and enroll Aarav H. Patel
+        const electiveClass = {
+          id: 'CLASS_ELECTIVE_CLOUD_2026',
+          name: 'Cloud Computing Class A',
+          isElective: true,
+          subjectId: 'SUB_ELECTIVE_CLOUD',
+          subjectName: 'Cloud Computing & Virtualization',
+          code: 'ELC701',
+          semester: '3rd Sem',
+          facultyName: 'Dr. Cloud Specialist',
+          studentEnrollmentNos: ['125020405001'],
+          studentIds: [activeStudent.id],
+          academicYear: '2026-27'
+        };
+
+        const existingClasses = window.getClasses();
+        const existingClassIdx = existingClasses.findIndex(c => c.id === electiveClass.id);
+        if (existingClassIdx !== -1) {
+          existingClasses[existingClassIdx] = electiveClass;
+        } else {
+          existingClasses.push(electiveClass);
+        }
+        localStorage.setItem('adit_attendance_classes', JSON.stringify(existingClasses));
+
+        // Re-fetch enrolled subjects and verify elective subject is included
+        const updatedEnrolledSubjects = window.getStudentEnrolledSubjects(activeStudent);
+        const electiveSub = updatedEnrolledSubjects.find(s => s.isElective && (s.name.includes('Cloud') || s.code === 'ELC701'));
+        assert(electiveSub !== undefined, 'Elective subject is included via elective class roster membership');
+        assert(electiveSub.type === 'elective' && electiveSub.isElective === true, 'Elective subject is properly typed');
+        assert(electiveSub.facultyName === 'Dr. Cloud Specialist', 'Elective assigned faculty is displayed');
+
+        // -------------------------------------------------------------
+        // TEST 6: Attendance Calculation & Handling 0 Conducted Lectures
+        // -------------------------------------------------------------
+        // Elective course currently has 0 recorded sessions
+        assert(electiveSub.stats.totalConducted === 0, 'Elective course has 0 conducted sessions');
+        assert(electiveSub.stats.percentage === null, 'Percentage is null when 0 sessions conducted');
+        assert(electiveSub.stats.percentageFormatted === 'N/A', 'Formatted percentage is "N/A" (NOT 0% or NaN)');
+        assert(electiveSub.stats.hasConductedLectures === false, 'hasConductedLectures is false when 0 conducted');
+
+        // -------------------------------------------------------------
+        // TEST 7: Attendance Calculation with Live Recorded Sessions
+        // -------------------------------------------------------------
+        // Create 4 sessions for Data Structures: 3 Present, 1 Absent
+        const mockSessions = [
+          {
+            id: 'SESS_TEST_01',
+            date: '2026-07-10',
+            timeSlot: '09:00 - 09:55',
+            subjectId: dsSub.id,
+            subjectName: dsSub.name,
+            facultyId: 'FAC01',
+            facultyName: 'Prof. R. K. Patel',
+            sem: '3rd Sem',
+            division: 'Div 3',
+            topic: 'Array Structures & Memory Addressing',
+            records: { [activeStudent.id]: 'present' }
+          },
+          {
+            id: 'SESS_TEST_02',
+            date: '2026-07-11',
+            timeSlot: '10:00 - 10:55',
+            subjectId: dsSub.id,
+            subjectName: dsSub.name,
+            facultyId: 'FAC01',
+            facultyName: 'Prof. R. K. Patel',
+            sem: '3rd Sem',
+            division: 'Div 3',
+            topic: 'Stack Operations & Infix-to-Postfix',
+            records: { [activeStudent.id]: 'present' }
+          },
+          {
+            id: 'SESS_TEST_03',
+            date: '2026-07-12',
+            timeSlot: '11:00 - 11:55',
+            subjectId: dsSub.id,
+            subjectName: dsSub.name,
+            facultyId: 'FAC01',
+            facultyName: 'Prof. R. K. Patel',
+            sem: '3rd Sem',
+            division: 'Div 3',
+            topic: 'Queues & Circular Buffer',
+            records: { [activeStudent.id]: 'absent' }
+          },
+          {
+            id: 'SESS_TEST_04',
+            date: '2026-07-13',
+            timeSlot: '09:00 - 09:55',
+            subjectId: dsSub.id,
+            subjectName: dsSub.name,
+            facultyId: 'FAC01',
+            facultyName: 'Prof. R. K. Patel',
+            sem: '3rd Sem',
+            division: 'Div 3',
+            topic: 'Linked List Pointers',
+            records: { [activeStudent.id]: 'present' }
+          }
+        ];
+
+        localStorage.setItem('adit_attendance_sessions', JSON.stringify(mockSessions));
+
+        // Re-fetch Data Structures details
+        const dsDetails = window.getSubjectAttendanceDetails(dsSub.id, activeStudent);
+        assert(dsDetails !== null, 'getSubjectAttendanceDetails returns subject details');
+        assert(dsDetails.stats.totalConducted === 4, `Total conducted matches 4 (found ${dsDetails.stats.totalConducted})`);
+        assert(dsDetails.stats.totalAttended === 3, `Total attended matches 3 (found ${dsDetails.stats.totalAttended})`);
+        assert(dsDetails.stats.totalMissed === 1, `Total missed matches 1 (found ${dsDetails.stats.totalMissed})`);
+        assert(dsDetails.stats.percentage === 75, `Percentage is 75% (found ${dsDetails.stats.percentage})`);
+        assert(dsDetails.stats.meetsThreshold === true, 'Meets 75% threshold is true');
+        assert(dsDetails.sessions.length === 4, 'Subject details contains 4 lecture history records');
+        assert(dsDetails.sessions[0].topic && dsDetails.sessions[0].status, 'Lecture records have topic and status');
+
+        // -------------------------------------------------------------
+        // TEST 8: 75% Minimum Threshold Warning Alert
+        // -------------------------------------------------------------
+        // Add 1 more absent session to drop attendance to 3/5 = 60%
+        const session5 = {
+          id: 'SESS_TEST_05',
+          date: '2026-07-14',
+          timeSlot: '09:00 - 09:55',
+          subjectId: dsSub.id,
+          subjectName: dsSub.name,
+          facultyId: 'FAC01',
+          facultyName: 'Prof. R. K. Patel',
+          sem: '3rd Sem',
+          division: 'Div 3',
+          topic: 'Doubly Linked List',
+          records: { [activeStudent.id]: 'absent' }
+        };
+        const allSess = [...mockSessions, session5];
+        localStorage.setItem('adit_attendance_sessions', JSON.stringify(allSess));
+
+        const updatedDsDetails = window.getSubjectAttendanceDetails(dsSub.id, activeStudent);
+        assert(updatedDsDetails.stats.totalConducted === 5, 'Conducted is 5');
+        assert(updatedDsDetails.stats.percentage === 60, `Percentage dropped to 60% (found ${updatedDsDetails.stats.percentage})`);
+        assert(updatedDsDetails.stats.meetsThreshold === false, 'meetsThreshold is false (< 75%)');
+
+        const overall = window.getStudentOverallAttendance(activeStudent);
+        assert(overall !== null, 'getStudentOverallAttendance returns aggregate stats');
+        assert(overall.totalConducted === 5, 'Overall total conducted is 5');
+        assert(overall.totalAttended === 3, 'Overall total attended is 3');
+        assert(overall.meetsThreshold === false, 'Overall meetsThreshold is false');
+
+        // -------------------------------------------------------------
+        // TEST 9: RBAC Security - Student Mutation Endpoints Strictly Blocked
+        // -------------------------------------------------------------
+        let blockedCount = 0;
+
+        // saveSession
+        try {
+          window.saveSession({ date: '2026-07-15', subjectId: dsSub.id }, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 1, 'RBAC: Student blocked from saveSession');
+
+        // deleteSession
+        try {
+          window.deleteSession('SESS_TEST_01', activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 2, 'RBAC: Student blocked from deleteSession');
+
+        // saveStudent
+        try {
+          window.saveStudent({ name: 'Hacker', enrollmentNo: '999999' }, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 3, 'RBAC: Student blocked from saveStudent');
+
+        // deleteStudent
+        try {
+          window.deleteStudent(activeStudent.id, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 4, 'RBAC: Student blocked from deleteStudent');
+
+        // saveClass
+        try {
+          window.saveClass({ name: 'Fake Class' }, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 5, 'RBAC: Student blocked from saveClass');
+
+        // deleteClass
+        try {
+          window.deleteClass('CLASS_DEP_CP_3_3_2026-27', false, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 6, 'RBAC: Student blocked from deleteClass');
+
+        // saveSubject
+        try {
+          window.saveSubject({ name: 'Fake Subject' }, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 7, 'RBAC: Student blocked from saveSubject');
+
+        // deleteSubject
+        try {
+          window.deleteSubject(dsSub.id, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 8, 'RBAC: Student blocked from deleteSubject');
+
+        // saveFaculty
+        try {
+          window.saveFaculty({ name: 'Fake Faculty' }, activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 9, 'RBAC: Student blocked from saveFaculty');
+
+        // deleteFaculty
+        try {
+          window.deleteFaculty('FAC01', activeStudent);
+        } catch (e) {
+          if (e.message.includes('Unauthorized') || e.message.includes('not permitted')) blockedCount++;
+        }
+        assert(blockedCount === 10, 'RBAC: Student blocked from deleteFaculty');
+
+        // -------------------------------------------------------------
+        // TEST 10: Privacy Sanitization in getSessions for Students
+        // -------------------------------------------------------------
+        // Add another student's attendance to the session records
+        const otherStudentId = 'STUDENT_OTHER_999';
+        allSess[0].records[otherStudentId] = 'absent';
+        localStorage.setItem('adit_attendance_sessions', JSON.stringify(allSess));
+
+        const studentSessions = window.getSessions({}, activeStudent);
+        assert(studentSessions.length > 0, 'Student retrieves sessions for enrolled classes');
+        
+        let leakedOtherRecord = false;
+        studentSessions.forEach(sess => {
+          if (sess.records && sess.records[otherStudentId] !== undefined) {
+            leakedOtherRecord = true;
+          }
+        });
+        assert(leakedOtherRecord === false, 'Privacy Sanitization: Student CANNOT see other students attendance records');
+
+        // -------------------------------------------------------------
+        // TEST 11: Student Profile Update (Phone & Email)
+        // -------------------------------------------------------------
+        const updateRes = window.updateStudentProfile({
+          phone: '9988776655',
+          email: 'aarav.new@adit.ac.in'
+        }, activeStudent);
+        assert(updateRes.success === true, 'updateStudentProfile successfully updates contact details');
+        
+        const refreshedProfile = window.getStudentProfile(activeStudent);
+        assert(refreshedProfile.phone === '9988776655', 'Phone number updated in database');
+        assert(refreshedProfile.email === 'aarav.new@adit.ac.in', 'Email address updated in database');
+        // Verify academic fields were NOT changed
+        assert(refreshedProfile.enrollmentNo === '125020405001', 'Enrollment number remains protected and intact');
+        assert(refreshedProfile.department === 'Computer Engineering', 'Department remains protected and intact');
+
+        // -------------------------------------------------------------
+        // TEST 12: Password Change with Cryptographic Multi-Pass Hashing
+        // -------------------------------------------------------------
+        const passChangeRes = window.updateStudentProfile({
+          currentPassword: '125020405001', // current default was enrollmentNo
+          newPassword: 'MySecurePassword2026',
+          confirmPassword: 'MySecurePassword2026'
+        }, activeStudent);
+        assert(passChangeRes.success === true, 'Password update succeeds');
+
+        // Verify old password is now rejected
+        const oldPassLogin = window.loginUser('125020405001', '125020405001');
+        assert(oldPassLogin.success === false, 'Old password is no longer valid');
+
+        // Verify new password logs in successfully
+        const newPassLogin = window.loginUser('125020405001', 'MySecurePassword2026');
+        assert(newPassLogin.success === true, 'New password successfully authenticates student');
+        assert(newPassLogin.user.role === 'student', 'New password session role is student');
+
+        // Verify password in database is NOT plaintext
+        const rawStudentsDb = JSON.parse(localStorage.getItem('adit_attendance_students') || '[]');
+        const updatedDbStudent = rawStudentsDb.find(s => s.enrollmentNo === '125020405001');
+        assert(updatedDbStudent.passwordHash !== undefined, 'Password hash is stored in database');
+        assert(updatedDbStudent.password === undefined, 'Plaintext password has been removed from database');
+        assert(updatedDbStudent.passwordHash !== 'MySecurePassword2026', 'Password is cryptographically hashed (not stored plain)');
+
+        // -------------------------------------------------------------
+        // TEST 13: StudentPanel UI Component Mounting & Rendering
+        // -------------------------------------------------------------
+        assert(typeof StudentPanel === 'function', 'StudentPanel component exists in bundle');
+        const mountContainer = document.getElementById('root-test-mount');
+        mountContainer.style.display = 'block';
+
+        const root = ReactDOM.createRoot(mountContainer);
+        root.render(React.createElement(StudentPanel, {
+          currentUser: newPassLogin.user,
+          showToast: () => {},
+          onExit: () => {}
+        }));
+
+        // Allow React time to render
+        await new Promise(r => setTimeout(r, 400));
+        const renderedHtml = mountContainer.innerHTML;
+        assert(renderedHtml.includes('ADIT Student Attendance Portal'), 'StudentPanel renders ADIT portal header');
+        assert(renderedHtml.includes('Aarav H. Patel'), 'StudentPanel renders student name');
+        assert(renderedHtml.includes('125020405001'), 'StudentPanel renders enrollment number');
+        assert(renderedHtml.includes('Dashboard'), 'StudentPanel renders Dashboard navigation tab');
+        assert(renderedHtml.includes('My Subjects'), 'StudentPanel renders My Subjects navigation tab');
+        assert(renderedHtml.includes('Attendance Overview'), 'StudentPanel renders Attendance Overview tab');
+        assert(renderedHtml.includes('My Profile'), 'StudentPanel renders My Profile tab');
+
+        log('ALL 13 STUDENT PANEL TEST SPECIFICATIONS PASSED PERFECTLY!', true);
+      } catch (err) {
+        log(`EXECUTION EXCEPTION: ${err.message}`, false);
+      } finally {
+        await sendResults();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', runSuite);
+  </script>
+</body>
+</html>

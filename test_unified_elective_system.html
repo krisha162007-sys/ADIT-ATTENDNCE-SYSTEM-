@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Unified Elective Subjects & Classes Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Location','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { window[n] = _nat[n]; });
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Unified Elective System Verification Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        let attempts = 0;
+        while (typeof getClasses !== 'function' && attempts < 50) {
+          await new Promise(r => setTimeout(r, 100));
+          attempts++;
+        }
+        if (typeof getClasses !== 'function') {
+          throw new Error('app-bundle.js failed to load within 5 seconds.');
+        }
+
+        // Step 0: Clear localStorage and initialize storage cleanly
+        localStorage.clear();
+        if (typeof initializeStorage === 'function') initializeStorage();
+
+        // -------------------------------------------------------------
+        // TEST 1: Zero Default / Sample Elective Data on Startup
+        // -------------------------------------------------------------
+        const initialClasses = getClasses();
+        const initialElectiveClasses = initialClasses.filter(c => c.isElective);
+        log("No sample/demo elective classes present on initial startup (count: " + initialElectiveClasses.length + ")", initialElectiveClasses.length === 0);
+
+        const initialElectiveGroups = getElectiveGroups ? getElectiveGroups() : [];
+        log("No hardcoded demo elective groups present (count: " + initialElectiveGroups.length + ")", initialElectiveGroups.length === 0);
+
+        // -------------------------------------------------------------
+        // TEST 2: Seed Known Students Across Different Regular Departments
+        // -------------------------------------------------------------
+        const allStudents = getStudents();
+        const faculties = getFaculties();
+        const faculty = faculties[0];
+        log("Faculty available for assignment: " + (faculty ? faculty.name : 'None'), Boolean(faculty));
+        loginUser(faculty.id, 'faculty123');
+
+        // Create 3 test students in different departments if needed
+        let stAI = allStudents.find(s => (s.department || s.dept || '').includes('AI'));
+        let stCP = allStudents.find(s => (s.department || s.dept || '').includes('Comp'));
+        let stIT = allStudents.find(s => (s.department || s.dept || '').includes('Info'));
+
+        if (!stAI) {
+          stAI = { id: 'ST_TEST_AI_01', name: 'Aarav Patel', enrollmentNo: '23ADITAI001', rollNo: '01', department: 'AI & Data Science', semester: '5th Sem', division: 'Div 1', classId: 'CLASS_REG_AI5' };
+          saveStudent(stAI);
+        }
+        if (!stCP) {
+          stCP = { id: 'ST_TEST_CP_01', name: 'Bhavik Shah', enrollmentNo: '23ADITCP002', rollNo: '02', department: 'Computer Engineering', semester: '5th Sem', division: 'Div 1', classId: 'CLASS_REG_CP5' };
+          saveStudent(stCP);
+        }
+        if (!stIT) {
+          stIT = { id: 'ST_TEST_IT_01', name: 'Chirag Desai', enrollmentNo: '23ADITIT003', rollNo: '03', department: 'Information Technology', semester: '5th Sem', division: 'Div 1', classId: 'CLASS_REG_IT5' };
+          saveStudent(stIT);
+        }
+
+        const origStAI_ClassId = stAI.classId;
+        const origStAI_Dept = stAI.department || stAI.dept;
+        const origStCP_ClassId = stCP.classId;
+        const origStCP_Dept = stCP.department || stCP.dept;
+
+        // -------------------------------------------------------------
+        // TEST 3: Treat Elective Subject Like Normal Subject (Departmentless)
+        // -------------------------------------------------------------
+        const allSubjects = getSubjects();
+        let electiveSub = allSubjects.find(s => s.code === 'OE501' || s.name.toLowerCase().includes('machine learning'));
+        if (!electiveSub) {
+          electiveSub = {
+            id: 'SUB_TEST_OE_ML',
+            name: 'Applied Machine Learning',
+            code: 'OE501',
+            shortName: 'AML',
+            sem: '5th Sem',
+            isElective: true,
+            departmentId: null
+          };
+          saveSubject(electiveSub);
+        }
+        log("Elective subject exists without department requirement (code: " + electiveSub.code + ")", Boolean(electiveSub));
+
+        // -------------------------------------------------------------
+        // TEST 4: Create Elective Class Manually Without Department
+        // -------------------------------------------------------------
+        const electiveClassData = {
+          name: '5th Sem - AML (Elective Div E1)',
+          semester: '5th Sem',
+          division: 'Div E1',
+          academicYear: '2026-27',
+          subjectId: electiveSub.id,
+          facultyId: faculty.id,
+          isElective: true,
+          departmentId: null, // No department!
+          status: 'active'
+        };
+
+        const saveResult = saveClass(electiveClassData);
+        const savedClass = saveResult?.class || saveResult;
+        log("Manual elective class creation succeeded with ID: " + (savedClass ? savedClass.id : 'null'), Boolean(savedClass && savedClass.id));
+        log("Elective class does not have department requirement (departmentId is null)", savedClass && savedClass.departmentId === null);
+        log("Elective class isElective flag is true", savedClass && savedClass.isElective === true);
+
+        // -------------------------------------------------------------
+        // TEST 5: Excel Student Roster Validation & Preview Handling
+        // -------------------------------------------------------------
+        // Test 5A: Parse with an invalid / unknown enrollment number
+        const invalidRows = [
+          { 'Enrollment No': stAI.enrollmentNo, 'Name': stAI.name },
+          { 'Enrollment No': '999999999999', 'Name': 'Non Existent Student' }, // Invalid!
+          { 'Enrollment No': stCP.enrollmentNo, 'Name': stCP.name }
+        ];
+
+        const validationInvalid = parseAndValidateElectiveStudentList(invalidRows, getStudents());
+        log("Excel validation detects unmatched enrollment number", validationInvalid.isValid === false && validationInvalid.unmatchedCount === 1);
+        log("Excel validation error message mentions unmatched student", validationInvalid.errors.some(e => e.includes('999999999999')));
+
+        // Test 5B: Parse with duplicate rows
+        const duplicateRows = [
+          { 'Enrollment No': stAI.enrollmentNo, 'Name': stAI.name },
+          { 'Enrollment No': stAI.enrollmentNo, 'Name': stAI.name } // Duplicate!
+        ];
+        const validationDuplicate = parseAndValidateElectiveStudentList(duplicateRows, getStudents());
+        log("Excel validation detects duplicate enrollment numbers", validationDuplicate.isValid === false && validationDuplicate.duplicateCount === 1);
+
+        // Test 5C: Parse with valid cross-department students
+        const validRows = [
+          { 'Enrollment No': stAI.enrollmentNo, 'Name': stAI.name },
+          { 'Enrollment No': stCP.enrollmentNo, 'Name': stCP.name },
+          { 'Enrollment No': stIT.enrollmentNo, 'Name': stIT.name }
+        ];
+        const validationValid = parseAndValidateElectiveStudentList(validRows, getStudents());
+        log("Excel validation succeeds with valid cross-department students (count: " + validationValid.validCount + ")", validationValid.isValid === true && validationValid.validCount === 3);
+
+        // -------------------------------------------------------------
+        // TEST 6: Save Roster & Verify Student Membership Isolation
+        // -------------------------------------------------------------
+        const updatedCls = updateElectiveClassRoster(savedClass.id, [stAI.enrollmentNo, stCP.enrollmentNo, stIT.enrollmentNo]);
+        log("Roster successfully attached to elective class (roster count: " + (updatedCls ? updatedCls.studentEnrollmentNos.length : 0) + ")", Boolean(updatedCls && updatedCls.studentEnrollmentNos.length === 3));
+
+        // Re-fetch individual student records to verify ZERO mutation of regular fields
+        const refreshedStAI = getStudents().find(s => s.id === stAI.id);
+        const refreshedStCP = getStudents().find(s => s.id === stCP.id);
+
+        log("Student A's regular classId remains intact and unchanged (" + refreshedStAI.classId + ")", refreshedStAI.classId === origStAI_ClassId);
+        log("Student A's regular department remains intact and unchanged (" + (refreshedStAI.department || refreshedStAI.dept) + ")", (refreshedStAI.department || refreshedStAI.dept) === origStAI_Dept);
+        log("Student B's regular classId remains intact and unchanged (" + refreshedStCP.classId + ")", refreshedStCP.classId === origStCP_ClassId);
+
+        // -------------------------------------------------------------
+        // TEST 7: Faculty Authorization for Elective Class
+        // -------------------------------------------------------------
+        const facultyClasses = getAuthorizedFacultyClasses(faculty);
+        const isAuthClass = facultyClasses.some(c => c.id === savedClass.id);
+        log("Faculty is authorized to teach manual elective class", isAuthClass);
+
+        const canTeach = canFacultyTeachClassAndSubject(faculty.id, savedClass.id, electiveSub.id);
+        log("canFacultyTeachClassAndSubject returns true for elective class", canTeach);
+
+        // -------------------------------------------------------------
+        // TEST 8: Attendance Loading for Elective Class
+        // -------------------------------------------------------------
+        // Must retrieve exactly the uploaded students across departments without department filtering
+        const retrievedStudents = getStudentsForAcademicGroup({
+          department: 'Elective (No Department)',
+          semester: '5th Sem',
+          division: 'Div E1',
+          academicYear: '2026-27',
+          subjectId: electiveSub.id
+        }, faculty);
+
+        log("getStudentsForAcademicGroup returns exactly 3 uploaded students (got: " + retrievedStudents.length + ")", retrievedStudents.length === 3);
+        const hasAllThree = retrievedStudents.some(s => s.id === stAI.id) &&
+                            retrievedStudents.some(s => s.id === stCP.id) &&
+                            retrievedStudents.some(s => s.id === stIT.id);
+        log("Retrieved students contain students from AI&DS, CP, and IT", hasAllThree);
+
+        // -------------------------------------------------------------
+        // TEST 9: Mark and Save Attendance Session for Elective Class
+        // -------------------------------------------------------------
+        const testSession = {
+          date: '2026-10-18',
+          timeSlot: '10:00 - 10:55',
+          department: 'Elective (No Department)',
+          semester: '5th Sem',
+          division: 'Div E1',
+          batch: 'ALL',
+          subject: electiveSub.id,
+          subjectId: electiveSub.id,
+          subjectName: electiveSub.name,
+          faculty: faculty.name,
+          facultyId: faculty.id,
+          classId: savedClass.id,
+          isElective: true,
+          records: {
+            [stAI.id]: 'present',
+            [stCP.id]: 'absent',
+            [stIT.id]: 'present'
+          },
+          remarks: {},
+          academicYear: '2026-27'
+        };
+
+        const sessionResult = saveSession(testSession, { ...faculty, role: 'faculty', loginTime: Date.now() });
+        const storedSessions = getSessions();
+        const savedSessionInDB = storedSessions.find(s => s.classId === savedClass.id);
+        log("Elective attendance session saved successfully", Boolean(savedSessionInDB && savedSessionInDB.id));
+        log("Session in DB has isElective = true and classId = " + savedClass.id, Boolean(savedSessionInDB && savedSessionInDB.isElective === true && savedSessionInDB.classId === savedClass.id));
+
+        // -------------------------------------------------------------
+        // TEST 10: Clean Class Deletion Safety
+        // -------------------------------------------------------------
+        // Deleting the elective class must:
+        // 1. Remove it from getClasses()
+        // 2. Remove it from faculty authorized classes
+        // 3. Keep all student records intact!
+        // 4. Keep historical attendance session intact!
+        const remainingClasses = deleteClass(savedClass.id);
+        log("deleteClass returned updated classes list without target class", Array.isArray(remainingClasses) && !remainingClasses.some(c => c.id === savedClass.id));
+
+        const classesAfterDelete = getClasses();
+        log("Class is removed from active classes listing", !classesAfterDelete.some(c => c.id === savedClass.id));
+
+        const facultyClassesAfterDelete = getAuthorizedFacultyClasses(faculty);
+        log("Deleted class no longer appears in Faculty Panel authorized classes", !facultyClassesAfterDelete.some(c => c.id === savedClass.id));
+
+        const studentsAfterClassDelete = getStudents();
+        const stAIAfter = studentsAfterClassDelete.find(s => s.id === stAI.id);
+        const stCPAfter = studentsAfterClassDelete.find(s => s.id === stCP.id);
+        log("Student records were NOT deleted upon class deletion", Boolean(stAIAfter && stCPAfter));
+        log("Student's regular classId was NOT cleared or broken (" + stAIAfter?.classId + ")", stAIAfter?.classId === origStAI_ClassId);
+
+        const sessionsAfterClassDelete = getSessions();
+        const auditSession = sessionsAfterClassDelete.find(s => s.classId === savedClass.id);
+        log("Historical attendance audit session is retained safely", Boolean(auditSession));
+
+        // Test 10B: Running initializeStorage does not recreate deleted elective class
+        initializeStorage();
+        const classesAfterReinit = getClasses();
+        log("initializeStorage does NOT recreate deleted elective class", !classesAfterReinit.some(c => c.id === savedClass.id));
+
+      } catch (err) {
+        log("EXCEPTION IN TEST RUNNER: " + err.message + "\n" + err.stack, false);
+      }
+
+      // Display summary
+      const passCount = results.filter(r => r.pass).length;
+      const failCount = results.filter(r => !r.pass).length;
+      const allPassed = failCount === 0;
+
+      const summaryText = results.map(r => r.text).join('\n') +
+        `\n\n------------------------------------------------------------\nTOTAL TESTS: ${results.length} | PASSED: ${passCount} | FAILED: ${failCount}\n------------------------------------------------------------`;
+
+      document.getElementById('test-results').textContent = summaryText;
+
+      // Post back to runner
+      try {
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allPassed,
+            passCount,
+            failCount,
+            summary: summaryText,
+            results
+          })
+        });
+      } catch (postErr) {
+        console.error('Could not post test results:', postErr);
+      }
+    });
+  </script>
+</body>
+</html>

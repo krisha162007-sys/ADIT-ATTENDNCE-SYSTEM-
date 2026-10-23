@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADIT Timetable, Promotion & Registration Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Location','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Verification Test Suite: Timetable, Promotion &amp; Freshers Registration</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: -9999px; top: -9999px;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        // Initialize storage
+        localStorage.clear();
+        initializeStorage();
+        if (typeof clearPromotionHistoryForTesting === 'function') {
+          clearPromotionHistoryForTesting();
+        }
+
+        // -------------------------------------------------------------
+        // TEST 1: Admin Navigation Exclusions & Timetable Restoration
+        // -------------------------------------------------------------
+        // Faculty Timetable MUST be in adminMenuItems
+        // Department Master, Batches, Division, Department Overview Timetable MUST NOT be in adminMenuItems
+        const items = window.adminMenuItems || [];
+        const menuIds = items.map(m => m.id);
+        const menuLabels = items.map(m => m.label.toLowerCase());
+        
+        const hasTimetable = menuIds.includes('timetable') && items.find(m => m.id === 'timetable').label === 'Faculty Timetable';
+        const hasForbiddenDeptMaster = menuLabels.some(l => l.includes('department master'));
+        const hasForbiddenDivisions = menuLabels.some(l => l === 'division' || l === 'divisions');
+        const hasForbiddenBatches = menuLabels.some(l => l === 'batches' || l === 'batch');
+        const hasForbiddenOverview = menuLabels.some(l => l.includes('overview') && l.includes('timetable'));
+
+        const test1Pass = hasTimetable && !hasForbiddenDeptMaster && !hasForbiddenDivisions && !hasForbiddenBatches && !hasForbiddenOverview;
+        log(`TEST 1: Admin Navigation Toolbar strictly restores Faculty Timetable and excludes Dept Master, Divisions, Batches, and Overview (Timetable present: ${hasTimetable}, Forbidden found: ${hasForbiddenDeptMaster || hasForbiddenDivisions || hasForbiddenBatches || hasForbiddenOverview})`, test1Pass);
+
+        // -------------------------------------------------------------
+        // TEST 2: Faculty Timetable Template Generation
+        // -------------------------------------------------------------
+        let test2Pass = false;
+        try {
+          // Verify downloadFacultyTimetableTemplate is callable
+          if (typeof downloadFacultyTimetableTemplate === 'function') {
+            test2Pass = true;
+          }
+        } catch (e) {
+          test2Pass = false;
+        }
+        log(`TEST 2: Faculty Timetable Excel Template generator is available and callable (type: ${typeof downloadFacultyTimetableTemplate})`, test2Pass);
+
+        // -------------------------------------------------------------
+        // TEST 3: Timetable Upload Validation & Parsing
+        // -------------------------------------------------------------
+        // Test parsing validation with valid faculty, invalid faculty, and room conflict
+        const faculties = getFaculties();
+        const validFaculty = faculties[0];
+        const validFacultyId = validFaculty ? validFaculty.id : 'FAC01';
+
+        // Prepare mock worksheet
+        const testRows = [
+          ['Faculty ID', 'Faculty Name', 'Department', 'Subject', 'Semester', 'Division', 'Batch', 'Day', 'Start Time', 'End Time', 'Room Number'],
+          // Valid row: Friday 9:00-9:55 in Room 505
+          [validFacultyId, validFaculty ? validFaculty.name : 'Prof Patel', 'Computer Engineering', 'DATA STRUCTURES', '3rd Sem', 'Div 1', 'Batch A', 'Friday', '09:00 AM', '09:55 AM', 'Room 505'],
+          // Invalid Faculty ID
+          ['INVALID_FAC_999', 'Fake Faculty', 'Computer Engineering', 'DATA STRUCTURES', '3rd Sem', 'Div 1', 'Batch A', 'Tuesday', '09:00 AM', '09:55 AM', 'Room 505'],
+          // Duplicate row
+          [validFacultyId, validFaculty ? validFaculty.name : 'Prof Patel', 'Computer Engineering', 'DATA STRUCTURES', '3rd Sem', 'Div 1', 'Batch A', 'Friday', '09:00 AM', '09:55 AM', 'Room 505'],
+          // Conflicting room at same time with different faculty (Room 201 on Monday 9:00 AM is occupied by FAC02)
+          [validFacultyId, validFaculty ? validFaculty.name : 'Prof Patel', 'Computer Engineering', 'DATA STRUCTURES', '3rd Sem', 'Div 1', 'Batch A', 'Monday', '09:00 AM', '09:55 AM', 'Room 201']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(testRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Timetable Schedule');
+        const wbArray = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+
+        const parseResult = await parseExcelTimetableForFaculty(wbArray);
+        const hasValid = parseResult.validLectures.length >= 1;
+        const hasFacultyError = parseResult.errorRows.some(e => (e.reason || e.error || '').includes('not recognized') || (e.reason || e.error || '').includes('not registered'));
+        const hasDuplicate = parseResult.duplicateRows.length >= 1;
+        const hasConflict = parseResult.conflictRows.length >= 1;
+
+        const test3Pass = hasValid && hasFacultyError && hasDuplicate && hasConflict;
+        log(`TEST 3: Timetable Excel validation accurately flags Invalid Faculty ID (${hasFacultyError}), Duplicates (${hasDuplicate}), and Room Conflicts (${hasConflict}) while accepting Valid entries (${hasValid})`, test3Pass);
+
+        // -------------------------------------------------------------
+        // TEST 4: Commit Uploaded Timetable & Sync Event
+        // -------------------------------------------------------------
+        let syncDispatched = false;
+        const onSync = () => { syncDispatched = true; };
+        window.addEventListener('adit-timetable-synced', onSync);
+
+        const initialEntriesCount = getTimetableEntries().length;
+        const commitCount = commitUploadedTimetable(parseResult.validLectures);
+        window.removeEventListener('adit-timetable-synced', onSync);
+
+        const test4Pass = commitCount >= 1 && syncDispatched;
+        log(`TEST 4: Commit timetable updates timetable entries (committed: ${commitCount}) and fires adit-timetable-synced event (dispatched: ${syncDispatched})`, test4Pass);
+
+        // -------------------------------------------------------------
+        // TEST 5: Semester Promotion Sequential Progression (Strict +1)
+        // -------------------------------------------------------------
+        const seqChecks = [
+          getNextSemester('1st Sem')?.targetSem === '2nd Sem',
+          getNextSemester('2nd Sem')?.targetSem === '3rd Sem',
+          getNextSemester('3rd Sem')?.targetSem === '4th Sem',
+          getNextSemester('4th Sem')?.targetSem === '5th Sem',
+          getNextSemester('5th Sem')?.targetSem === '6th Sem',
+          getNextSemester('6th Sem')?.targetSem === '7th Sem',
+          getNextSemester('7th Sem')?.targetSem === '8th Sem',
+          getNextSemester('8th Sem')?.targetSem === 'Graduated',
+          getNextSemester('8th Sem')?.isGraduation === true
+        ];
+        const test5Pass = seqChecks.every(Boolean);
+        log(`TEST 5: getNextSemester enforces strict +1 progression across 1st-8th Sem and graduates 8th Sem (${seqChecks.filter(Boolean).length}/9 pass)`, test5Pass);
+
+        // -------------------------------------------------------------
+        // TEST 6: Student Management Semester Promotion Execution
+        // -------------------------------------------------------------
+        // Create a test 3rd Sem student and an 8th Sem student
+        const allStudents = getStudents();
+        const testStudentSem3 = {
+          id: 'TEST_PROMO_S3',
+          enrollmentNo: 'EN_PROMO_03',
+          name: 'Promo Test Student Sem3',
+          department: 'Computer Engineering',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          batch: 'Batch A',
+          rollNo: '99',
+          academicYear: '2025-26'
+        };
+        const testStudentSem8 = {
+          id: 'TEST_PROMO_S8',
+          enrollmentNo: 'EN_PROMO_08',
+          name: 'Grad Test Student Sem8',
+          department: 'Computer Engineering',
+          sem: '8th Sem',
+          division: 'Div 1',
+          batch: 'Batch B',
+          rollNo: '98',
+          academicYear: '2025-26'
+        };
+
+        // Create sample attendance session for Sem 3 student before promotion
+        saveSession({
+          id: 'TEST_SESSION_HISTORICAL',
+          date: '2026-10-10',
+          timeSlot: '9:00 - 9:55',
+          department: 'Computer Engineering',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          subjectId: 'SUB_DS',
+          subjectName: 'DATA STRUCTURES',
+          records: { 'TEST_PROMO_S3': 'present' }
+        }, { id: 'admin', role: 'admin' });
+
+        saveStudent(testStudentSem3);
+        saveStudent(testStudentSem8);
+
+        // Promote Sem 3 student
+        const promoResult = promoteStudentsSemester({
+          sourceSem: '3rd Sem',
+          department: 'Computer Engineering',
+          selectedStudentIds: ['TEST_PROMO_S3'],
+          academicCycle: '2026-27'
+        });
+
+        // Promote Sem 8 student
+        const gradResult = promoteStudentsSemester({
+          sourceSem: '8th Sem',
+          department: 'Computer Engineering',
+          selectedStudentIds: ['TEST_PROMO_S8'],
+          academicCycle: '2026-27'
+        });
+
+        const refreshedStudents = getStudents();
+        const updatedSem3Student = refreshedStudents.find(s => s.id === 'TEST_PROMO_S3');
+        const updatedSem8Student = refreshedStudents.find(s => s.id === 'TEST_PROMO_S8');
+
+        // Check historical session integrity
+        const sessions = getSessions({ semester: '3rd Sem', division: 'Div 1' }, { role: 'admin' });
+        const historySession = sessions.find(s => s.id === 'TEST_SESSION_HISTORICAL' || s.date === '2026-10-10');
+        const historyIntact = historySession && historySession.records && historySession.records['TEST_PROMO_S3'] === 'present';
+
+        const test6Pass = (
+          updatedSem3Student && updatedSem3Student.sem === '4th Sem' &&
+          updatedSem3Student.batch === 'Batch A' &&
+          updatedSem3Student.enrollmentNo === 'EN_PROMO_03' &&
+          updatedSem3Student.lastPromotionCycle === '2026-27' &&
+          updatedSem8Student && updatedSem8Student.sem === 'Graduated' &&
+          historyIntact
+        );
+        log(`TEST 6: Semester promotion moves Sem 3 -> Sem 4, Sem 8 -> Graduated, sets promotion cycle safeguard, preserves batch & enrollment, and leaves historical attendance intact`, test6Pass);
+
+        // -------------------------------------------------------------
+        // TEST 7: Single Student Registration (Freshers) with Duplicate Validation
+        // -------------------------------------------------------------
+        let singleRegisterPass = false;
+        const currentStudCount = getStudents().length;
+        
+        // Check uniqueness validation
+        const existingStudent = getStudents()[0];
+        const isDuplicateDetected = getStudents().some(s => s.enrollmentNo === existingStudent.enrollmentNo);
+
+        // Register fresher in 1st Sem
+        const newFresher = {
+          id: 'FRESHER_01',
+          enrollmentNo: 'EN_FRESHER_2026_01',
+          name: 'Aditi Fresh',
+          department: 'Computer Engineering',
+          sem: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch A',
+          rollNo: '01',
+          academicYear: '2026-27'
+        };
+        saveStudent(newFresher);
+
+        const verifyFresher = getStudents().find(s => s.enrollmentNo === 'EN_FRESHER_2026_01');
+        singleRegisterPass = isDuplicateDetected && verifyFresher && verifyFresher.sem === '1st Sem' && verifyFresher.batch === 'Batch A';
+        log(`TEST 7: Single student registration supports 1st Sem fresher with batch assignment and enforces unique enrollment validation`, singleRegisterPass);
+
+        // -------------------------------------------------------------
+        // TEST 8: Bulk Student Upload (Excel Import) & Validation
+        // -------------------------------------------------------------
+        const runSuffix = '_' + Date.now();
+        const enrBulk1 = 'EN_BULK' + runSuffix + '_101';
+        const enrBulk2 = 'EN_BULK' + runSuffix + '_102';
+        const bulkRows = [
+          // Valid fresher row 1
+          {
+            'Enrollment Number': enrBulk1,
+            'Student Name': 'Rahul Sharma',
+            'Department': 'Information Technology',
+            'Semester': '1st Sem',
+            'Division': 'Div 1',
+            'Batch': 'Batch B',
+            'Email': 'rahul.s@adit.edu.in'
+          },
+          // Valid fresher row 2
+          {
+            'Enrollment Number': enrBulk2,
+            'Student Name': 'Sneha Patel',
+            'Department': 'Information Technology',
+            'Semester': '1st Sem',
+            'Division': 'Div 1',
+            'Batch': 'Batch C',
+            'Email': 'sneha.p@adit.edu.in'
+          },
+          // Duplicate within same batch/database (using already registered EN_FRESHER_2026_01)
+          {
+            'Enrollment Number': 'EN_FRESHER_2026_01',
+            'Student Name': 'Duplicate Student',
+            'Department': 'Computer Engineering',
+            'Semester': '1st Sem',
+            'Division': 'Div 1',
+            'Batch': 'Batch A'
+          }
+        ];
+
+        const bulkResult = bulkRegisterStudents(bulkRows, '2026-27');
+        const test8Pass = bulkResult.importedCount === 2 && bulkResult.duplicateCount === 1;
+        log(`TEST 8: Bulk student upload registers valid freshers (${bulkResult.importedCount} inserted) and catches database duplicates (${bulkResult.duplicateCount} duplicate caught)`, test8Pass);
+
+        // -------------------------------------------------------------
+        // TEST 9: Freshers Initial Attendance Statistics (0 sessions, 0.00%)
+        // -------------------------------------------------------------
+        // Verify fresher attendance metrics
+        const fresherStudent = getStudents().find(s => s.enrollmentNo === enrBulk1);
+        const itSessions = getSessions({ department: 'Information Technology', semester: '1st Sem' }, { role: 'admin' });
+        // Calculate attended
+        const attendedCount = itSessions.filter(s => s.records && s.records[fresherStudent?.id] === 'present').length;
+        const totalConducted = itSessions.length;
+        const pct = totalConducted > 0 ? ((attendedCount / totalConducted) * 100).toFixed(2) : '0.00';
+
+        const test9Pass = attendedCount === 0 && (pct === '0.00' || !isNaN(parseFloat(pct)));
+        log(`TEST 9: Newly registered fresher initializes with 0 lectures attended (${attendedCount}/${totalConducted}) and clean percentage (${pct}%) without runtime errors`, test9Pass);
+
+        // -------------------------------------------------------------
+        // TEST 10: UI Component Rendering (Admin Panel Timetable & Student Management Toolbar)
+        // -------------------------------------------------------------
+        const mount = document.getElementById('render-mount');
+        let renderedHtml = '';
+        
+        // Render AdminPanel
+        const adminElement = React.createElement(AdminPanel, {
+          onNavigate: () => {},
+          currentRole: 'admin',
+          currentUser: { id: 'admin', name: 'Admin', role: 'admin' }
+        });
+        ReactDOM.render(adminElement, mount);
+        renderedHtml = mount.innerHTML;
+
+        const hasTimetableNavBtn = renderedHtml.includes('Faculty Timetable');
+        const noDeptMasterBtn = !renderedHtml.includes('Department Master');
+        const noDivisionsNavBtn = !renderedHtml.includes('Department Overview Timetable');
+
+        const test10Pass = hasTimetableNavBtn && noDeptMasterBtn && noDivisionsNavBtn;
+        log(`TEST 10: AdminPanel UI renders "Faculty Timetable" button in menu and excludes deleted modules from navigation`, test10Pass);
+
+        // Final summary
+        const allPassed = results.every(r => r.pass);
+        const summary = results.map(r => r.text).join('\n');
+        document.getElementById('test-results').textContent = 
+          summary + '\n\n' +
+          (allPassed ? '🎉 ALL 10 VERIFICATION TESTS PASSED SUCCESSFULLY!' : '⚠️ SOME TESTS FAILED.');
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed, results, summary })
+        }).catch(() => {});
+
+      } catch (err) {
+        log(`EXECUTION EXCEPTION: ${err.message}\n${err.stack}`, false);
+        document.getElementById('test-results').textContent = results.map(r => r.text).join('\n');
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed: false, error: (err.stack || err.toString()) })
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

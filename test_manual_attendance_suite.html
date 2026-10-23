@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADIT Manual Take Attendance Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Manual Take Attendance Verification Test Suite (TEST 1 - TEST 10)</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+
+  <script>
+    window.addEventListener('load', function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        // Initialize storage
+        initializeStorage();
+
+        const facultyA = { id: 'FAC_PS', name: 'Prof. Priya Shah', role: 'faculty', dept: 'AI & Data Science' };
+        const facultyB = { id: 'FAC01', name: 'Prof. R. K. Patel', role: 'faculty', dept: 'Computer Engineering' };
+
+        // -------------------------------------------------------------
+        // TEST 1: Dropdown Data Sources Populated from DB Records
+        // -------------------------------------------------------------
+        const allDepts = getDepartments();
+        const allSubjects = getSubjects();
+        const allClasses = getClasses();
+        const test1Pass = allDepts.length > 0 && allSubjects.length > 0 && allClasses.length > 0 && Array.isArray(SEMESTERS);
+        log(`TEST 1: Dropdown data sources populated from database records (Depts: ${allDepts.length}, Subjects: ${allSubjects.length}, Classes: ${allClasses.length}, Semesters: ${SEMESTERS.length})`, test1Pass);
+
+        // -------------------------------------------------------------
+        // TEST 2: Independent Student Roster Retrieval (No Timetable Dependency)
+        // Faculty can retrieve roster for ANY valid class (e.g., Computer Engineering 3rd Sem Div 1)
+        // -------------------------------------------------------------
+        const studentsDiv1 = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL'
+        }, facultyA);
+        const test2Pass = studentsDiv1.length > 0;
+        log(`TEST 2: Independent student roster retrieval without timetable constraints (Loaded ${studentsDiv1.length} students for Computer Engineering 3rd Sem Div 1)`, test2Pass);
+
+        // -------------------------------------------------------------
+        // TEST 3: Batch Filtering (Whole Class vs Specific Lab Batch)
+        // -------------------------------------------------------------
+        const allBatchStudents = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL'
+        }, facultyA);
+        const batchAStudents = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'Batch A'
+        }, facultyA);
+        const batchBStudents = getStudentsForAcademicGroup({
+          department: 'Computer Engineering',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'Batch B'
+        }, facultyA);
+        const test3Pass = allBatchStudents.length > 0 && batchAStudents.length > 0 && 
+          batchAStudents.every(s => s.batch === 'Batch A') &&
+          allBatchStudents.length >= batchAStudents.length;
+        log(`TEST 3: Batch-level filtering (ALL: ${allBatchStudents.length}, Batch A: ${batchAStudents.length}, Batch B: ${batchBStudents.length})`, test3Pass);
+
+        // -------------------------------------------------------------
+        // TEST 4: Non-existent Academic Group returns empty array [] (never crashes or falls back)
+        // -------------------------------------------------------------
+        const nonExistent = getStudentsForAcademicGroup({
+          department: 'Civil Engineering',
+          semester: '8th Sem',
+          division: 'Div 99'
+        }, facultyA);
+        const test4Pass = Array.isArray(nonExistent) && nonExistent.length === 0;
+        log(`TEST 4: Non-matching academic selection returns empty array [] without crash (Length: ${nonExistent.length})`, test4Pass);
+
+        // -------------------------------------------------------------
+        // TEST 5: Manual Attendance Session Saved with Start/End Timings
+        // -------------------------------------------------------------
+        const testDate = '2026-10-20';
+        const testStartTime = '10:00';
+        const testEndTime = '10:55';
+        const testSlot = '10:00 - 10:55';
+        const recordsMap = {};
+        allBatchStudents.forEach((st, idx) => {
+          recordsMap[st.id] = (idx % 4 === 0) ? 'absent' : 'present';
+        });
+
+        const createdSession = {
+          date: testDate,
+          startTime: testStartTime,
+          endTime: testEndTime,
+          timeSlot: testSlot,
+          department: 'Computer Engineering',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          subjectId: 'SUB_DS',
+          subjectName: 'DATA STRUCTURES',
+          topic: 'Manual Unit Test Lecture: Binary Search Trees',
+          records: recordsMap,
+          totalStudents: allBatchStudents.length
+        };
+
+        const savedSessions = saveSession(createdSession, facultyA);
+        const verifiedSession = savedSessions.find(s => s.date === testDate && s.subjectId === 'SUB_DS' && s.timeSlot === testSlot);
+        const test5Pass = verifiedSession && 
+          verifiedSession.startTime === testStartTime && 
+          verifiedSession.endTime === testEndTime &&
+          verifiedSession.timeSlot === testSlot &&
+          verifiedSession.facultyId === facultyA.id &&
+          verifiedSession.facultyName === facultyA.name;
+        log(`TEST 5: Manual session saved with precise timings & faculty credentials (Slot: ${verifiedSession?.timeSlot}, Faculty: ${verifiedSession?.facultyName})`, Boolean(test5Pass));
+
+        // -------------------------------------------------------------
+        // TEST 6: Timetable Integrity (Saving attendance leaves timetable completely untouched)
+        // -------------------------------------------------------------
+        const timetableEntriesBefore = JSON.parse(localStorage.getItem('adit_timetable_entries') || '[]');
+        // Save another session
+        saveSession({
+          date: '2026-10-21',
+          startTime: '11:00',
+          endTime: '11:55',
+          department: 'AI & Data Science',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          batch: 'Batch A',
+          subjectId: 'SUB_AI_DBMS',
+          subjectName: 'Database Management Systems',
+          topic: 'Extra Hands-on Lab',
+          records: { 'S_AI_01': 'present' }
+        }, facultyA);
+        const timetableEntriesAfter = JSON.parse(localStorage.getItem('adit_timetable_entries') || '[]');
+        const test6Pass = timetableEntriesBefore.length === timetableEntriesAfter.length;
+        log(`TEST 6: Timetable integrity verified — Attendance creation does NOT alter timetable entries (Entries: ${timetableEntriesAfter.length})`, test6Pass);
+
+        // -------------------------------------------------------------
+        // TEST 7: Cross-Faculty Tampering Prevention (Faculty B cannot modify Faculty A's session)
+        // -------------------------------------------------------------
+        let test7Pass = false;
+        try {
+          saveSession({
+            id: verifiedSession.id,
+            date: testDate,
+            startTime: testStartTime,
+            endTime: testEndTime,
+            department: 'Computer Engineering',
+            sem: '3rd Sem',
+            division: 'Div 1',
+            subjectId: 'SUB_DS',
+            records: { 'fake': 'absent' }
+          }, facultyB); // Attempt by Faculty B to overwrite Faculty A's session
+          test7Pass = false; // should not reach here!
+        } catch (err) {
+          test7Pass = err.message && err.message.includes('Unauthorized Security Error');
+        }
+        log(`TEST 7: Cross-faculty tampering prevented (Faculty B cannot edit Faculty A's recorded session: ${test7Pass})`, test7Pass);
+
+        // -------------------------------------------------------------
+        // TEST 8: Cross-Faculty Deletion Prevention (Faculty B cannot delete Faculty A's session)
+        // -------------------------------------------------------------
+        let test8Pass = false;
+        try {
+          deleteSession(verifiedSession.id, facultyB);
+          test8Pass = false;
+        } catch (err) {
+          test8Pass = err.message && err.message.includes('Unauthorized Security Error');
+        }
+        log(`TEST 8: Cross-faculty deletion prevented (Faculty B cannot delete Faculty A's session: ${test8Pass})`, test8Pass);
+
+        // -------------------------------------------------------------
+        // TEST 9: Attendance Register Integration (Saved manual session is retrievable by session creator)
+        // -------------------------------------------------------------
+        const facultyASessions = getSessions({ division: 'Div 1', subjectId: 'SUB_DS' }, facultyA);
+        const foundManualInRegister = facultyASessions.some(s => s.id === verifiedSession.id);
+        const test9Pass = foundManualInRegister;
+        log(`TEST 9: Saved manual attendance appears in Attendance Register query for creator (Found: ${foundManualInRegister})`, test9Pass);
+
+        // -------------------------------------------------------------
+        // TEST 10: Unauthenticated Protection (No session retrieval or saving without login)
+        // -------------------------------------------------------------
+        let test10Pass = false;
+        try {
+          saveSession(createdSession, null);
+          test10Pass = false;
+        } catch (err) {
+          const anonymousRoster = getStudentsForAcademicGroup({ department: 'Computer Engineering', semester: '3rd Sem', division: 'Div 1' }, null);
+          test10Pass = err.message.includes('Unauthorized') && anonymousRoster.length === 0;
+        }
+        log(`TEST 10: Unauthenticated access blocked on backend for both saving and roster retrieval (${test10Pass})`, test10Pass);
+
+        // Summary
+        const allPassed = results.every(r => r.pass);
+        const summary = '\n' + '='.repeat(60) + '\n' +
+          (allPassed ? 'ALL 10 TESTS PASSED (10/10) - PERFECT COMPLIANCE' : 'SOME TESTS FAILED') +
+          '\n' + '='.repeat(60);
+
+        document.getElementById('test-results').innerText = 
+          results.map(r => r.text).join('\n') + '\n' + summary;
+
+        // Post results to runner
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed, results })
+        }).catch(err => console.log('Post error:', err));
+
+      } catch (globalErr) {
+        console.error('Test runner failure:', globalErr);
+        document.getElementById('test-results').innerText = 'Fatal Test Suite Failure: ' + globalErr.message;
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed: false, error: globalErr.message })
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

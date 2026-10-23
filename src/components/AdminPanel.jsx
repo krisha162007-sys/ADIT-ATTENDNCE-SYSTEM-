@@ -69,10 +69,24 @@ import ClassManagementPanel from './ClassManagementPanel';
 import TimetableUploadModal from './TimetableUploadModal';
 import DepartmentAdminPanel from './DepartmentAdminPanel';
 
-export default function AdminPanel({ showToast, onExit }) {
+// Sidebar Menu Items
+export const adminMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'timetable', label: 'Faculty Timetable', icon: Calendar },
+  { id: 'faculty', label: 'Faculty Roster', icon: Users },
+  { id: 'classes', label: 'Student Management', icon: GraduationCap },
+  { id: 'subjects', label: 'Subjects', icon: BookOpen },
+  { id: 'departments', label: 'Departments', icon: Building2 },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon },
+];
+if (typeof window !== 'undefined') {
+  window.adminMenuItems = adminMenuItems;
+}
+
+export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }) {
   // Navigation inside Admin Panel
   // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
-  const [adminTab, setAdminTab] = useState('faculty');
+  const [adminTab, setAdminTab] = useState(initialTab);
 
   // Master data states
   const [departments, setDepartments] = useState(getDepartments());
@@ -99,16 +113,6 @@ export default function AdminPanel({ showToast, onExit }) {
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [pinChangeMsg, setPinChangeMsg] = useState('');
-
-  // Sidebar Menu Items
-  const adminMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'faculty', label: 'Faculty Roster', icon: Users },
-    { id: 'classes', label: 'Student Management', icon: GraduationCap },
-    { id: 'subjects', label: 'Subjects', icon: BookOpen },
-    { id: 'departments', label: 'Departments', icon: Building2 },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
-  ];
 
   // Refresh all state from localStorage
   const refreshState = () => {
@@ -281,6 +285,17 @@ export default function AdminPanel({ showToast, onExit }) {
           =================================================================== */}
       <div className="admin-main-viewport">
         
+        {/* VIEW 0: RESTORED FACULTY TIMETABLE */}
+        {adminTab === 'timetable' && (
+          <FacultyTimetablePanel
+            departments={departments}
+            faculties={faculties}
+            subjects={subjects}
+            onSaveFaculty={handleSaveFaculty}
+            showToast={showToast}
+          />
+        )}
+
         {/* VIEW 1: FACULTY ROSTER */}
         {adminTab === 'faculty' && (
           <DepartmentAdminPanel

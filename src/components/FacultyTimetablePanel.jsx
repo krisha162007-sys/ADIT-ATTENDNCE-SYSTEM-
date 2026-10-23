@@ -35,7 +35,8 @@ import {
   calculateTimetableSummary,
   getSubjectColor,
   getEntriesByFaculty,
-  checkConflicts
+  checkConflicts,
+  downloadFacultyTimetableTemplate
 } from '../services/timetableStorage';
 import { saveFaculty } from '../services/attendanceStorage';
 import FacultyEditModal from './FacultyEditModal';
@@ -219,7 +220,7 @@ export default function FacultyTimetablePanel({
           {slot.subject}
         </div>
         <div style={{ fontSize: '11px', color: style.subText, fontWeight: '600', marginTop: '2px' }}>
-          {slot.sem || '3rd Sem'} • {slot.div || 'Div 1'}
+          {slot.sem || '3rd Sem'} • {slot.div || 'Div 1'}{slot.batch && slot.batch !== 'All' ? ` • ${slot.batch}` : ''}
         </div>
         <div style={{ fontSize: '10.5px', color: style.subText, opacity: 0.85, marginTop: '1px' }}>
           {slot.room || 'Room 201'}
@@ -443,8 +444,32 @@ export default function FacultyTimetablePanel({
           </p>
         </div>
 
-        {/* Upload Timetable Button with Dropdown */}
-        <div style={{ position: 'relative' }}>
+        {/* Action Buttons: Download Template and Upload Timetable */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              downloadFacultyTimetableTemplate(currentFaculty?.name || 'Faculty', selectedDept, selectedSem);
+              if (showToast) showToast('Faculty timetable template downloaded!');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'white',
+              border: '1px solid #cbd5e1',
+              color: '#334155',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              fontWeight: '700',
+              fontSize: '13px'
+            }}
+          >
+            <Download size={15} />
+            <span>Download Excel Template</span>
+          </button>
+
           <button
             className="btn btn-primary"
             onClick={() => setShowUploadModal(true)}
@@ -464,7 +489,6 @@ export default function FacultyTimetablePanel({
           >
             <UploadCloud size={16} />
             <span>Upload Timetable</span>
-            <ChevronDown size={14} style={{ marginLeft: '4px' }} />
           </button>
         </div>
       </div>

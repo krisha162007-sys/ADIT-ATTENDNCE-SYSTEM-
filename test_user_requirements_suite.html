@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Faculty Panel Timetable, History Removal & Department Highlight Verification Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+  <link rel="stylesheet" href="/src/index.css" />
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>Verification Test Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: 0; top: 0; width: 1280px; opacity: 0.01; pointer-events: none;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        initializeStorage();
+        window.alert = function(msg) { console.warn('Alert called in test:', msg); };
+        window.confirm = function(msg) { return true; };
+
+        const testFaculty = {
+          id: 'FAC_PS',
+          facultyId: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        // Authenticate test faculty & ensure timetable entries are populated
+        setCurrentUser(testFaculty);
+        setActiveFacultyId(testFaculty.id);
+        getTimetableEntries();
+
+        const mount = document.getElementById('render-mount');
+        let root = ReactDOM.createRoot(mount);
+
+        // =========================================================
+        // TEST 1: Faculty Panel Navigation - History Removed
+        // =========================================================
+        root.render(React.createElement(FacultyPanel, {
+          currentUser: testFaculty,
+          showToast: () => {}
+        }));
+        await new Promise(r => setTimeout(r, 600));
+
+        const sidebarNav = mount.querySelector('aside');
+        const navText = sidebarNav ? sidebarNav.textContent : '';
+        log('TEST 1.1: Attendance History is absent from Faculty Panel sidebar menu', !navText.includes('Attendance History'));
+        log('TEST 1.2: Standard tabs present in Faculty sidebar (Dashboard, My Timetable, Take Attendance, Attendance Register, My Profile)',
+          navText.includes('Dashboard') && navText.includes('My Timetable') && navText.includes('Take Attendance') && navText.includes('Attendance Register') && navText.includes('My Profile')
+        );
+
+        // =========================================================
+        // TEST 2: Faculty Panel Timetable - Reschedule Option Removed
+        // =========================================================
+        const sidebarBtns = Array.from(mount.querySelectorAll('aside button'));
+        const timetableBtn = sidebarBtns.find(el => el.textContent.includes('My Timetable'));
+        log('DEBUG: Found sidebar timetable button: ' + !!timetableBtn);
+        if (timetableBtn) timetableBtn.click();
+        await new Promise(r => setTimeout(r, 600));
+        log('DEBUG: Mount header text: ' + (mount.querySelector('h2') ? mount.querySelector('h2').textContent : 'NONE'));
+        log('DEBUG: Timetable table rows: ' + mount.querySelectorAll('table tr').length);
+        log('DEBUG: All entries count in storage: ' + getTimetableEntries().length);
+        log('DEBUG: Entries for FAC_PS: ' + getEntriesByFaculty('FAC_PS').length);
+
+        // Part A: Weekly Grid View (Default)
+        const rescheduleBtnsWeek = mount.querySelectorAll('.btn-reschedule-lecture');
+        log('TEST 2.1: Weekly Grid View has zero reschedule buttons', rescheduleBtnsWeek.length === 0);
+
+        const lectureCards = mount.querySelectorAll('.timetable-lecture-card');
+        log('TEST 2.2: Weekly Grid View displays interactive lecture cards', lectureCards.length > 0);
+
+        const detailBtns = mount.querySelectorAll('.btn-lecture-details');
+        log('TEST 2.3: Weekly Grid View provides Details button for scheduled slots', detailBtns.length > 0);
+
+        // Open details modal
+        if (detailBtns.length > 0) {
+          detailBtns[0].click();
+          await new Promise(r => setTimeout(r, 500));
+          const modalText = mount.textContent;
+          log('TEST 2.4: Lecture details modal does NOT contain Reschedule button', !modalText.includes('Reschedule Lecture'));
+          log('TEST 2.5: Lecture details modal contains View Attendance Register and Take Attendance',
+            modalText.includes('View Attendance Register') && modalText.includes('Take Attendance')
+          );
+
+          // Close modal
+          const closeBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.trim() === 'Close');
+          if (closeBtn) closeBtn.click();
+          await new Promise(r => setTimeout(r, 300));
+        }
+
+        // Part B: Switch to Single Day View
+        const viewToggleBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Day View') || b.textContent.includes('Weekly Grid'));
+        log('DEBUG: Found Day View toggle button: ' + !!viewToggleBtn);
+        if (viewToggleBtn) {
+          viewToggleBtn.click();
+          await new Promise(r => setTimeout(r, 500));
+        }
+
+        // Click 'Monday' tab in Day View to view Monday lectures
+        const mondayTab = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.trim() === 'Monday');
+        if (mondayTab) {
+          mondayTab.click();
+          await new Promise(r => setTimeout(r, 500));
+        }
+
+        const rescheduleBtnsDay = mount.querySelectorAll('.btn-reschedule-lecture');
+        log('TEST 2.6: Day View has zero reschedule buttons', rescheduleBtnsDay.length === 0);
+
+        const takeAttBtnsDay = mount.querySelectorAll('.btn-take-attendance');
+        log('TEST 2.7: Day View keeps Take Attendance button on lecture cards', takeAttBtnsDay.length > 0);
+
+        // Test clicking Take Attendance shortcut navigates straight to Take Attendance
+        if (takeAttBtnsDay.length > 0) {
+          takeAttBtnsDay[0].click();
+          await new Promise(r => setTimeout(r, 500));
+          const hasRecordHeading = Array.from(mount.querySelectorAll('h2')).some(h => h.textContent.includes('Record Lecture Attendance'));
+          log('TEST 2.8: Clicking Take Attendance on timetable lecture navigates straight to Record Lecture Attendance', hasRecordHeading);
+        }
+
+        // =========================================================
+        // TEST 3: Admin Panel Student Management - Department Highlighted & Bold
+        // =========================================================
+        root.unmount();
+        mount.innerHTML = '';
+        root = ReactDOM.createRoot(mount);
+
+        const testAdmin = { id: 'ADMIN_01', name: 'System Administrator', role: 'admin' };
+        root.render(React.createElement(ClassManagementPanel, {
+          currentUser: testAdmin,
+          showToast: () => {}
+        }));
+        await new Promise(r => setTimeout(r, 600));
+
+        // Find class cards
+        const classCards = mount.querySelectorAll('.card');
+        log('TEST 3.1: ClassManagementPanel renders class cards', classCards.length > 0);
+
+        // In class cards, find the h3 elements
+        const h3Elements = Array.from(mount.querySelectorAll('h3'));
+        // Check that department name appears in h3 with bold & highlighted styling
+        const deptH3 = h3Elements.find(h => h.textContent.includes('AI & Data Science') || h.textContent.includes('Computer Engineering') || h.textContent.includes('Information Technology'));
+        log('TEST 3.2: Department name is rendered as the primary prominent h3 title', !!deptH3);
+
+        if (deptH3) {
+          const style = window.getComputedStyle(deptH3);
+          const isBold = style.fontWeight === '800' || style.fontWeight === 'bold' || deptH3.style.fontWeight === '800';
+          const isHighlighted = deptH3.style.backgroundColor === 'rgb(239, 246, 255)' || deptH3.style.backgroundColor === '#eff6ff' || deptH3.style.color.includes('1e40af') || deptH3.style.border.includes('bfdbfe');
+          log('TEST 3.3: Department name in class card is styled bold (fontWeight 800)', isBold);
+          log('TEST 3.4: Department name in class card has highlighted styling (badge border/background)', isHighlighted);
+        }
+
+        // Click a class card to inspect Class Details Hero Banner
+        const viewClassBtn = Array.from(mount.querySelectorAll('button')).find(b => b.textContent.includes('Manage Class') || b.textContent.includes('View Class'));
+        if (viewClassBtn) {
+          viewClassBtn.click();
+          await new Promise(r => setTimeout(r, 600));
+
+          const heroH1 = mount.querySelector('h1');
+          log('TEST 3.5: Class Details hero banner h1 displays Department Name rather than semester/div',
+            heroH1 && (heroH1.textContent.includes('AI & Data Science') || heroH1.textContent.includes('Computer Engineering') || heroH1.textContent.includes('Information Technology'))
+          );
+
+          if (heroH1) {
+            const isH1Bold = heroH1.style.fontWeight === '800' || window.getComputedStyle(heroH1).fontWeight === '800';
+            const isH1Highlighted = heroH1.style.backgroundColor === 'rgb(239, 246, 255)' || heroH1.style.backgroundColor === '#eff6ff' || heroH1.style.color.includes('1e40af');
+            log('TEST 3.6: Class Details hero banner h1 is bold (800) and highlighted badge styled', isH1Bold && isH1Highlighted);
+          }
+        }
+
+        // Summary
+        const allPassed = results.every(r => r.pass);
+        const summary = `\n============================================================\nTOTAL TESTS: ${results.length} | PASSED: ${results.filter(r => r.pass).length} | FAILED: ${results.filter(r => !r.pass).length}\n============================================================\n${allPassed ? 'ALL TESTS PASSED PERFECTLY!' : 'SOME TESTS FAILED.'}`;
+        console.log(summary);
+
+        document.getElementById('test-results').textContent = results.map(r => r.text).join('\n') + '\n' + summary;
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed })
+        }).catch(() => {});
+
+      } catch (err) {
+        log('FATAL ERROR: ' + err.message + '\n' + err.stack, false);
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed: false, error: err.message })
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

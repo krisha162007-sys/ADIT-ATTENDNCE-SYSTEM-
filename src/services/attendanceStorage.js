@@ -13,6 +13,9 @@ const STORAGE_KEYS = {
   ALLOCATIONS: 'adit_attendance_allocations',
   EXCEPTIONS: 'adit_attendance_exceptions',
   EXCEPTION_POLICY: 'adit_exception_policy',
+  PROMOTION_HISTORY: 'adit_attendance_promotion_history',
+  ELECTIVE_GROUPS: 'adit_attendance_elective_groups',
+  ELECTIVE_ASSIGNMENTS: 'adit_attendance_elective_assignments',
 };
 
 // Academic Years Master
@@ -94,6 +97,16 @@ export const DEFAULT_CLASSES = [
     id: 'CLASS_DEP_AI_5_1_2026-27',
     departmentId: 'DEP_AI',
     departmentName: 'AI & Data Science',
+    semester: '5th Sem',
+    division: 'Div 1',
+    academicYear: '2026-27',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    status: 'active'
+  },
+  {
+    id: 'CLASS_DEP_CP_5_1_2026-27',
+    departmentId: 'DEP_CP',
+    departmentName: 'Computer Engineering',
     semester: '5th Sem',
     division: 'Div 1',
     academicYear: '2026-27',
@@ -353,6 +366,11 @@ export const DEFAULT_ALLOCATIONS = {
   }
 };
 
+// Default Elective Subject Groups (Semester-Wide Student Electives)
+// Elective Subject Management: Zero demo/sample seed data (All elective classes are created manually)
+export const DEFAULT_ELECTIVE_GROUPS = [];
+export const DEFAULT_ELECTIVE_ASSIGNMENTS = [];
+
 // Default Admin Security PIN: 1234
 const DEFAULT_SECURITY = {
   adminPin: '1234',
@@ -372,7 +390,12 @@ export const sanitizeInput = (str) => {
 };
 
 export const getCollegeName = () => {
-  return localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME) || 'G H Patel College of Engineering & Technology';
+  const stored = localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME);
+  if (stored && (stored.includes('G H Patel') || stored.includes('GCET') || stored.includes('GH Patel'))) {
+    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
+    return 'A D Patel Institute of Technology';
+  }
+  return stored || 'A D Patel Institute of Technology';
 };
 
 export const setCollegeName = (name) => {
@@ -435,26 +458,92 @@ export const DEFAULT_STUDENTS = [
   // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
   { id: 'S_IT_01', rollNo: '1', name: 'Omkar Trivedi', enrollmentNo: '24IT001', email: 'omkar.t@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
   { id: 'S_IT_02', rollNo: '2', name: 'Prachi Joshi', enrollmentNo: '24IT002', email: 'prachi.j@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_IT_1_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '1st Sem', semester: '1st Sem', academicYear: '2026-27' },
+
+  // Computer Engineering • Sem 3 • Div 1 (2026-27)
+  { id: 'S_CP_101', rollNo: '1', name: 'Dev Patel', enrollmentNo: '12502040501001', email: 'dev.p@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_102', rollNo: '2', name: 'Krishna Sharma', enrollmentNo: '12502040501002', email: 'krishna.s@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_103', rollNo: '3', name: 'Meet Pandya', enrollmentNo: '12502040501003', email: 'meet.p@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_104', rollNo: '4', name: 'Pooja Dave', enrollmentNo: '12502040501004', email: 'pooja.d@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_105', rollNo: '5', name: 'Raj Makwana', enrollmentNo: '12502040501005', email: 'raj.m@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_106', rollNo: '6', name: 'Shivani Trivedi', enrollmentNo: '12502040501006', email: 'shivani.t@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // Computer Engineering • Sem 3 • Div 2 (2026-27)
+  { id: 'S_CP_201', rollNo: '1', name: 'Aniket Vaghela', enrollmentNo: '12502040501021', email: 'aniket.v@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_202', rollNo: '2', name: 'Bhavya Soni', enrollmentNo: '12502040501022', email: 'bhavya.s@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_203', rollNo: '3', name: 'Dhruv Parmar', enrollmentNo: '12502040501023', email: 'dhruv.p@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_204', rollNo: '4', name: 'Heena Shah', enrollmentNo: '12502040501024', email: 'heena.s@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_205', rollNo: '5', name: 'Kishan Mistry', enrollmentNo: '12502040501025', email: 'kishan.m@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CP_206', rollNo: '6', name: 'Nidhi Bhatt', enrollmentNo: '12502040501026', email: 'nidhi.b@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_3_2_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '2', division: 'Div 2', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // Information Technology • Sem 3 • Div 1 (2026-27)
+  { id: 'S_IT_301', rollNo: '1', name: 'Akash Panchal', enrollmentNo: '12502040701001', email: 'akash.p@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_IT_302', rollNo: '2', name: 'Binita Rana', enrollmentNo: '12502040701002', email: 'binita.r@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_IT_303', rollNo: '3', name: 'Chirag Desai', enrollmentNo: '12502040701003', email: 'chirag.d@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_IT_304', rollNo: '4', name: 'Dolly Dave', enrollmentNo: '12502040701004', email: 'dolly.d@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_IT_305', rollNo: '5', name: 'Jay Patel', enrollmentNo: '12502040701005', email: 'jay.p@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_IT_306', rollNo: '6', name: 'Mayur Joshi', enrollmentNo: '12502040701006', email: 'mayur.j@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_IT_3_1_2026-27', departmentId: 'DEP_IT', department: 'Information Technology', dept: 'Information Technology', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // Electronics & Communication • Sem 3 • Div 1 (2026-27)
+  { id: 'S_EC_301', rollNo: '1', name: 'Aashna Shah', enrollmentNo: '12502041101001', email: 'aashna.s@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_EC_3_1_2026-27', departmentId: 'DEP_EC', department: 'Electronics & Communication', dept: 'Electronics & Communication', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_EC_302', rollNo: '2', name: 'Hardik Chauhan', enrollmentNo: '12502041101002', email: 'hardik.c@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_EC_3_1_2026-27', departmentId: 'DEP_EC', department: 'Electronics & Communication', dept: 'Electronics & Communication', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_EC_303', rollNo: '3', name: 'Kavita Verma', enrollmentNo: '12502041101003', email: 'kavita.v@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_EC_3_1_2026-27', departmentId: 'DEP_EC', department: 'Electronics & Communication', dept: 'Electronics & Communication', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // Mechanical Engineering • Sem 3 • Div 1 (2026-27)
+  { id: 'S_ME_301', rollNo: '1', name: 'Gaurav Rathore', enrollmentNo: '12502041901001', email: 'gaurav.r@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_ME_3_1_2026-27', departmentId: 'DEP_ME', department: 'Mechanical Engineering', dept: 'Mechanical Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_ME_302', rollNo: '2', name: 'Kinjal Patel', enrollmentNo: '12502041901002', email: 'kinjal.p@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_ME_3_1_2026-27', departmentId: 'DEP_ME', department: 'Mechanical Engineering', dept: 'Mechanical Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // Civil Engineering • Sem 3 • Div 1 (2026-27)
+  { id: 'S_CL_301', rollNo: '1', name: 'Deepak Yadav', enrollmentNo: '12502040601001', email: 'deepak.y@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CL_3_1_2026-27', departmentId: 'DEP_CL', department: 'Civil Engineering', dept: 'Civil Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+  { id: 'S_CL_302', rollNo: '2', name: 'Mansi Shah', enrollmentNo: '12502040601002', email: 'mansi.s@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CL_3_1_2026-27', departmentId: 'DEP_CL', department: 'Civil Engineering', dept: 'Civil Engineering', class: '1', division: 'Div 1', sem: '3rd Sem', semester: '3rd Sem', academicYear: '2026-27' },
+
+  // AI & Data Science • Sem 5 • Div 1 (2026-27)
+  { id: 'S_SEM5_AI_01', rollNo: '1', name: 'Aarav Shah', enrollmentNo: '24AD501', email: 'aarav.s5@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_AI_02', rollNo: '2', name: 'Divya Patel', enrollmentNo: '24AD502', email: 'divya.p5@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_AI_03', rollNo: '3', name: 'Ishan Dave', enrollmentNo: '24AD503', email: 'ishan.d5@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_AI_04', rollNo: '4', name: 'Meera Joshi', enrollmentNo: '24AD504', email: 'meera.j5@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_AI_05', rollNo: '5', name: 'Rohan Trivedi', enrollmentNo: '24AD505', email: 'rohan.t5@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_AI_06', rollNo: '6', name: 'Tanvi Mehta', enrollmentNo: '24AD506', email: 'tanvi.m5@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_AI_5_1_2026-27', departmentId: 'DEP_AI', department: 'AI & Data Science', dept: 'AI & Data Science', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+
+  // Computer Engineering • Sem 5 • Div 1 (2026-27)
+  { id: 'S_SEM5_CP_01', rollNo: '1', name: 'Aditya Verma', enrollmentNo: '24CP501', email: 'aditya.v5@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_CP_02', rollNo: '2', name: 'Aniket Sharma', enrollmentNo: '24CP502', email: 'aniket.s5@adit.ac.in', batch: 'Batch A', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_CP_03', rollNo: '3', name: 'Harsh Patel', enrollmentNo: '24CP503', email: 'harsh.p5@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_CP_04', rollNo: '4', name: 'Kruti Shah', enrollmentNo: '24CP504', email: 'kruti.s5@adit.ac.in', batch: 'Batch B', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_CP_05', rollNo: '5', name: 'Pranav Desai', enrollmentNo: '24CP505', email: 'pranav.d5@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
+  { id: 'S_SEM5_CP_06', rollNo: '6', name: 'Riddhi Patel', enrollmentNo: '24CP506', email: 'riddhi.p5@adit.ac.in', batch: 'Batch C', classId: 'CLASS_DEP_CP_5_1_2026-27', departmentId: 'DEP_CP', department: 'Computer Engineering', dept: 'Computer Engineering', class: '1', division: 'Div 1', sem: '5th Sem', semester: '5th Sem', academicYear: '2026-27' },
 ];
 
 export const DEFAULT_SUBJECTS = [
   // AI & Data Science
-  { id: 'SUB_AI_DBMS', code: '3130703', name: 'Database Management Systems', shortName: 'DBMS', faculty: 'Prof. Priya Shah', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_DS', code: '3130702', name: 'Data Structures', shortName: 'DS', faculty: 'Prof. Priya Shah', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_PY', code: '3130704', name: 'Python Programming', shortName: 'Python', faculty: 'Prof. Dev Trivedi', credits: 3, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_MATH', code: '3130006', name: 'Mathematics - III', shortName: 'Mathematics', faculty: 'Prof. Rahul Patel', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_OS', code: '3130705', name: 'Operating Systems', shortName: 'Operating Systems', faculty: 'Prof. A. Kumar', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_CN', code: '3130706', name: 'Computer Networks', shortName: 'Computer Networks', faculty: 'Prof. Sneha Mehta', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_SEM', code: '3130709', name: 'Technical Seminar', shortName: 'Seminar', faculty: 'Prof. Priya Shah', credits: 2, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_DA', code: '3130708', name: 'Data Analytics', shortName: 'Data Analytics', faculty: 'Prof. R. Jain', credits: 3, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
-  { id: 'SUB_AI_HUM', code: '3130008', name: 'Humanities & Social Sciences', shortName: 'Humanities', faculty: 'Prof. Neha Modi', credits: 2, sem: '3rd Sem', dept: 'AI & Data Science', class: '1' },
+  { id: 'SUB_AI_DBMS', code: '3130703', name: 'Database Management Systems', shortName: 'DBMS', faculty: 'Prof. Priya Shah', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_DS', code: '3130702', name: 'Data Structures', shortName: 'DS', faculty: 'Prof. Priya Shah', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_PY', code: '3130704', name: 'Python Programming', shortName: 'Python', faculty: 'Prof. Dev Trivedi', credits: 3, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_MATH', code: '3130006', name: 'Mathematics - III', shortName: 'Mathematics', faculty: 'Prof. Rahul Patel', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_OS', code: '3130705', name: 'Operating Systems', shortName: 'Operating Systems', faculty: 'Prof. A. Kumar', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_CN', code: '3130706', name: 'Computer Networks', shortName: 'Computer Networks', faculty: 'Prof. Sneha Mehta', credits: 4, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_SEM', code: '3130709', name: 'Technical Seminar', shortName: 'Seminar', faculty: 'Prof. Priya Shah', credits: 2, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_DA', code: '3130708', name: 'Data Analytics', shortName: 'Data Analytics', faculty: 'Prof. R. Jain', credits: 3, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_AI_HUM', code: '3130008', name: 'Humanities & Social Sciences', shortName: 'Humanities', faculty: 'Prof. Neha Modi', credits: 2, sem: '3rd Sem', dept: 'AI & Data Science', departmentId: 'DEP_AI', class: '1', academicYear: '2026-27' },
 
   // Computer Engineering
-  { id: 'SUB_DS', code: '102040304', name: 'DATA STRUCTURES', shortName: 'DS', faculty: 'Prof. R. K. Patel', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', class: '3', academicYear: '2026-27', term: 'Odd' },
-  { id: 'SUB01', code: '102040301', name: 'Database Management Systems', shortName: 'DBMS', faculty: 'Dr. S. M. Mehta', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', class: '3', academicYear: '2026-27', term: 'Odd' },
-  { id: 'SUB02', code: '102040302', name: 'Digital Logic & Computer Design', shortName: 'Digital Logic', faculty: 'Prof. A. N. Shah', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', class: '3', academicYear: '2026-27', term: 'Odd' },
-  { id: 'SUB03', code: '102040303', name: 'Discrete Mathematics', shortName: 'Discrete Math', faculty: 'Prof. P. V. Desai', credits: 3, sem: '3rd Sem', dept: 'Computer Engineering', class: '3', academicYear: '2026-27', term: 'Odd' },
-  { id: 'SUB04', code: '102040305', name: 'Object Oriented Programming', shortName: 'OOP', faculty: 'Dr. H. K. Trivedi', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', class: '3', academicYear: '2026-27', term: 'Odd' }
+  { id: 'SUB_DS', code: '102040304', name: 'DATA STRUCTURES', shortName: 'DS', faculty: 'Prof. R. K. Patel', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', departmentId: 'DEP_CP', class: '3', academicYear: '2026-27', term: 'Odd' },
+  { id: 'SUB01', code: '102040301', name: 'Database Management Systems', shortName: 'DBMS', faculty: 'Dr. S. M. Mehta', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', departmentId: 'DEP_CP', class: '3', academicYear: '2026-27', term: 'Odd' },
+  { id: 'SUB02', code: '102040302', name: 'Digital Logic & Computer Design', shortName: 'Digital Logic', faculty: 'Prof. A. N. Shah', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', departmentId: 'DEP_CP', class: '3', academicYear: '2026-27', term: 'Odd' },
+  { id: 'SUB03', code: '102040303', name: 'Discrete Mathematics', shortName: 'Discrete Math', faculty: 'Prof. P. V. Desai', credits: 3, sem: '3rd Sem', dept: 'Computer Engineering', departmentId: 'DEP_CP', class: '3', academicYear: '2026-27', term: 'Odd' },
+  { id: 'SUB04', code: '102040305', name: 'Object Oriented Programming', shortName: 'OOP', faculty: 'Dr. H. K. Trivedi', credits: 4, sem: '3rd Sem', dept: 'Computer Engineering', departmentId: 'DEP_CP', class: '3', academicYear: '2026-27', term: 'Odd' },
+
+  // Information Technology Subjects
+  { id: 'SUB_IT_01', code: '3131601', name: 'Database & Web Systems', shortName: 'DWS', faculty: 'Prof. R. M. Patel', credits: 4, sem: '3rd Sem', dept: 'Information Technology', departmentId: 'DEP_IT', class: '1', academicYear: '2026-27' },
+  { id: 'SUB_IT_02', code: '3110005', name: 'Basic Electrical Engineering', shortName: 'BEE', faculty: 'Prof. S. Joshi', credits: 4, sem: '1st Sem', dept: 'Information Technology', departmentId: 'DEP_IT', class: '1', academicYear: '2026-27' },
+
+  // Electronics & Communication Subjects
+  { id: 'SUB_EC_01', code: '3131001', name: 'Electronic Devices & Circuits', shortName: 'EDC', faculty: 'Dr. V. K. Solanki', credits: 4, sem: '3rd Sem', dept: 'Electronics & Communication', departmentId: 'DEP_EC', class: '1', academicYear: '2026-27' },
+
+  // Mechanical Engineering Subjects
+  { id: 'SUB_ME_01', code: '3131901', name: 'Thermodynamics & Heat Transfer', shortName: 'Thermodynamics', faculty: 'Prof. K. N. Barot', credits: 4, sem: '3rd Sem', dept: 'Mechanical Engineering', departmentId: 'DEP_ME', class: '1', academicYear: '2026-27' },
+
+  // Civil Engineering Subjects
+  { id: 'SUB_CL_01', code: '3130601', name: 'Structural Analysis & Surveying', shortName: 'Surveying', faculty: 'Prof. M. R. Vyas', credits: 4, sem: '3rd Sem', dept: 'Civil Engineering', departmentId: 'DEP_CL', class: '1', academicYear: '2026-27' },
 ];
 
 // Helper to generate the exact 18 sessions matching the reference photo
@@ -512,35 +601,55 @@ const generateDSSessions = () => {
     'S131': ['2026-08-10'] // O* Duty Certificate on 10-08
   };
 
+  const cpStudents = DEFAULT_STUDENTS.filter(s => s.classId === 'CLASS_DEP_CP_3_3_2026-27');
   return dates.map((d, index) => {
     const records = {};
     const remarks = {};
+    let presentCount = 0;
+    let absentCount = 0;
 
-    DEFAULT_STUDENTS.forEach(student => {
+    cpStudents.forEach(student => {
       const isAbsent = (absentMap[student.id] || []).includes(d.date);
       const isOD = (odMap[student.id] || []).includes(d.date);
 
       if (isOD) {
         records[student.id] = 'od';
         remarks[student.id] = 'Duty Certificate Approved';
+        presentCount++;
       } else if (isAbsent) {
         records[student.id] = 'absent';
         remarks[student.id] = 'Absent';
+        absentCount++;
       } else {
         records[student.id] = 'present';
+        presentCount++;
       }
     });
 
     return {
       id: `SESS_DS_${index + 1}`,
       date: d.date,
+      timeSlot: '10:00 - 10:55',
       subjectId: 'SUB_DS',
+      subjectName: 'DATA STRUCTURES',
       topic: d.topic,
+      facultyId: 'FAC01',
+      facultyName: 'Prof. R. K. Patel',
+      department: 'Computer Engineering',
+      dept: 'Computer Engineering',
+      sem: '3rd Sem',
+      division: 'Div 3',
+      class: '3',
+      batch: 'ALL',
+      classId: 'CLASS_DEP_CP_3_3_2026-27',
+      academicYear: '2026-27',
       records,
       remarks,
-      sem: '3rd Sem',
-      class: '3',
-      dept: 'Computer'
+      totalStudents: cpStudents.length,
+      presentCount,
+      absentCount,
+      percentage: cpStudents.length > 0 ? ((presentCount / cpStudents.length) * 100).toFixed(1) : '0.0',
+      submittedAt: new Date().toISOString()
     };
   });
 };
@@ -586,6 +695,7 @@ const generateDBMSSessions = () => {
       department: 'AI & Data Science',
       sem: '3rd Sem',
       division: 'Div 1',
+      batch: 'ALL',
       academicYear: '2026-27',
       classId: 'CLASS_DEP_AI_3_1_2026-27',
       topic: d.topic,
@@ -604,6 +714,12 @@ export const DEFAULT_SESSIONS = [...generateDSSessions(), ...generateDBMSSession
 
 // Helper to initialize LocalStorage if empty or outdated
 export const initializeStorage = () => {
+  // Sanitize college branding if outdated
+  const storedCollege = localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME);
+  if (!storedCollege || storedCollege.includes('G H Patel') || storedCollege.includes('GCET') || storedCollege.includes('GH Patel')) {
+    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
+  }
+
   const currentSubjs = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
   const currentStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
 
@@ -613,15 +729,17 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
-    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'G H Patel College of Engineering & Technology');
+    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
     localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEFAULT_DEPARTMENTS));
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
     return;
   }
 
-  // Ensure AI & DS students are in current storage
+  // Ensure AI & DS students and Sem 5 students are in current storage
   try {
     const parsedStudents = JSON.parse(currentStudents || '[]');
     let stChanged = false;
@@ -650,9 +768,65 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
   }
 
-  if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) {
+  const existingClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
+  if (!existingClasses) {
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+  } else {
+    try {
+      const parsedClasses = JSON.parse(existingClasses);
+      let clsChanged = false;
+      DEFAULT_CLASSES.forEach(defCls => {
+        if (!parsedClasses.some(c => c.id === defCls.id)) {
+          parsedClasses.push(defCls);
+          clsChanged = true;
+        }
+      });
+      if (clsChanged) {
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(parsedClasses));
+      }
+    } catch(e) {}
   }
+
+  // Clean up any legacy demo elective groups, assignments, and demo classes
+  try {
+    const rawGroups = localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS);
+    if (rawGroups && (rawGroups.includes('ELEC_GRP_SEM5_2026-27') || rawGroups.includes('Semester 5 Professional Electives'))) {
+      localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, '[]');
+    }
+    const rawAsgns = localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS);
+    if (rawAsgns && (rawAsgns.includes('ELEC_GRP_SEM5_2026-27') || rawAsgns.includes('ASGN_S5_01'))) {
+      localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, '[]');
+    }
+    const rawClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (rawClasses && (rawClasses.includes('ELEC_CLS_CS_A') || rawClasses.includes('ELEC_CLS_CC_B') || rawClasses.includes('ELEC_CLS_IOT_C'))) {
+      const clsList = JSON.parse(rawClasses);
+      const cleaned = clsList.filter(c => c.id !== 'ELEC_CLS_CS_A' && c.id !== 'ELEC_CLS_CC_B' && c.id !== 'ELEC_CLS_IOT_C');
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cleaned));
+    }
+  } catch (e) {}
+
+  if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) {
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, '[]');
+  }
+  if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) {
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, '[]');
+  }
+
+  // Sanitize exceptions storage: remove corrupted/mismatched mock exception records
+  try {
+    const rawExceptions = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+    if (rawExceptions) {
+      const parsedExceptions = JSON.parse(rawExceptions);
+      const cleaned = parsedExceptions.filter(e => {
+        if (e.id === 'EXC_SPORT_001' && (e.studentId === 'S_AI_02' || e.enrollmentNo === '125020405002')) return false;
+        if (e.id === 'EXC_HACK_002' && (e.studentId === 'S_AI_03' || e.enrollmentNo === '125020405003')) return false;
+        return true;
+      });
+      if (cleaned.length !== parsedExceptions.length) {
+        localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(cleaned));
+      }
+    }
+  } catch (e) {}
 
   const existingFaculties = localStorage.getItem(STORAGE_KEYS.FACULTIES);
   if (!existingFaculties || !existingFaculties.includes('FAC_PS')) {
@@ -773,6 +947,24 @@ export const getActiveFaculty = () => {
   return faculties.find(f => f.id === facId) || faculties[0] || null;
 };
 
+export const hashPassword = (password, salt = 'ADIT_CAMPUS_AUTH_SALT_2026') => {
+  if (!password) return '';
+  const combined = `${salt}:${password}`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  let h3 = 0x5bd1e995;
+  let h4 = 0x27d4eb2f;
+
+  for (let i = 0; i < combined.length; i++) {
+    const ch = combined.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 16777619) >>> 0;
+    h2 = Math.imul(h2 ^ (ch << 1), 2166136261) >>> 0;
+    h3 = Math.imul(h3 ^ (ch << 2), 16777619) >>> 0;
+    h4 = Math.imul(h4 ^ (ch << 3), 2654435761) >>> 0;
+  }
+  return [h1, h2, h3, h4].map(h => h.toString(16).padStart(8, '0')).join('');
+};
+
 export const loginUser = (identifier, password) => {
   if (!identifier || !password) {
     return { success: false, error: 'Please enter both User ID and Password.' };
@@ -827,6 +1019,74 @@ export const loginUser = (identifier, password) => {
       return { success: true, user: facultyUser };
     } else {
       return { success: false, error: 'Incorrect password for this faculty account.' };
+    }
+  }
+
+  // 3. Student member login verification
+  initializeStorage();
+  const rawStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+  let allStudents = [];
+  try {
+    allStudents = JSON.parse(rawStudents || '[]');
+  } catch(e) {
+    allStudents = DEFAULT_STUDENTS;
+  }
+
+  const foundStudent = allStudents.find(s => {
+    const enr = String(s.enrollmentNo || '').trim().toLowerCase();
+    const sid = String(s.id || '').trim().toLowerCase();
+    const semail = String(s.email || '').trim().toLowerCase();
+    return enr === cleanId || sid === cleanId || semail === cleanId;
+  });
+
+  if (foundStudent) {
+    const studentEnr = String(foundStudent.enrollmentNo || '').trim();
+    const storedHash = foundStudent.passwordHash;
+    const storedPlain = foundStudent.password;
+    const inputHash = hashPassword(cleanPass, foundStudent.salt || studentEnr);
+
+    let isPasswordValid = false;
+    if (storedHash) {
+      isPasswordValid = (storedHash === inputHash || storedHash === hashPassword(cleanPass));
+    } else if (storedPlain) {
+      isPasswordValid = (cleanPass === storedPlain || cleanPass === hashPassword(storedPlain));
+    } else {
+      // Initial default credentials for students without pre-configured passwords:
+      // Accepts student's enrollment number, 'student123', or '1234'
+      isPasswordValid = (
+        cleanPass === studentEnr ||
+        cleanPass.toLowerCase() === studentEnr.toLowerCase() ||
+        cleanPass === 'student123' ||
+        cleanPass === '1234'
+      );
+    }
+
+    if (isPasswordValid) {
+      const studentUser = {
+        role: 'student',
+        id: foundStudent.id,
+        studentId: foundStudent.id,
+        enrollmentNo: foundStudent.enrollmentNo,
+        rollNo: foundStudent.rollNo,
+        name: foundStudent.name,
+        email: foundStudent.email,
+        phone: foundStudent.phone || '',
+        department: foundStudent.department || foundStudent.dept || '',
+        dept: foundStudent.dept || foundStudent.department || '',
+        departmentId: foundStudent.departmentId || null,
+        semester: normalizeSem(foundStudent.semester || foundStudent.sem || '3rd Sem'),
+        sem: normalizeSem(foundStudent.sem || foundStudent.semester || '3rd Sem'),
+        division: normalizeDiv(foundStudent.division || foundStudent.class || 'Div 1'),
+        class: normalizeDiv(foundStudent.class || foundStudent.division || 'Div 1'),
+        batch: foundStudent.batch || 'ALL',
+        classId: foundStudent.classId || null,
+        academicYear: foundStudent.academicYear || DEFAULT_ACADEMIC_YEAR,
+        loginTime: new Date().toISOString()
+      };
+      setCurrentUser(studentUser);
+      return { success: true, user: studentUser };
+    } else {
+      return { success: false, error: 'Incorrect password for this student account.' };
     }
   }
 
@@ -932,43 +1192,72 @@ export const getOrCreateClass = (department, semester, division, academicYear = 
   return newClass;
 };
 
-export const saveClass = (classData) => {
-  if (!classData.departmentName && !classData.departmentId) {
-    throw new Error('Department is required to create a class.');
+export const saveClass = (classData, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to create or modify classes.');
   }
-  const normSem = normalizeSem(classData.semester || '3rd Sem');
-  const normDiv = normalizeDiv(classData.division || 'Div 1');
+  const isElective = Boolean(classData.isElective);
+  if (!isElective && !classData.departmentName && !classData.departmentId) {
+    throw new Error('Department is required to create a regular class.');
+  }
+
+  const normSem = normalizeSem(classData.semester || (isElective ? '5th Sem' : '3rd Sem'));
+  const normDiv = (classData.division || classData.name || (isElective ? 'Elective Class A' : 'Div 1')).trim();
   const normYear = (classData.academicYear || DEFAULT_ACADEMIC_YEAR).trim();
 
-  const depts = getDepartments();
-  let deptId = classData.departmentId;
-  let deptName = classData.departmentName;
-  if (deptId && !deptName) {
-    const f = depts.find(d => d.id === deptId);
-    if (f) deptName = f.name;
-  } else if (!deptId && deptName) {
-    const f = depts.find(d => d.name.toLowerCase() === deptName.toLowerCase() || d.id === deptName);
-    if (f) {
-      deptId = f.id;
-      deptName = f.name;
+  let deptId = null;
+  let deptName = null;
+
+  if (!isElective) {
+    const depts = getDepartments();
+    deptId = classData.departmentId;
+    deptName = classData.departmentName;
+    if (deptId && !deptName) {
+      const f = depts.find(d => d.id === deptId);
+      if (f) deptName = f.name;
+    } else if (!deptId && deptName) {
+      const f = depts.find(d => d.name.toLowerCase() === deptName.toLowerCase() || d.id === deptName);
+      if (f) {
+        deptId = f.id;
+        deptName = f.name;
+      }
     }
+    if (!deptId) deptId = 'DEP_AI';
+    if (!deptName) deptName = 'AI & Data Science';
+  } else {
+    deptId = null;
+    deptName = classData.departmentName || 'Elective (No Department)';
   }
-  if (!deptId) deptId = 'DEP_AI';
-  if (!deptName) deptName = 'AI & Data Science';
 
   const classes = getClasses();
 
-  // Uniqueness rule: Department + Semester + Division + Academic Year
-  const duplicate = classes.find(c => 
-    c.id !== classData.id &&
-    c.departmentId === deptId &&
-    normalizeSem(c.semester) === normSem &&
-    normalizeDiv(c.division) === normDiv &&
-    c.academicYear === normYear
-  );
+  // Uniqueness check:
+  // For elective classes: subjectId + semester + division/name + academicYear
+  // For regular classes: departmentId + semester + division + academicYear
+  const duplicate = classes.find(c => {
+    if (c.id === classData.id) return false;
+    const sameYear = (c.academicYear || '').trim() === normYear;
+    const sameSem = normalizeSem(c.semester) === normSem;
+    if (isElective) {
+      const sameSubj = !classData.subjectId || !c.subjectId || c.subjectId === classData.subjectId;
+      const sameDiv = (c.division || c.name || '').trim().toLowerCase() === normDiv.toLowerCase();
+      return Boolean(c.isElective) && sameSubj && sameSem && sameDiv && sameYear;
+    } else {
+      return !c.isElective &&
+             c.departmentId === deptId &&
+             sameSem &&
+             normalizeDiv(c.division) === normalizeDiv(normDiv) &&
+             sameYear;
+    }
+  });
 
   if (duplicate) {
-    throw new Error(`A class for ${deptName}, ${normSem}, ${normDiv} (${normYear}) already exists.`);
+    if (isElective) {
+      throw new Error(`An elective class with identifier "${normDiv}" for this subject and ${normSem} (${normYear}) already exists.`);
+    } else {
+      throw new Error(`A class for ${deptName}, ${normSem}, ${normDiv} (${normYear}) already exists.`);
+    }
   }
 
   let savedClass;
@@ -978,62 +1267,79 @@ export const saveClass = (classData) => {
       savedClass = {
         ...classes[idx],
         ...classData,
+        isElective,
         departmentId: deptId,
         departmentName: deptName,
         semester: normSem,
         division: normDiv,
+        name: classData.name || normDiv,
         academicYear: normYear,
+        studentEnrollmentNos: classData.studentEnrollmentNos || classes[idx].studentEnrollmentNos || [],
+        studentIds: classData.studentIds || classes[idx].studentIds || [],
         updatedAt: new Date().toISOString()
       };
       classes[idx] = savedClass;
 
-      // Update student denormalized attributes
-      const rawStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      if (rawStudents) {
-        try {
-          const stList = JSON.parse(rawStudents);
-          let changed = false;
-          stList.forEach(st => {
-            if (st.classId === savedClass.id) {
-              st.departmentId = deptId;
-              st.department = deptName;
-              st.dept = deptName;
-              st.semester = normSem;
-              st.sem = normSem;
-              st.division = normDiv;
-              st.class = normDiv.replace(/[^0-9]/g, '') || '1';
-              st.academicYear = normYear;
-              changed = true;
+      // Update student denormalized attributes ONLY for regular classes
+      if (!isElective) {
+        const rawStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+        if (rawStudents) {
+          try {
+            const stList = JSON.parse(rawStudents);
+            let changed = false;
+            stList.forEach(st => {
+              if (st.classId === savedClass.id) {
+                st.departmentId = deptId;
+                st.department = deptName;
+                st.dept = deptName;
+                st.semester = normSem;
+                st.sem = normSem;
+                st.division = normDiv;
+                st.class = normDiv.replace(/[^0-9]/g, '') || '1';
+                st.academicYear = normYear;
+                changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(stList));
             }
-          });
-          if (changed) {
-            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(stList));
-          }
-        } catch(e) {}
+          } catch(e) {}
+        }
       }
     } else {
       savedClass = {
         ...classData,
+        isElective,
         departmentId: deptId,
         departmentName: deptName,
         semester: normSem,
         division: normDiv,
+        name: classData.name || normDiv,
         academicYear: normYear,
+        studentEnrollmentNos: classData.studentEnrollmentNos || [],
+        studentIds: classData.studentIds || [],
         createdAt: new Date().toISOString(),
         status: 'active'
       };
       classes.push(savedClass);
     }
   } else {
-    const newId = `CLASS_${deptId}_${normSem.replace(/[^0-9]/g, '')}_${normDiv.replace(/[^0-9]/g, '')}_${normYear.replace(/[^0-9]/g, '_')}_${Date.now().toString().slice(-4)}`;
+    const prefix = isElective 
+      ? 'CLASS_ELEC_' + (classData.subjectId || 'SUB').replace(/[^a-zA-Z0-9]/g, '') 
+      : `CLASS_${deptId}`;
+    const newId = `${prefix}_${normSem.replace(/[^0-9]/g, '')}_${normDiv.replace(/[^0-9a-zA-Z]/g, '')}_${normYear.replace(/[^0-9]/g, '_')}_${Date.now().toString().slice(-4)}`;
     savedClass = {
       ...classData,
       id: newId,
+      isElective,
       departmentId: deptId,
       departmentName: deptName,
       semester: normSem,
       division: normDiv,
+      name: classData.name || normDiv,
       academicYear: normYear,
+      studentEnrollmentNos: classData.studentEnrollmentNos || [],
+      studentIds: classData.studentIds || [],
       createdAt: new Date().toISOString(),
       status: 'active'
     };
@@ -1047,22 +1353,32 @@ export const saveClass = (classData) => {
   return { success: true, class: savedClass, classes };
 };
 
-export const deleteClass = (classId, deleteStudents = false) => {
-  const classes = getClasses().filter(c => c.id !== classId);
+export const deleteClass = (classId, deleteStudents = false, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to delete classes.');
+  }
+  const currentClasses = getClasses();
+  const targetClass = currentClasses.find(c => c.id === classId);
+  const classes = currentClasses.filter(c => c.id !== classId);
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
 
-  const students = getStudents();
-  if (deleteStudents) {
-    const remaining = students.filter(s => s.classId !== classId);
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(remaining));
-  } else {
-    students.forEach(s => {
-      if (s.classId === classId) {
-        s.classId = null;
-      }
-    });
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  // If this was an elective class, DO NOT modify student records or their regular classId!
+  if (!targetClass?.isElective) {
+    const students = getStudents();
+    if (deleteStudents) {
+      const remaining = students.filter(s => s.classId !== classId);
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(remaining));
+    } else {
+      students.forEach(s => {
+        if (s.classId === classId) {
+          s.classId = null;
+        }
+      });
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+    }
   }
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-classes-updated'));
     window.dispatchEvent(new CustomEvent('adit-students-updated'));
@@ -1123,6 +1439,48 @@ export const getStudents = () => {
 
 export const getStudentsByClassId = (classId) => {
   if (!classId) return [];
+  const cls = getClassById(classId);
+  if (cls && cls.isElective) {
+    const all = getStudents();
+    const studentMap = new Map();
+    all.forEach(s => {
+      studentMap.set(String(s.id), s);
+      if (s.enrollmentNo) {
+        studentMap.set(String(s.enrollmentNo).trim().toUpperCase(), s);
+      }
+    });
+
+    const list = [];
+    const seen = new Set();
+
+    if (Array.isArray(cls.studentEnrollmentNos)) {
+      cls.studentEnrollmentNos.forEach(enr => {
+        const clean = String(enr).trim().toUpperCase();
+        const st = studentMap.get(clean);
+        if (st && !seen.has(st.id)) {
+          seen.add(st.id);
+          list.push(st);
+        }
+      });
+    }
+
+    if (Array.isArray(cls.studentIds)) {
+      cls.studentIds.forEach(id => {
+        const st = studentMap.get(String(id));
+        if (st && !seen.has(st.id)) {
+          seen.add(st.id);
+          list.push(st);
+        }
+      });
+    }
+
+    return list.sort((a, b) => {
+      const enrA = String(a.enrollmentNo || a.rollNo || '');
+      const enrB = String(b.enrollmentNo || b.rollNo || '');
+      return enrA.localeCompare(enrB, undefined, { numeric: true });
+    });
+  }
+
   const all = getStudents();
   return all
     .filter(s => s.classId === classId)
@@ -1148,6 +1506,660 @@ export const getStudentsForClassCriteria = (dept, sem, div, academicYear = DEFAU
     const sDept = String(s.department || s.dept || '').toLowerCase();
     const targetDept = String(dept || '').toLowerCase();
     return sSem === normSem && sDiv === normDiv && (!dept || sDept.includes(targetDept) || targetDept.includes(sDept));
+  });
+};
+
+/**
+ * Validate and match Excel uploaded student rows for an elective class
+ * Matches existing students by Enrollment Number without duplicating student records.
+ */
+export const parseAndValidateElectiveStudentList = (rows, allExistingStudents = null) => {
+  const allStudents = allExistingStudents || getStudents();
+  const studentMap = new Map();
+  allStudents.forEach(s => {
+    if (s.enrollmentNo) {
+      studentMap.set(String(s.enrollmentNo).trim().toUpperCase(), s);
+    }
+    if (s.id) {
+      studentMap.set(String(s.id).trim().toUpperCase(), s);
+    }
+  });
+
+  const matchedStudents = [];
+  const matchedEnrollmentNos = [];
+  const matchedStudentIds = [];
+  const failedRows = [];
+  const seenEnrollments = new Set();
+
+  if (!Array.isArray(rows)) {
+    return {
+      validCount: 0,
+      failedCount: 0,
+      totalRows: 0,
+      matchedStudents: [],
+      matchedEnrollmentNos: [],
+      matchedStudentIds: [],
+      failedRows: [],
+      preview: []
+    };
+  }
+
+  rows.forEach((row, idx) => {
+    if (!row || typeof row !== 'object') return;
+    const values = Object.values(row).map(v => String(v || '').trim()).filter(Boolean);
+    if (values.length === 0) return;
+
+    let rawEnr = null;
+    for (const key of Object.keys(row)) {
+      const cleanKey = key.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (['enrollment', 'enrollmentno', 'enrollmentnumber', 'enrno', 'enrolment', 'enrolmentno', 'rollno', 'studentenrollmentno'].includes(cleanKey)) {
+        rawEnr = row[key];
+        break;
+      }
+    }
+
+    if (!rawEnr && row['Enrollment Number']) rawEnr = row['Enrollment Number'];
+    if (!rawEnr && row['Enrollment No']) rawEnr = row['Enrollment No'];
+    if (!rawEnr && row['Enrollment']) rawEnr = row['Enrollment'];
+    if (!rawEnr && row['enrollmentNo']) rawEnr = row['enrollmentNo'];
+    if (!rawEnr && row['enrollment']) rawEnr = row['enrollment'];
+
+    const enrStr = String(rawEnr || '').trim().toUpperCase();
+    const rowName = row['Student Name'] || row['Name'] || row['studentName'] || row['name'] || '';
+
+    if (!enrStr) {
+      failedRows.push({
+        rowNumber: idx + 1,
+        enrollment: '',
+        studentName: rowName || 'Unknown',
+        reason: 'Missing enrollment number'
+      });
+      return;
+    }
+
+    if (seenEnrollments.has(enrStr)) {
+      failedRows.push({
+        rowNumber: idx + 1,
+        enrollment: enrStr,
+        studentName: rowName || '',
+        reason: 'Duplicate enrollment number in file'
+      });
+      return;
+    }
+
+    const matched = studentMap.get(enrStr);
+    if (!matched) {
+      failedRows.push({
+        rowNumber: idx + 1,
+        enrollment: enrStr,
+        studentName: rowName || '',
+        reason: `Student enrollment "${enrStr}" not found in database`
+      });
+      return;
+    }
+
+    seenEnrollments.add(enrStr);
+    matchedStudents.push(matched);
+    matchedEnrollmentNos.push(matched.enrollmentNo || enrStr);
+    matchedStudentIds.push(matched.id);
+  });
+
+  return {
+    isValid: failedRows.length === 0,
+    validCount: matchedStudents.length,
+    failedCount: failedRows.length,
+    unmatchedCount: failedRows.filter(f => f.reason.includes('not found')).length,
+    duplicateCount: failedRows.filter(f => f.reason.includes('Duplicate')).length,
+    totalRows: matchedStudents.length + failedRows.length,
+    matchedStudents,
+    matchedEnrollmentNos,
+    matchedStudentIds,
+    failedRows,
+    errors: failedRows.map(f => `Row ${f.rowNumber} (${f.enrollment || 'No Enr'}): ${f.reason}`),
+    preview: matchedStudents.slice(0, 10)
+  };
+};
+
+/**
+ * Updates an elective class's student membership roster
+ * Affects ONLY this elective class and does not modify students' regular classes.
+ */
+export const updateElectiveClassRoster = (classId, studentEnrollmentNos) => {
+  const classes = getClasses();
+  const clsIndex = classes.findIndex(c => c.id === classId);
+  if (clsIndex === -1) throw new Error('Class not found');
+
+  const allStudents = getStudents();
+  const studentMap = new Map();
+  allStudents.forEach(s => {
+    if (s.enrollmentNo) {
+      studentMap.set(String(s.enrollmentNo).trim().toUpperCase(), s);
+    }
+  });
+
+  const validEnrs = [];
+  const validIds = [];
+
+  (studentEnrollmentNos || []).forEach(enr => {
+    const clean = String(enr).trim().toUpperCase();
+    const st = studentMap.get(clean);
+    if (st && !validIds.includes(st.id)) {
+      validEnrs.push(st.enrollmentNo || clean);
+      validIds.push(st.id);
+    }
+  });
+
+  classes[clsIndex] = {
+    ...classes[clsIndex],
+    studentEnrollmentNos: validEnrs,
+    studentIds: validIds,
+    updatedAt: new Date().toISOString()
+  };
+
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+  }
+  return classes[clsIndex];
+};
+
+/**
+ * Faculty Access Control & Authorization Service
+ * Single Source of Truth: Admin Panel timetable entries, allocations, and session attribution.
+ */
+
+// Resolves all authorized lecture/class/subject assignments for a faculty member
+export const getFacultyAuthorizedAssignments = (facultyOrUser = null) => {
+  const user = facultyOrUser || getCurrentUser();
+  if (!user) return [];
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    return [{ isUniversal: true }];
+  }
+
+  const facId = user.facultyId || user.id;
+  const facName = (user.name || '').trim().toLowerCase();
+  const assignments = [];
+
+  const addAssignment = (dept, sem, div, batch, subjId, subjName, subjCode) => {
+    if (!sem || !div) return;
+    const nSem = normalizeSem(sem);
+    const nDiv = normalizeDiv(div);
+    const nBatch = batch || 'ALL';
+    const sId = subjId || '';
+    const sName = subjName || '';
+    const sCode = subjCode || '';
+    const key = `${dept || ''}__${nSem}__${nDiv}__${nBatch}__${sId}__${sName}`.toLowerCase();
+    if (!assignments.some(a => a.key === key)) {
+      assignments.push({
+        key,
+        department: dept || user.dept || '',
+        semester: nSem,
+        division: nDiv,
+        batch: nBatch,
+        subjectId: sId,
+        subjectName: sName,
+        subjectCode: sCode
+      });
+    }
+  };
+
+  // 1. Timetable Entries in LocalStorage
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const rawTT = localStorage.getItem('adit_timetable_entries');
+      if (rawTT) {
+        const entries = JSON.parse(rawTT);
+        entries.forEach(e => {
+          const matchFaculty = (e.facultyId && e.facultyId === facId) ||
+            (e.facultyName && e.facultyName.trim().toLowerCase() === facName) ||
+            (e.coFacultyIds && Array.isArray(e.coFacultyIds) && e.coFacultyIds.includes(facId));
+          if (matchFaculty) {
+            addAssignment(
+              e.departmentId || e.departmentName || e.department || user.dept,
+              e.semId || e.sem,
+              e.divId || e.div,
+              e.batch || 'ALL',
+              e.subjectId || e.subject,
+              e.subjectFullName || e.subjectName || e.subject,
+              e.subjectCode || e.subjectId
+            );
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Error reading timetable entries for authorization:', e);
+    }
+  }
+
+  // 2. Subject Allocations (configured in Admin Panel)
+  try {
+    const allocs = getAllocations();
+    const subjects = getSubjects();
+    Object.values(allocs).forEach(alloc => {
+      const subj = subjects.find(s => s.id === alloc.subjectId || s.code === alloc.subjectId);
+      if (Array.isArray(alloc.divisions)) {
+        alloc.divisions.forEach(divAlloc => {
+          const matchFaculty = (divAlloc.facultyId && divAlloc.facultyId === facId) ||
+            (divAlloc.facultyName && divAlloc.facultyName.trim().toLowerCase() === facName);
+          if (matchFaculty) {
+            addAssignment(
+              alloc.dept || subj?.dept || user.dept,
+              alloc.sem || subj?.sem,
+              divAlloc.name || ('Div ' + divAlloc.id),
+              'ALL',
+              alloc.subjectId,
+              subj?.name || subj?.shortName || alloc.subjectId,
+              subj?.code || alloc.subjectId
+            );
+          }
+        });
+      }
+    });
+  } catch (e) {
+    console.error('Error reading allocations for authorization:', e);
+  }
+
+  // 3. Historical Attendance Sessions (attribution to original teacher)
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const rawSess = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+      if (rawSess) {
+        const sessions = JSON.parse(rawSess);
+        sessions.forEach(s => {
+          const matchSess = s.facultyId === facId || 
+            (s.facultyName && s.facultyName.trim().toLowerCase() === facName) ||
+            s.takenBy === facId;
+          if (matchSess) {
+            addAssignment(
+              s.department || s.dept || user.dept,
+              s.sem || s.semester,
+              s.division || s.class,
+              s.batch || 'ALL',
+              s.subjectId,
+              s.subjectName,
+              s.subjectCode
+            );
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
+  // 4. Directly Assigned Subjects from Subject Master
+  try {
+    const subjects = getSubjects();
+    subjects.forEach(s => {
+      const matchFaculty = (s.facultyId && s.facultyId === facId) ||
+        (s.faculty && s.faculty.trim().toLowerCase() === facName);
+      if (matchFaculty) {
+        addAssignment(
+          s.dept || user.dept,
+          s.sem,
+          s.class ? ('Div ' + s.class) : 'Div 1',
+          'ALL',
+          s.id,
+          s.name || s.shortName,
+          s.code
+        );
+      }
+    });
+  } catch (e) {}
+
+  // 5. Default Seed Faculty Timetables (when uninitialized or as base assignments)
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const rawFacultyTT = localStorage.getItem('adit_faculty_timetables');
+      const fMap = rawFacultyTT ? JSON.parse(rawFacultyTT) : (typeof DEFAULT_FACULTY_TIMETABLES !== 'undefined' ? DEFAULT_FACULTY_TIMETABLES : null);
+      if (fMap && fMap[facId]) {
+        Object.values(fMap[facId]).forEach(dayObj => {
+          if (dayObj && typeof dayObj === 'object') {
+            Object.values(dayObj).forEach(slot => {
+              if (slot && slot.sem && slot.div) {
+                addAssignment(
+                  slot.dept || user.dept,
+                  slot.sem,
+                  slot.div,
+                  slot.batch || 'ALL',
+                  slot.subject,
+                  slot.name || slot.subject,
+                  slot.subject
+                );
+              }
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 6. Direct Class Assignments from Classes Master (Regular and Elective)
+  try {
+    const classes = getClasses();
+    const subjects = getSubjects();
+    classes.forEach(c => {
+      const matchFaculty = (c.facultyId && (c.facultyId === facId || c.facultyId === user.id)) ||
+        (c.facultyName && c.facultyName.trim().toLowerCase() === facName);
+      if (matchFaculty) {
+        const subj = subjects.find(s => s.id === c.subjectId || s.code === c.subjectId);
+        addAssignment(
+          c.isElective ? 'Elective' : (c.departmentName || c.departmentId || user.dept),
+          c.semester,
+          c.division || c.name,
+          'ALL',
+          c.subjectId || subj?.id,
+          c.subjectName || subj?.name || c.name,
+          subj?.code || c.subjectId
+        );
+      }
+    });
+  } catch (e) {}
+
+  return assignments;
+};
+
+// Strict check: Is faculty authorized for this lecture session / class / subject?
+export const canFacultyTeachClassAndSubject = (faculty, dept, sem, div, subjectId) => {
+  if (!faculty) return false;
+  let facObj = faculty;
+  if (typeof faculty === 'string') {
+    const allFac = getFaculties();
+    facObj = allFac.find(f => f.id === faculty || f.name.toLowerCase() === faculty.toLowerCase()) || { id: faculty, name: faculty };
+  }
+  // Admin role has universal authorization across all classes and subjects
+  if (facObj.role === 'admin' || facObj.id === 'FAC_ADMIN' || facObj.isAdmin) return true;
+
+  // Handle (faculty, classId, subjectId) call pattern
+  if (dept && (!sem || !div)) {
+    try {
+      const classes = getClasses();
+      const cls = classes.find(c => c.id === dept || c.division === dept || c.name === dept);
+      if (cls) {
+        return canFacultyTeachClassAndSubject(facObj, cls.departmentId || cls.departmentName || 'Elective (No Department)', cls.semester, cls.division, sem || subjectId);
+      }
+    } catch (e) {}
+  }
+
+  const facId = facObj.facultyId || facObj.id;
+  const facName = (facObj.name || '').trim().toLowerCase();
+
+  // Check direct elective class assignment
+  try {
+    const classes = getClasses();
+    const isAssignedElective = classes.some(c => {
+      if (!c.isElective) return false;
+      const matchFac = (c.facultyId && (c.facultyId === facId || c.facultyId === facObj.id)) ||
+        (c.facultyName && c.facultyName.trim().toLowerCase() === facName);
+      if (!matchFac) return false;
+      if (sem && normalizeSem(c.semester) !== normalizeSem(sem)) return false;
+      if (div && div !== 'ALL' && normalizeDiv(c.division) !== normalizeDiv(div) && c.division !== div && c.id !== div) return false;
+      if (subjectId && c.subjectId && c.subjectId !== subjectId && c.subjectName !== subjectId) return false;
+      return true;
+    });
+    if (isAssignedElective) return true;
+  } catch (e) {}
+
+  const assignments = getFacultyAuthorizedAssignments(facObj);
+  if (assignments.length === 0) return false;
+  if (assignments.some(a => a.isUniversal)) return true;
+
+  const targetSem = sem ? normalizeSem(sem) : null;
+  const targetDiv = div && div !== 'ALL' ? normalizeDiv(div) : null;
+  const targetSubj = subjectId ? String(subjectId).trim().toLowerCase() : null;
+
+  return assignments.some(a => {
+    // Check Semester
+    if (targetSem && a.semester && normalizeSem(a.semester) !== targetSem) return false;
+
+    // Check Division
+    if (targetDiv && a.division && a.division !== 'ALL' && normalizeDiv(a.division) !== targetDiv) return false;
+
+    // Check Subject if provided
+    if (targetSubj) {
+      const matchSubj = 
+        (a.subjectId && a.subjectId.toLowerCase() === targetSubj) ||
+        (a.subjectName && a.subjectName.toLowerCase() === targetSubj) ||
+        (a.subjectCode && a.subjectCode.toLowerCase() === targetSubj) ||
+        (a.subjectId && targetSubj.includes(a.subjectId.toLowerCase())) ||
+        (a.subjectName && targetSubj.includes(a.subjectName.toLowerCase())) ||
+        (a.subjectCode && targetSubj.includes(a.subjectCode.toLowerCase()));
+      if (!matchSubj) return false;
+    }
+
+    return true;
+  });
+};
+
+// Returns distinct classes (department, semester, division) authorized for the faculty
+export const getAuthorizedFacultyClasses = (facultyOrUser = null) => {
+  const user = facultyOrUser || getCurrentUser();
+  if (!user) return [];
+  const allClasses = getClasses();
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    return allClasses;
+  }
+
+  const assignments = getFacultyAuthorizedAssignments(user);
+  if (assignments.some(a => a.isUniversal)) return allClasses;
+
+  const authorizedMap = new Set();
+  assignments.forEach(a => {
+    authorizedMap.add(`${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`);
+  });
+
+  const matched = allClasses.filter(c => {
+    const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
+    return authorizedMap.has(key);
+  });
+
+  // Synthesize class entries for any assignments not in default classes table
+  assignments.forEach(a => {
+    const key = `${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`;
+    if (!matched.some(c => `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}` === key)) {
+      matched.push({
+        id: `CLASS_AUTH_${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`,
+        departmentName: a.department || user.dept || 'Engineering',
+        departmentId: a.department || user.dept || 'DEP',
+        semester: a.semester,
+        division: a.division,
+        batch: a.batch || 'ALL',
+        academicYear: DEFAULT_ACADEMIC_YEAR
+      });
+    }
+  });
+
+  return matched;
+};
+
+// Returns distinct subjects authorized for the faculty, optionally constrained by sem/div
+export const getAuthorizedFacultySubjects = (facultyOrUser = null, semester = null, division = null) => {
+  const user = facultyOrUser || getCurrentUser();
+  if (!user) return [];
+  const allSubjects = getSubjects();
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    let list = allSubjects;
+    if (semester) {
+      const nSem = normalizeSem(semester);
+      list = list.filter(s => normalizeSem(s.sem) === nSem);
+    }
+    return list;
+  }
+
+  const assignments = getFacultyAuthorizedAssignments(user);
+  const targetSem = semester ? normalizeSem(semester) : null;
+  const targetDiv = division && division !== 'ALL' ? normalizeDiv(division) : null;
+
+  const relevant = assignments.filter(a => {
+    if (targetSem && a.semester && normalizeSem(a.semester) !== targetSem) return false;
+    if (targetDiv && a.division && a.division !== 'ALL' && normalizeDiv(a.division) !== targetDiv) return false;
+    return true;
+  });
+
+  const subjectMap = new Map();
+  relevant.forEach(a => {
+    const sId = a.subjectId || a.subjectCode;
+    if (sId && !subjectMap.has(sId)) {
+      const found = allSubjects.find(s => s.id === sId || s.code === sId || s.shortName?.toLowerCase() === a.subjectName?.toLowerCase());
+      subjectMap.set(sId, found || {
+        id: sId,
+        code: a.subjectCode || sId,
+        name: a.subjectName || sId,
+        shortName: a.subjectName || sId,
+        dept: a.department || user.dept,
+        sem: a.semester
+      });
+    }
+  });
+
+  return Array.from(subjectMap.values());
+};
+
+/**
+ * Strict academic group filtering for Admin & Faculty panels
+ * Single source of truth: filters students from Admin Panel records strictly by:
+ * Department, Semester, Division, Batch, and Academic Year.
+ * Returns empty array [] if no students match (NEVER falls back to all students).
+ * Enforces backend authorization: Faculty can only retrieve students for classes they are assigned to teach.
+ */
+export const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null) => {
+  const {
+    department,
+    semester,
+    division,
+    batch,
+    academicYear = DEFAULT_ACADEMIC_YEAR,
+    classId,
+    subjectId,
+    userContext = null
+  } = (criteria || {});
+  const user = userContextArg || userContext || getCurrentUser();
+  // Authentication required to access student rosters
+  if (!user) {
+    return [];
+  }
+
+  // Check if target is an elective class
+  let targetElectiveClass = null;
+  if (classId && classId !== 'ALL') {
+    const cls = getClassById(classId);
+    if (cls && cls.isElective) {
+      targetElectiveClass = cls;
+    }
+  }
+  if (!targetElectiveClass && division) {
+    const classes = getClasses();
+    targetElectiveClass = classes.find(c => c.isElective && (c.id === division || c.division === division || c.name === division));
+  }
+  if (!targetElectiveClass && (criteria?.subjectId || subjectId)) {
+    const sId = criteria?.subjectId || subjectId;
+    const classes = getClasses();
+    targetElectiveClass = classes.find(c => c.isElective && (c.subjectId === sId || c.subjectName === sId) && (!division || division === 'ALL' || c.division === division || c.id === division));
+  }
+
+  // Authorization enforcement: Faculty can only retrieve students for classes they are assigned to teach
+  if (user.role === 'faculty') {
+    if (targetElectiveClass) {
+      const facId = user.facultyId || user.id;
+      const facName = (user.name || '').trim().toLowerCase();
+      const isDirectMatch = (targetElectiveClass.facultyId && (targetElectiveClass.facultyId === facId || targetElectiveClass.facultyId === user.id)) ||
+        (targetElectiveClass.facultyName && targetElectiveClass.facultyName.trim().toLowerCase() === facName);
+      const isAuthTeach = canFacultyTeachClassAndSubject(
+        user,
+        targetElectiveClass.departmentName || '',
+        targetElectiveClass.semester,
+        targetElectiveClass.division,
+        targetElectiveClass.subjectId
+      );
+      if (!isDirectMatch && !isAuthTeach) {
+        return [];
+      }
+    } else {
+      const isAuthorized = canFacultyTeachClassAndSubject(
+        user,
+        department,
+        semester,
+        division,
+        criteria ? (criteria.subjectId || subjectId) : null
+      );
+      if (!isAuthorized) {
+        return [];
+      }
+    }
+  }
+
+  // If this is an elective class, return its uploaded student roster directly!
+  // Do NOT filter students by regular department or replace with whole semester!
+  if (targetElectiveClass) {
+    return getStudentsByClassId(targetElectiveClass.id);
+  }
+
+  const allStudents = getStudents();
+
+  // If a direct classId is supplied, use it as primary anchor
+  if (classId && classId !== 'ALL') {
+    let filtered = allStudents.filter(s => s.classId === classId);
+    if (batch && batch !== 'ALL') {
+      filtered = filtered.filter(s => s.batch === batch);
+    }
+    return filtered.sort((a, b) => {
+      const rA = parseInt(a.rollNo, 10);
+      const rB = parseInt(b.rollNo, 10);
+      if (!isNaN(rA) && !isNaN(rB)) return rA - rB;
+      return String(a.rollNo || '').localeCompare(String(b.rollNo || ''));
+    });
+  }
+
+  const normSem = semester ? normalizeSem(semester) : null;
+  const normDiv = (division && division !== 'ALL') ? normalizeDiv(division) : null;
+  const targetDept = (department && department !== 'ALL' && department.toLowerCase() !== 'elective' && department.toLowerCase() !== 'elective (no department)') 
+    ? String(department).trim().toLowerCase() 
+    : null;
+
+  const result = allStudents.filter(s => {
+    // Check Department
+    if (targetDept) {
+      const sDept = String(s.department || s.dept || '').trim().toLowerCase();
+      const sDeptId = String(s.departmentId || '').trim().toLowerCase();
+      const matchesDept = sDept === targetDept || sDept.includes(targetDept) || targetDept.includes(sDept) ||
+        (targetDept.includes('cp') && (sDeptId.includes('cp') || sDept.includes('computer'))) ||
+        (targetDept.includes('computer') && (sDept.includes('cp') || sDept.includes('computer'))) ||
+        (targetDept.includes('ai') && (sDept.includes('ai') || sDept.includes('data science'))) ||
+        (targetDept.includes('it') && (sDept.includes('it') || sDept.includes('information'))) ||
+        (targetDept.includes('ec') && (sDept.includes('ec') || sDept.includes('electronics'))) ||
+        (targetDept.includes('me') && (sDept.includes('me') || sDept.includes('mechanical'))) ||
+        (targetDept.includes('cl') && (sDept.includes('cl') || sDept.includes('civil')));
+      if (!matchesDept) return false;
+    }
+
+    // Check Semester
+    if (normSem) {
+      const sSem = normalizeSem(s.semester || s.sem);
+      if (sSem !== normSem) return false;
+    }
+
+    // Check Division
+    if (normDiv) {
+      const sDiv = normalizeDiv(s.division || s.class);
+      if (sDiv !== normDiv) return false;
+    }
+
+    // Check Batch
+    if (batch && batch !== 'ALL') {
+      if (s.batch !== batch) return false;
+    }
+
+    // Check Academic Year
+    if (academicYear) {
+      if (s.academicYear && s.academicYear !== academicYear) return false;
+    }
+
+    return true;
+  });
+
+  return result.sort((a, b) => {
+    const rA = parseInt(a.rollNo, 10);
+    const rB = parseInt(b.rollNo, 10);
+    if (!isNaN(rA) && !isNaN(rB)) return rA - rB;
+    return String(a.rollNo || '').localeCompare(String(b.rollNo || ''));
   });
 };
 
@@ -1180,7 +2192,11 @@ export const checkStudentEnrollment = (enrollmentNo, targetClassId = null, curre
   };
 };
 
-export const saveStudent = (studentData) => {
+export const saveStudent = (studentData, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to create or modify student records.');
+  }
   if (!studentData.name || !String(studentData.name).trim()) {
     throw new Error('Student name is required.');
   }
@@ -1410,7 +2426,11 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
   };
 };
 
-export const deleteStudent = (studentId) => {
+export const deleteStudent = (studentId, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to delete student records.');
+  }
   const students = getStudents().filter(s => s.id !== studentId);
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
   if (typeof window !== 'undefined') {
@@ -1453,7 +2473,11 @@ export const getSubjects = () => {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.SUBJECTS) || '[]');
 };
 
-export const saveSubject = (subject) => {
+export const saveSubject = (subject, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to manage subjects.');
+  }
   const subjects = getSubjects();
   if (subject.id) {
     const idx = subjects.findIndex(s => s.id === subject.id);
@@ -1466,17 +2490,193 @@ export const saveSubject = (subject) => {
   return subjects;
 };
 
-export const deleteSubject = (subjectId) => {
+export const deleteSubject = (subjectId, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to delete subjects.');
+  }
   const subjects = getSubjects().filter(s => s.id !== subjectId);
   localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(subjects));
   return subjects;
 };
 
-// Attendance Sessions API
-export const getSessions = () => {
+// Attendance Sessions API (Secured with Faculty Access Control)
+export const getSessions = (filterOptions = {}, userContext = null) => {
   initializeStorage();
-  const sessions = JSON.parse(localStorage.getItem(STORAGE_KEYS.SESSIONS) || '[]');
-  return sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+  const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  const allSessions = JSON.parse(raw || '[]').sort((a, b) => {
+    const dateDiff = new Date(a.date) - new Date(b.date);
+    if (dateDiff !== 0) return dateDiff;
+    const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split('-')[0].trim() : '');
+    const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split('-')[0].trim() : '');
+    if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+    return (a.submittedAt || a.id || '').localeCompare(b.submittedAt || b.id || '');
+  });
+
+  const user = userContext || getCurrentUser();
+  // If not authenticated, return empty array
+  if (!user) return [];
+
+  // Admin has access to all sessions across all classes & subjects
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    if (filterOptions && Object.keys(filterOptions).length > 0) {
+      const { department, semester, division, subjectId } = filterOptions;
+      return allSessions.filter(s => {
+        if (department && s.department && s.department !== department) return false;
+        if (semester && s.sem && normalizeSem(s.sem) !== normalizeSem(semester)) return false;
+        if (division && division !== 'ALL' && s.division && normalizeDiv(s.division) !== normalizeDiv(division)) return false;
+        if (subjectId && s.subjectId !== subjectId && s.subjectName !== subjectId) return false;
+        return true;
+      });
+    }
+    return allSessions;
+  }
+
+  // Student member: STRICT ROLE-BASED ACCESS CONTROL
+  // Students can ONLY access sessions for classes/subjects in which they are enrolled,
+  // and can ONLY view their own attendance record within each session.
+  if (user.role === 'student') {
+    const studentId = user.id || user.studentId;
+    const studentEnr = String(user.enrollmentNo || '').trim().toUpperCase();
+    const studentSem = normalizeSem(user.semester || user.sem);
+    const studentDiv = normalizeDiv(user.division || user.class);
+    const studentBatch = user.batch || 'ALL';
+    const studentDept = user.department || user.dept || '';
+    const studentClassId = user.classId || '';
+
+    // Active elective classes containing this student
+    const classes = getClasses();
+    const enrolledElectiveClassIds = new Set(
+      classes
+        .filter(c => c.isElective && (
+          (c.studentEnrollmentNos && c.studentEnrollmentNos.some(enr => String(enr).trim().toUpperCase() === studentEnr)) ||
+          (c.studentIds && c.studentIds.includes(studentId))
+        ))
+        .map(c => c.id)
+    );
+
+    const studentSessions = allSessions.filter(s => {
+      // 1. Elective session
+      if (s.isElective || s.classType === 'elective') {
+        const inElectiveClass = s.classId && enrolledElectiveClassIds.has(s.classId);
+        const hasStudentRecord = Boolean(s.records && (s.records[studentId] !== undefined || (studentEnr && s.records[studentEnr] !== undefined)));
+        return inElectiveClass || hasStudentRecord;
+      }
+
+      // 2. Regular session
+      const semMatch = !s.sem || normalizeSem(s.sem || s.semester) === studentSem;
+      const divMatch = !s.division || s.division === 'ALL' || normalizeDiv(s.division || s.class) === studentDiv;
+      const deptMatch = !s.department || s.department === studentDept || s.dept === studentDept;
+      const classIdMatch = studentClassId && s.classId && s.classId === studentClassId;
+      const batchMatch = !s.batch || s.batch === 'ALL' || studentBatch === 'ALL' || s.batch === studentBatch;
+      const hasStudentRecord = Boolean(s.records && (s.records[studentId] !== undefined || (studentEnr && s.records[studentEnr] !== undefined)));
+
+      return (classIdMatch || (semMatch && divMatch && deptMatch && batchMatch)) || hasStudentRecord;
+    });
+
+    // PRIVACY SANITIZATION: Never expose other students' records to student role
+    const sanitized = studentSessions.map(s => {
+      const myRaw = s.records 
+        ? (s.records[studentId] !== undefined ? s.records[studentId] : (studentEnr && s.records[studentEnr] !== undefined ? s.records[studentEnr] : null)) 
+        : null;
+      const myRemark = s.remarks 
+        ? (s.remarks[studentId] || (studentEnr ? s.remarks[studentEnr] : '') || '') 
+        : '';
+      const excCheck = isStudentExcusedForSession(studentId, s.date, s.timeSlot || s.time, s.subjectId) ||
+                       (studentEnr ? isStudentExcusedForSession(studentEnr, s.date, s.timeSlot || s.time, s.subjectId) : { isExcused: false });
+      const isExcused = excCheck.isExcused;
+
+      let resolvedStatus = 'unmarked';
+      if (myRaw === 'present') {
+        resolvedStatus = 'present';
+      } else if (myRaw === 'od' || myRaw === 'exception') {
+        resolvedStatus = 'od';
+      } else if (myRaw === 'absent') {
+        resolvedStatus = isExcused ? 'od' : 'absent';
+      } else if (isExcused) {
+        resolvedStatus = 'od';
+      } else if (myRaw) {
+        resolvedStatus = myRaw;
+      }
+
+      return {
+        ...s,
+        records: myRaw ? { [studentId]: myRaw, ...(studentEnr ? { [studentEnr]: myRaw } : {}) } : {},
+        remarks: myRemark ? { [studentId]: myRemark, ...(studentEnr ? { [studentEnr]: myRemark } : {}) } : {},
+        myStatus: resolvedStatus,
+        myRemark: myRemark || (isExcused ? (excCheck.exception?.activityName || 'Duty Exception') : ''),
+        isExcused
+      };
+    });
+
+    if (filterOptions && Object.keys(filterOptions).length > 0) {
+      const { subjectId } = filterOptions;
+      return sanitized.filter(s => {
+        if (subjectId && s.subjectId !== subjectId && s.subjectName !== subjectId) return false;
+        return true;
+      });
+    }
+
+    return sanitized;
+  }
+
+  // Faculty member: STRICT AUTHORIZATION FILTERING
+  // Can only view sessions assigned to them or recorded by them
+  const facId = user.facultyId || user.id;
+  const facName = (user.name || '').trim().toLowerCase();
+
+  // If specific class/subject requested in query, verify authorization first!
+  if (filterOptions && Object.keys(filterOptions).length > 0) {
+    const { department, semester, division, subjectId } = filterOptions;
+    if (division && division !== 'ALL' && subjectId) {
+      const hasMySession = allSessions.some(s => 
+        (s.facultyId === facId || s.takenBy === facId || (s.facultyName && s.facultyName.trim().toLowerCase() === facName)) &&
+        (s.subjectId === subjectId || s.subjectName === subjectId) &&
+        (!department || s.department === department) &&
+        (!division || normalizeDiv(s.division) === normalizeDiv(division))
+      );
+      const isAssigned = canFacultyTeachClassAndSubject(user, department, semester, division, subjectId);
+      if (!hasMySession && !isAssigned) {
+        // Reject unauthorized query attempt with empty response
+        return [];
+      }
+    }
+  }
+
+  const authorizedSessions = allSessions.filter(s => {
+    // 1. Session recorded by this faculty or historical attribution
+    if (s.facultyId === facId || s.takenBy === facId) return true;
+    if (s.facultyName && s.facultyName.trim().toLowerCase() === facName) return true;
+
+    // 2. Elective session check
+    if (s.classType === 'elective' || s.isElective) {
+      if (s.classId && canFacultyTeachClassAndSubject(user, s.classId, s.subjectId)) {
+        return true;
+      }
+      return canFacultyTeachElective(user, s.electiveGroupId, s.electiveSubjectId || s.subjectId, s.electiveClassId) ||
+             canFacultyTeachClassAndSubject(user, s.department || 'Elective (No Department)', s.sem || s.semester, s.division, s.subjectId);
+    }
+
+    // 3. Or faculty is currently assigned to teach this class and subject
+    return canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectId);
+  });
+
+  if (filterOptions && Object.keys(filterOptions).length > 0) {
+    const { department, semester, division, subjectId, classType, electiveGroupId, electiveSubjectId, electiveClassId } = filterOptions;
+    return authorizedSessions.filter(s => {
+      if (classType && s.classType !== classType && !(classType === 'elective' && s.isElective)) return false;
+      if (electiveGroupId && s.electiveGroupId !== electiveGroupId) return false;
+      if (electiveSubjectId && s.electiveSubjectId !== electiveSubjectId && s.subjectId !== electiveSubjectId) return false;
+      if (electiveClassId && s.electiveClassId !== electiveClassId) return false;
+      if (department && s.department && s.department !== department) return false;
+      if (semester && s.sem && normalizeSem(s.sem) !== normalizeSem(semester)) return false;
+      if (division && division !== 'ALL' && s.division && normalizeDiv(s.division) !== normalizeDiv(division)) return false;
+      if (subjectId && s.subjectId !== subjectId && s.subjectName !== subjectId) return false;
+      return true;
+    });
+  }
+
+  return authorizedSessions;
 };
 
 export const getLastSubjectDates = (subjectId) => {
@@ -1490,33 +2690,198 @@ export const getLastSubjectDates = (subjectId) => {
   });
 };
 
-export const saveSession = (session) => {
-  const sessions = getSessions();
-  if (session.id) {
-    const idx = sessions.findIndex(s => s.id === session.id);
-    if (idx !== -1) {
-      sessions[idx] = { ...sessions[idx], ...session };
-    } else {
-      sessions.push(session);
-    }
-  } else {
-    session.id = 'SESS_' + Date.now();
-    sessions.push(session);
+export const saveSession = (session, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user) {
+    throw new Error('Unauthorized: Authentication required to record attendance.');
   }
-  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  if (user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to record or modify attendance sessions.');
+  }
+
+  // Authorization check: Faculty can only record attendance for authorized subjects & classes
+  if (user.role === 'faculty') {
+    if (session.classType === 'elective' || session.isElective) {
+      let isAuthorizedElective = false;
+      if (session.classId) {
+        isAuthorizedElective = canFacultyTeachClassAndSubject(user, session.classId, session.subjectId);
+      }
+      if (!isAuthorizedElective) {
+        isAuthorizedElective = canFacultyTeachClassAndSubject(
+          user,
+          session.department || session.dept || 'Elective (No Department)',
+          session.sem || session.semester,
+          session.division || session.class,
+          session.subjectId || session.subjectName
+        );
+      }
+      if (!isAuthorizedElective) {
+        isAuthorizedElective = canFacultyTeachElective(
+          user,
+          session.electiveGroupId,
+          session.electiveSubjectId || session.subjectId,
+          session.electiveClassId
+        );
+      }
+      if (!isAuthorizedElective) {
+        throw new Error(`Unauthorized Security Error: You are not authorized to record attendance for elective subject ${session.subjectName || session.subject || session.electiveSubjectId}.`);
+      }
+    } else {
+      const isAuthorized = canFacultyTeachClassAndSubject(
+        user,
+        session.department || session.dept,
+        session.sem || session.semester,
+        session.division || session.class,
+        session.subjectId || session.subjectName
+      );
+      if (!isAuthorized) {
+        throw new Error(`Unauthorized Security Error: You are not authorized to record attendance for ${session.subjectName || session.subjectId} in ${session.sem || session.semester} ${session.division || session.class}.`);
+      }
+    }
+  }
+
+  initializeStorage();
+  const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  const allSessions = JSON.parse(raw || '[]');
+  let existingIndex = -1;
+
+  if (session.id) {
+    existingIndex = allSessions.findIndex(s => s.id === session.id);
+  }
+
+  // Duplicate session prevention:
+  // If session.id wasn't provided, only treat as duplicate if exact lecture slot matches
+  // AND neither session is marked as an extra lecture or independent lecture
+  if (existingIndex === -1 && !session.isExtraLecture && (session.timeSlot || (session.startTime && session.endTime))) {
+    const normSlot = (str) => (str || '').replace(/^0/, '').replace(/\s*-\s*0?/, ' - ').trim();
+    const targetSlot = normSlot(session.timeSlot || `${session.startTime} - ${session.endTime}`);
+
+    existingIndex = allSessions.findIndex(s => {
+      if (s.isExtraLecture) return false;
+      const sameDate = s.date === session.date;
+      if (!sameDate) return false;
+
+      const sSlot = normSlot(s.timeSlot || (s.startTime && s.endTime ? `${s.startTime} - ${s.endTime}` : ''));
+      if (!sSlot || !targetSlot || sSlot !== targetSlot) return false;
+
+      if (session.classType === 'elective' || session.isElective) {
+        const sameSubj = (s.electiveSubjectId && s.electiveSubjectId === session.electiveSubjectId) ||
+                         (s.subjectId === session.subjectId || s.subjectName === session.subjectName);
+        const sameClass = (session.classId && s.classId && s.classId === session.classId) ||
+                          (!session.electiveClassId || !s.electiveClassId || s.electiveClassId === session.electiveClassId) ||
+                          (normalizeSem(s.sem || s.semester) === normalizeSem(session.sem || session.semester) &&
+                           normalizeDiv(s.division || s.class) === normalizeDiv(session.division || session.class));
+        return sameSubj && sameClass;
+      }
+      const sameSubj = s.subjectId === session.subjectId || s.subjectName === session.subjectName;
+      const sameClass = (session.classId && s.classId && s.classId === session.classId) ||
+        (normalizeSem(s.sem || s.semester) === normalizeSem(session.sem || session.semester) &&
+         normalizeDiv(s.division || s.class) === normalizeDiv(session.division || session.class));
+      const sameBatch = (s.batch || 'ALL') === (session.batch || 'ALL');
+      return sameSubj && sameClass && sameBatch;
+    });
+  }
+
+  const userFacId = user.facultyId || user.id;
+  const facultyStamps = user.role === 'faculty' ? {
+    facultyId: userFacId,
+    facultyName: user.name,
+    takenBy: userFacId,
+    lastModifiedBy: user.name,
+    lastModifiedAt: new Date().toISOString()
+  } : {};
+
+  const formattedSlot = session.timeSlot || 
+    ((session.startTime && session.endTime) ? `${session.startTime} - ${session.endTime}` : (session.startTime || '9:00 - 9:55'));
+  const sessionWithTimes = {
+    ...session,
+    startTime: session.startTime || (formattedSlot ? formattedSlot.split('-')[0].trim() : '09:00'),
+    endTime: session.endTime || (formattedSlot ? formattedSlot.split('-')[1]?.trim() : '09:55'),
+    timeSlot: formattedSlot
+  };
+
+  let saved;
+  if (existingIndex !== -1) {
+    // When modifying an existing record, verify ownership
+    if (user.role === 'faculty') {
+      const existing = allSessions[existingIndex];
+      const isOwner = existing.facultyId === userFacId || 
+                      existing.facultyId === user.id || 
+                      existing.takenBy === userFacId || 
+                      existing.takenBy === user.id ||
+                      (existing.facultyName && existing.facultyName.trim().toLowerCase() === (user.name || '').trim().toLowerCase());
+      if (!isOwner) {
+        throw new Error(`Unauthorized Security Error: You cannot modify attendance recorded by another faculty member (${existing.facultyName || 'another faculty'}).`);
+      }
+    }
+    saved = { 
+      ...allSessions[existingIndex], 
+      ...sessionWithTimes, 
+      ...facultyStamps, 
+      id: allSessions[existingIndex].id 
+    };
+    allSessions[existingIndex] = saved;
+  } else {
+    saved = { 
+      ...sessionWithTimes, 
+      ...facultyStamps, 
+      id: session.id || ('SESS_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7)) 
+    };
+    allSessions.push(saved);
+  }
+
+  // Ensure sessions are stably sorted by date ascending, then slot ascending, then submission time
+  allSessions.sort((a, b) => {
+    const dateDiff = new Date(a.date) - new Date(b.date);
+    if (dateDiff !== 0) return dateDiff;
+    const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split('-')[0].trim() : '');
+    const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split('-')[0].trim() : '');
+    if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+    return (a.submittedAt || a.id || '').localeCompare(b.submittedAt || b.id || '');
+  });
+
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
   }
-  return sessions;
+  allSessions.saved = saved;
+  allSessions.id = saved.id;
+  allSessions.success = true;
+  return allSessions;
 };
 
-export const deleteSession = (sessionId) => {
-  const sessions = getSessions().filter(s => s.id !== sessionId);
-  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+export const deleteSession = (sessionId, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user) {
+    throw new Error('Unauthorized: Authentication required.');
+  }
+  if (user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to delete attendance sessions.');
+  }
+
+  const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+  const allSessions = JSON.parse(raw || '[]');
+  const target = allSessions.find(s => s.id === sessionId);
+  if (!target) return allSessions;
+
+  if (user.role === 'faculty') {
+    const userFacId = user.facultyId || user.id;
+    const isOwner = target.facultyId === userFacId || 
+                    target.facultyId === user.id || 
+                    target.takenBy === userFacId || 
+                    target.takenBy === user.id ||
+                    (target.facultyName && target.facultyName.trim().toLowerCase() === (user.name || '').trim().toLowerCase());
+    if (!isOwner) {
+      throw new Error('Unauthorized Security Error: You cannot delete attendance recorded by another faculty member.');
+    }
+  }
+
+  const filtered = allSessions.filter(s => s.id !== sessionId);
+  localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(filtered));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
   }
-  return sessions;
+  return filtered;
 };
 
 export const resetToDefault = () => {
@@ -1525,14 +2890,19 @@ export const resetToDefault = () => {
   localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(DEFAULT_SESSIONS));
   localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
-  localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'G H Patel College of Engineering & Technology');
+  localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
   return {
     classes: DEFAULT_CLASSES,
     students: DEFAULT_STUDENTS,
     subjects: DEFAULT_SUBJECTS,
-    sessions: DEFAULT_SESSIONS
+    sessions: DEFAULT_SESSIONS,
+    electiveGroups: DEFAULT_ELECTIVE_GROUPS,
+    electiveAssignments: DEFAULT_ELECTIVE_ASSIGNMENTS
   };
 };
+
 
 // Computed Analytics & Stats Helper Functions
 export const calculateAnalytics = (targetSubjectId = null) => {
@@ -1635,7 +3005,11 @@ export const getFaculties = () => {
   }));
 };
 
-export const saveFaculty = (faculty) => {
+export const saveFaculty = (faculty, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to manage faculty records.');
+  }
   const faculties = getFaculties();
   if (faculty.id) {
     const idx = faculties.findIndex(f => f.id === faculty.id);
@@ -1649,7 +3023,11 @@ export const saveFaculty = (faculty) => {
   return faculties;
 };
 
-export const deleteFaculty = (facultyId) => {
+export const deleteFaculty = (facultyId, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (user && user.role === 'student') {
+    throw new Error('Unauthorized Security Error: Students are not permitted to delete faculty records.');
+  }
   const faculties = getFaculties().filter(f => f.id !== facultyId);
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== 'undefined') {
@@ -1765,58 +3143,7 @@ export const INSTITUTIONAL_POLICIES = {
 
 export const DEFAULT_EXCEPTION_POLICY = INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE;
 
-export const DEFAULT_EXCEPTIONS = [
-  {
-    id: 'EXC_SPORT_001',
-    studentId: 'S_AI_02',
-    studentName: 'Bhavya Patel',
-    enrollmentNo: '125020405002',
-    departmentId: 'DEP_AI',
-    departmentName: 'AI & Data Science',
-    semester: '3rd Sem',
-    division: 'Div 1',
-    activityName: 'GTU Inter-College Basketball Championship 2026',
-    category: 'Sports Tournament',
-    startDate: '2026-10-12',
-    endDate: '2026-10-14',
-    reason: 'Selected as Captain for ADIT College Basketball Team for GTU State Level Championship.',
-    documentName: 'gtu_basketball_permission_letter.pdf',
-    documentSize: '1.4 MB',
-    status: 'Approved',
-    submittedBy: 'Prof. Priya Shah',
-    submittedByRole: 'faculty',
-    submittedAt: '2026-10-10T09:30:00.000Z',
-    reviewedBy: 'Administrator',
-    reviewedAt: '2026-10-11T11:00:00.000Z',
-    reviewerRemarks: 'Verified official GTU circular and Principal authorization order attached.',
-    affectedLecturesCount: 4
-  },
-  {
-    id: 'EXC_HACK_002',
-    studentId: 'S_AI_03',
-    studentName: 'Meet Patel',
-    enrollmentNo: '125020405003',
-    departmentId: 'DEP_AI',
-    departmentName: 'AI & Data Science',
-    semester: '3rd Sem',
-    division: 'Div 1',
-    activityName: 'Smart India Hackathon 2026 Grand Finale',
-    category: 'Technical Competition',
-    startDate: '2026-10-15',
-    endDate: '2026-10-17',
-    reason: 'Finalist team representing ADIT in AI & IoT track at nodal center.',
-    documentName: 'sih2026_selection_letter.pdf',
-    documentSize: '2.1 MB',
-    status: 'Pending',
-    submittedBy: 'Prof. Priya Shah',
-    submittedByRole: 'faculty',
-    submittedAt: '2026-10-11T14:15:00.000Z',
-    reviewedBy: null,
-    reviewedAt: null,
-    reviewerRemarks: '',
-    affectedLecturesCount: 3
-  }
-];
+export const DEFAULT_EXCEPTIONS = [];
 
 export const notifyExceptionsSync = () => {
   if (typeof window !== 'undefined') {
@@ -1837,18 +3164,37 @@ export const setInstitutionalExceptionPolicy = (policy) => {
   return policy;
 };
 
-export const getExceptions = () => {
-  if (typeof localStorage === 'undefined') return DEFAULT_EXCEPTIONS;
+export const getExceptions = (userContext = null) => {
+  if (typeof localStorage === 'undefined') return [];
   const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  let allExceptions = [];
   if (raw) {
     try {
-      return JSON.parse(raw);
+      allExceptions = JSON.parse(raw);
+      // Filter out any corrupted legacy mock exceptions with fake enrollment or studentId mismatch
+      allExceptions = allExceptions.filter(e => {
+        if (e.id === 'EXC_SPORT_001' && (e.studentId === 'S_AI_02' || e.enrollmentNo === '125020405002')) return false;
+        if (e.id === 'EXC_HACK_002' && (e.studentId === 'S_AI_03' || e.enrollmentNo === '125020405003')) return false;
+        return true;
+      });
     } catch (e) {
       console.error('Error parsing exceptions:', e);
+      allExceptions = [];
     }
+  } else {
+    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   }
-  localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(DEFAULT_EXCEPTIONS));
-  return DEFAULT_EXCEPTIONS;
+
+  const user = userContext || getCurrentUser();
+  if (!user || user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    return allExceptions;
+  }
+
+  // Strict authorization: Faculty can only access exceptions for their assigned classes and students
+  return allExceptions.filter(e => {
+    if (e.submittedById === user.id) return true;
+    return canFacultyTeachClassAndSubject(user, e.departmentId || e.department, e.semester, e.division, null);
+  });
 };
 
 export const calculateOverlappingLectures = (sem, div, deptId, startDateStr, endDateStr) => {
@@ -1901,7 +3247,40 @@ export const calculateOverlappingLectures = (sem, div, deptId, startDateStr, end
 };
 
 export const saveException = (exceptionData, currentUser = null) => {
-  const exceptions = getExceptions();
+  const user = currentUser || getCurrentUser();
+  if (!user) {
+    throw new Error('Unauthorized: Authentication required to submit attendance exceptions.');
+  }
+
+  // Explicit student selection validation
+  if (!exceptionData || (!exceptionData.studentId && !exceptionData.enrollmentNo)) {
+    return { success: false, error: 'A valid student must be selected for the attendance exception.' };
+  }
+  if (!exceptionData.startDate || !exceptionData.endDate) {
+    return { success: false, error: 'Start date and end date are required.' };
+  }
+  if (exceptionData.startDate > exceptionData.endDate) {
+    return { success: false, error: 'Start date cannot be after end date.' };
+  }
+
+  // Authorization validation: Faculty can only record exceptions for authorized classes
+  if (user.role === 'faculty') {
+    const isAuth = canFacultyTeachClassAndSubject(
+      user,
+      exceptionData.department || exceptionData.departmentId,
+      exceptionData.semester,
+      exceptionData.division,
+      null
+    );
+    if (!isAuth) {
+      throw new Error(
+        `Unauthorized Security Error: You can only record attendance exceptions for students in your authorized classes (${exceptionData.semester} ${exceptionData.division}).`
+      );
+    }
+  }
+
+  const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  const exceptions = JSON.parse(raw || '[]');
   const overlapping = calculateOverlappingLectures(
     exceptionData.semester,
     exceptionData.division,
@@ -1913,9 +3292,10 @@ export const saveException = (exceptionData, currentUser = null) => {
   const newRecord = {
     ...exceptionData,
     id: exceptionData.id || ('EXC_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
-    status: exceptionData.status || (currentUser?.role === 'admin' ? 'Approved' : 'Pending'),
-    submittedBy: exceptionData.submittedBy || currentUser?.name || 'Faculty Member',
-    submittedByRole: exceptionData.submittedByRole || currentUser?.role || 'faculty',
+    status: exceptionData.status || (user.role === 'admin' ? 'Approved' : 'Approved'),
+    submittedBy: exceptionData.submittedBy || user.name || 'Faculty Member',
+    submittedById: user.id,
+    submittedByRole: user.role || 'faculty',
     submittedAt: exceptionData.submittedAt || new Date().toISOString(),
     overlappingLectures: overlapping,
     affectedLecturesCount: overlapping.length
@@ -1943,7 +3323,8 @@ export const updateExceptionStatus = (exceptionId, newStatus, reviewerUser = nul
     };
   }
 
-  const exceptions = getExceptions();
+  const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  const exceptions = JSON.parse(raw || '[]');
   const idx = exceptions.findIndex(e => e.id === exceptionId);
   if (idx === -1) {
     return { success: false, error: 'Exception record not found.' };
@@ -1960,7 +3341,20 @@ export const updateExceptionStatus = (exceptionId, newStatus, reviewerUser = nul
 };
 
 export const deleteException = (exceptionId, currentUser = null) => {
-  let exceptions = getExceptions();
+  const user = currentUser || getCurrentUser();
+  if (!user) {
+    return { success: false, error: 'Unauthorized: Authentication required.' };
+  }
+
+  const raw = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
+  let exceptions = JSON.parse(raw || '[]');
+  const target = exceptions.find(e => e.id === exceptionId);
+  if (!target) return { success: true };
+
+  if (user.role === 'faculty' && target.submittedById !== user.id) {
+    return { success: false, error: 'Unauthorized Security Error: You cannot delete an exception submitted by another user.' };
+  }
+
   exceptions = exceptions.filter(e => e.id !== exceptionId);
   localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(exceptions));
   notifyExceptionsSync();
@@ -1975,15 +3369,51 @@ export const getExceptionsByStudent = (studentIdOrEnrollment) => {
   );
 };
 
-export const isStudentExcusedForSession = (studentId, sessionDate, timeSlot = null, subjectId = null) => {
+export const isStudentExcusedForSession = (studentId, sessionDate, arg3 = null, arg4 = null, arg5 = null) => {
   if (!studentId || !sessionDate) return { isExcused: false, exception: null };
+
+  // Flexible argument normalization:
+  // Can be called as (studentId, sessionDate, timeSlot, subjectId, batch)
+  // or as (studentId, sessionDate, subjectId, timeSlot, batch)
+  let timeSlot = null;
+  let subjectId = null;
+  let batch = null;
+
+  if (typeof arg3 === 'string' && (arg3.includes(':') || arg3.includes('-') || arg3.toLowerCase().includes('slot'))) {
+    timeSlot = arg3;
+    subjectId = arg4;
+    batch = arg5;
+  } else if (typeof arg4 === 'string' && (arg4.includes(':') || arg4.includes('-') || arg4.toLowerCase().includes('slot'))) {
+    subjectId = arg3;
+    timeSlot = arg4;
+    batch = arg5;
+  } else {
+    timeSlot = arg3;
+    subjectId = arg4;
+    batch = arg5;
+  }
+
   const exceptions = getExceptions();
-  const approved = exceptions.filter(e => e.status === 'Approved' && e.studentId === studentId);
+  const approved = exceptions.filter(e => e.status === 'Approved');
   
   for (const exc of approved) {
-    if (sessionDate >= exc.startDate && sessionDate <= exc.endDate) {
-      return { isExcused: true, exception: exc };
+    // 1. Student identity check:
+    // Match either studentId or enrollmentNo
+    const matchId = exc.studentId && (exc.studentId === studentId || String(exc.studentId) === String(studentId));
+    const matchEnr = exc.enrollmentNo && (exc.enrollmentNo === studentId || String(exc.enrollmentNo) === String(studentId));
+    if (!matchId && !matchEnr) continue;
+
+    // 2. Date range check (sessionDate must be >= startDate and <= endDate)
+    if (!exc.startDate || !exc.endDate) continue;
+    if (sessionDate < exc.startDate || sessionDate > exc.endDate) continue;
+
+    // 3. Subject-specific exception check:
+    // If the exception was issued for a specific subject, ensure subject matches
+    if (exc.subjectId && subjectId) {
+      if (exc.subjectId !== subjectId && exc.subjectName !== subjectId) continue;
     }
+
+    return { isExcused: true, exception: exc };
   }
   return { isExcused: false, exception: null };
 };
@@ -2037,3 +3467,1734 @@ export const calculateStudentAttendanceWithPolicy = (studentId, classSessions = 
     policy
   };
 };
+
+// =========================================================================
+// SEMESTER PROMOTION ("SEMESTER UP") & FRESHER REGISTRATION SERVICES
+// =========================================================================
+
+/**
+ * Returns the sequential next semester strictly increasing by +1.
+ * Handled safely up to 8th Semester (which transitions to Graduated).
+ */
+export const getNextSemester = (currentSemStr) => {
+  const norm = normalizeSem(currentSemStr);
+  const match = norm.match(/([1-8])/);
+  if (!match) return null;
+  const num = parseInt(match[1], 10);
+  if (num === 8) {
+    return {
+      sourceSem: '8th Sem',
+      targetSem: 'Graduated',
+      isGraduation: true,
+      label: 'Course Completed / Graduated'
+    };
+  }
+  const nextNum = num + 1;
+  const sufs = { 1: 'st', 2: 'nd', 3: 'rd' };
+  const targetSem = `${nextNum}${sufs[nextNum] || 'th'} Sem`;
+  return {
+    sourceSem: `${num}${sufs[num] || 'th'} Sem`,
+    targetSem,
+    isGraduation: false,
+    label: targetSem
+  };
+};
+
+/**
+ * Executes Semester Promotion for students matching sourceSem.
+ * Strictly promotes by exactly ONE semester.
+ * Preserves student IDs, enrollment numbers, batches, and historical attendance.
+ */
+export const promoteStudentsSemester = ({
+  sourceSem,
+  department = 'ALL',
+  selectedStudentIds = null,
+  academicCycle = DEFAULT_ACADEMIC_YEAR
+}) => {
+  const normSource = normalizeSem(sourceSem);
+  const nextInfo = getNextSemester(normSource);
+  if (!nextInfo) {
+    throw new Error(`Cannot promote from invalid semester "${sourceSem}".`);
+  }
+
+  const allStudents = getStudents();
+  const classes = getClasses();
+
+  // Find eligible students in the source semester
+  const eligibleStudents = allStudents.filter(s => {
+    const sSem = normalizeSem(s.semester || s.sem);
+    const semMatch = sSem === normSource;
+    if (!semMatch) return false;
+
+    // Filter out already graduated
+    if (s.status === 'Graduated' || s.isGraduated) return false;
+
+    if (department && department !== 'ALL') {
+      const sDept = String(s.department || s.dept || '').toLowerCase();
+      const targetDept = String(department).toLowerCase();
+      return sDept.includes(targetDept) || targetDept.includes(sDept);
+    }
+    return true;
+  });
+
+  // Filter by selectedStudentIds if explicitly supplied
+  const targetStudents = selectedStudentIds
+    ? eligibleStudents.filter(s => selectedStudentIds.includes(s.id))
+    : eligibleStudents;
+
+  if (targetStudents.length === 0) {
+    return {
+      success: true,
+      promotedCount: 0,
+      graduatedCount: 0,
+      affectedStudents: [],
+      message: 'No eligible students found for promotion.'
+    };
+  }
+
+  const affectedStudents = [];
+  let promotedCount = 0;
+  let graduatedCount = 0;
+
+  targetStudents.forEach(student => {
+    const originalRecord = { ...student };
+    const prevSem = normalizeSem(student.semester || student.sem);
+
+    if (nextInfo.isGraduation) {
+      // 8th Semester graduation
+      student.status = 'Graduated';
+      student.isGraduated = true;
+      student.semester = 'Graduated';
+      student.sem = 'Graduated';
+      student.graduatedSemester = '8th Sem';
+      student.completionCycle = academicCycle;
+      student.lastPromotedAt = new Date().toISOString();
+      student.lastPromotionCycle = academicCycle;
+      student.previousSemester = prevSem;
+      graduatedCount++;
+    } else {
+      // Regular sequential +1 promotion
+      const targetSem = nextInfo.targetSem;
+      student.semester = targetSem;
+      student.sem = targetSem;
+      student.previousSemester = prevSem;
+      student.lastPromotedAt = new Date().toISOString();
+      student.lastPromotionCycle = academicCycle;
+
+      // Ensure / assign to target class in the system
+      const studentDept = student.department || student.dept || 'AI & Data Science';
+      const studentDiv = student.division || 'Div 1';
+      const studentYear = student.academicYear || academicCycle;
+
+      let targetClass = findClassByCriteria(studentDept, targetSem, studentDiv, studentYear);
+      if (!targetClass) {
+        // Auto-create corresponding target class if it does not yet exist
+        const newClassId = `CLASS_${student.departmentId || 'DEP_AI'}_${targetSem.replace(/[^0-9]/g, '')}_${studentDiv.replace(/[^0-9]/g, '')}_${studentYear}`;
+        targetClass = {
+          id: newClassId,
+          departmentId: student.departmentId || 'DEP_AI',
+          departmentName: studentDept,
+          semester: targetSem,
+          division: studentDiv,
+          academicYear: studentYear,
+          createdAt: new Date().toISOString(),
+          status: 'active'
+        };
+        classes.push(targetClass);
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      }
+
+      student.classId = targetClass.id;
+      promotedCount++;
+    }
+
+    student.updatedAt = new Date().toISOString();
+    affectedStudents.push({
+      id: student.id,
+      name: student.name,
+      enrollmentNo: student.enrollmentNo,
+      department: student.department || student.dept,
+      previousSem: prevSem,
+      newSem: nextInfo.isGraduation ? 'Graduated' : nextInfo.targetSem,
+      division: student.division,
+      batch: student.batch,
+      isGraduation: nextInfo.isGraduation
+    });
+  });
+
+  // Save updated students
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
+
+  return {
+    success: true,
+    promotedCount,
+    graduatedCount,
+    totalAffected: affectedStudents.length,
+    sourceSem: normSource,
+    targetSem: nextInfo.targetSem,
+    isGraduation: nextInfo.isGraduation,
+    affectedStudents
+  };
+};
+
+/**
+ * Retrieves the global promotion audit history from localStorage.
+ */
+export const getPromotionHistory = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PROMOTION_HISTORY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+/**
+ * Resets promotion history (useful for unit testing or admin reset).
+ */
+export const clearPromotionHistoryForTesting = () => {
+  localStorage.removeItem(STORAGE_KEYS.PROMOTION_HISTORY);
+};
+
+/**
+ * Computes a complete pre-promotion snapshot analysis for all students across the entire institution.
+ * Automatically identifies each student's current semester and calculates target semester (+1).
+ * Identifies final-semester students (Sem 8) and excludes them from automatic promotion.
+ */
+export const getGlobalPromotionPreview = ({
+  academicCycle = DEFAULT_ACADEMIC_YEAR,
+  finalSemester = 8
+} = {}) => {
+  const allStudents = getStudents();
+  const sufs = { 1: 'st', 2: 'nd', 3: 'rd' };
+
+  // Prepare standard progression buckets: 1->2, 2->3, ..., 7->8
+  const breakdownMap = {};
+  for (let s = 1; s < finalSemester; s++) {
+    const nextS = s + 1;
+    breakdownMap[s] = {
+      semNum: s,
+      sourceSemNum: s,
+      targetSemNum: nextS,
+      sourceSem: `Semester ${s}`,
+      targetSem: `Semester ${nextS}`,
+      sourceSemCode: `${s}${sufs[s] || 'th'} Sem`,
+      targetSemCode: `${nextS}${sufs[nextS] || 'th'} Sem`,
+      count: 0,
+      students: []
+    };
+  }
+
+  const finalSemesterExcluded = [];
+  const graduatedExcluded = [];
+  const unrecognized = [];
+  let totalEligible = 0;
+
+  allStudents.forEach(student => {
+    // Check if already graduated or marked course completed
+    if (student.status === 'Graduated' || student.isGraduated) {
+      graduatedExcluded.push(student);
+      return;
+    }
+
+    const semRaw = String(student.semester || student.sem || '').trim();
+    const m = semRaw.match(/([1-8])/);
+    if (!m) {
+      unrecognized.push({ student, reason: `Unrecognized semester "${semRaw}"` });
+      return;
+    }
+
+    const num = parseInt(m[1], 10);
+    if (num >= finalSemester) {
+      // Final semester student (e.g. Semester 8)
+      // Excluded from automatic promotion to non-existent Semester 9
+      // Preserved for graduation or completion processing
+      finalSemesterExcluded.push(student);
+    } else if (num >= 1 && num < finalSemester) {
+      // Eligible student
+      breakdownMap[num].count++;
+      breakdownMap[num].students.push(student);
+      totalEligible++;
+    } else {
+      unrecognized.push({ student, reason: `Semester out of valid range (${num})` });
+    }
+  });
+
+  const breakdown = Object.values(breakdownMap).sort((a, b) => a.semNum - b.semNum);
+
+  // Check duplicate promotion history for the academic transition
+  const history = getPromotionHistory();
+  const lastForCycle = history.find(h => h.academicCycle === academicCycle);
+
+  return {
+    totalStudents: allStudents.length,
+    totalEligible,
+    finalSemester,
+    finalSemesterExcludedCount: finalSemesterExcluded.length,
+    finalSemesterExcluded,
+    graduatedCount: graduatedExcluded.length,
+    graduatedExcluded,
+    unrecognizedCount: unrecognized.length,
+    unrecognized,
+    breakdown,
+    academicCycle,
+    isAlreadyPromotedForCycle: !!lastForCycle,
+    lastPromotionForCycle: lastForCycle || null,
+    lastPromotion: history[history.length - 1] || null
+  };
+};
+
+/**
+ * Executes GLOBAL ONE-CLICK SEMESTER PROMOTION for ALL eligible students simultaneously in a single transaction.
+ *
+ * Requirements enforced:
+ * 1. Automatically identifies each student's current semester and advances it by strictly ONE.
+ * 2. Promotes all semesters simultaneously in a single atomic database operation.
+ * 3. Reads all original semester values before applying updates to strictly prevent double promotion.
+ * 4. Final-semester students (Sem 8) are excluded from automatic promotion and preserved intact.
+ * 5. Historical attendance sessions and academic records remain 100% untouched.
+ * 6. Prevents accidental duplicate promotion for the same academic cycle unless explicitly authorized with override.
+ * 7. Preserves enrollment numbers, student IDs, batch assignments, and personal details.
+ */
+export const promoteAllStudentsGlobally = ({
+  academicCycle = DEFAULT_ACADEMIC_YEAR,
+  finalSemester = 8,
+  overrideCycleCheck = false
+} = {}) => {
+  const history = getPromotionHistory();
+  const alreadyDone = history.find(h => h.academicCycle === academicCycle);
+  if (alreadyDone && !overrideCycleCheck) {
+    throw new Error(
+      `Accidental Duplicate Promotion Prevented: A global semester promotion was already completed on ${new Date(alreadyDone.timestamp).toLocaleString()} for cycle "${academicCycle}". Repeated promotion for the same cycle may advance students multiple semesters. Please authorize recovery override if re-promotion is required.`
+    );
+  }
+
+  // 1. Snapshot all original student records FIRST (Transaction Isolation)
+  const originalStudents = getStudents();
+  const originalClasses = getClasses();
+
+  if (!originalStudents || originalStudents.length === 0) {
+    throw new Error('No student records found in the database to promote.');
+  }
+
+  // Clone snapshot to prevent mutation during validation
+  const studentsSnapshot = JSON.parse(JSON.stringify(originalStudents));
+  const classesSnapshot = JSON.parse(JSON.stringify(originalClasses));
+
+  const sufs = { 1: 'st', 2: 'nd', 3: 'rd' };
+  const breakdownCounts = {};
+  for (let s = 1; s < finalSemester; s++) {
+    const nextS = s + 1;
+    breakdownCounts[s] = {
+      semNum: s,
+      sourceSem: `Semester ${s}`,
+      targetSem: `Semester ${nextS}`,
+      sourceSemCode: `${s}${sufs[s] || 'th'} Sem`,
+      targetSemCode: `${nextS}${sufs[nextS] || 'th'} Sem`,
+      count: 0
+    };
+  }
+
+  let totalPromoted = 0;
+  let finalSemesterExcludedCount = 0;
+  const promotedStudentIds = new Set();
+  const updatedStudents = [];
+
+  // 2. Transform every student based STRICTLY on their original snapshot state
+  for (const student of studentsSnapshot) {
+    // If student is already graduated or marked completed, keep unchanged
+    if (student.status === 'Graduated' || student.isGraduated) {
+      updatedStudents.push(student);
+      continue;
+    }
+
+    const semRaw = String(student.semester || student.sem || '').trim();
+    const m = semRaw.match(/([1-8])/);
+    if (!m) {
+      // Unrecognized semester string - preserve intact
+      updatedStudents.push(student);
+      continue;
+    }
+
+    const currentSemNum = parseInt(m[1], 10);
+
+    // Final-semester students: EXCLUDE from automatic promotion to Semester 9!
+    if (currentSemNum >= finalSemester) {
+      finalSemesterExcludedCount++;
+      updatedStudents.push(student);
+      continue;
+    }
+
+    // Eligible student: strictly increase semester by +1
+    if (currentSemNum >= 1 && currentSemNum < finalSemester) {
+      const nextSemNum = currentSemNum + 1;
+      const prevSemCode = `${currentSemNum}${sufs[currentSemNum] || 'th'} Sem`;
+      const nextSemCode = `${nextSemNum}${sufs[nextSemNum] || 'th'} Sem`;
+
+      // Update semester attributes while preserving student ID, enrollment number, name, batch, email, etc.
+      student.previousSemester = prevSemCode;
+      student.semester = nextSemCode;
+      student.sem = nextSemCode;
+      student.lastPromotedAt = new Date().toISOString();
+      student.lastPromotionCycle = academicCycle;
+
+      // Ensure / link target class cohort
+      const dept = student.department || student.dept || 'AI & Data Science';
+      const div = student.division || 'Div 1';
+      const year = student.academicYear || academicCycle;
+
+      let targetClass = classesSnapshot.find(c => {
+        const cDept = String(c.departmentName || c.department || '').toLowerCase();
+        const tDept = String(dept).toLowerCase();
+        return (
+          (cDept.includes(tDept) || tDept.includes(cDept)) &&
+          normalizeSem(c.semester || c.sem) === normalizeSem(nextSemCode) &&
+          normalizeDiv(c.division || c.div) === normalizeDiv(div) &&
+          (!c.academicYear || c.academicYear === year)
+        );
+      });
+
+      if (!targetClass) {
+        const newClassId = `CLASS_${student.departmentId || 'DEP'}_${nextSemNum}_${div.replace(/[^0-9]/g, '') || '1'}_${year}`;
+        targetClass = {
+          id: newClassId,
+          departmentId: student.departmentId || 'DEP_AI',
+          departmentName: dept,
+          semester: nextSemCode,
+          division: div,
+          academicYear: year,
+          createdAt: new Date().toISOString(),
+          status: 'active'
+        };
+        classesSnapshot.push(targetClass);
+      }
+
+      student.classId = targetClass.id;
+      breakdownCounts[currentSemNum].count++;
+      totalPromoted++;
+      promotedStudentIds.add(student.id);
+      updatedStudents.push(student);
+    } else {
+      updatedStudents.push(student);
+    }
+  }
+
+  // 3. TRANSACTION INTEGRITY & SAFEGUARDS VERIFICATION
+  if (updatedStudents.length !== originalStudents.length) {
+    throw new Error(`Data safety check failed: student count mismatch (${updatedStudents.length} vs ${originalStudents.length}). Promotion rolled back.`);
+  }
+
+  // Double-promotion validation check: ensure each promoted student advanced by exactly 1 semester
+  for (const st of updatedStudents) {
+    if (promotedStudentIds.has(st.id)) {
+      const orig = originalStudents.find(s => s.id === st.id);
+      const oldNum = parseInt(String(orig.semester || orig.sem).match(/([1-8])/)[1], 10);
+      const newNum = parseInt(String(st.semester || st.sem).match(/([1-8])/)[1], 10);
+      if (newNum !== oldNum + 1) {
+        throw new Error(`Safety violation: Student ${st.enrollmentNo} was advanced by ${newNum - oldNum} semesters instead of strictly 1. Rolled back.`);
+      }
+    }
+  }
+
+  // 4. ATOMIC COMMIT TO LOCALSTORAGE
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classesSnapshot));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedStudents));
+
+  // 5. RECORD AUDIT LOG IN PROMOTION HISTORY
+  const breakdownList = Object.values(breakdownCounts).sort((a, b) => a.semNum - b.semNum);
+  const promoRecord = {
+    id: 'PROMO_' + Date.now(),
+    timestamp: new Date().toISOString(),
+    academicCycle,
+    finalSemester,
+    totalPromoted,
+    finalSemesterExcludedCount,
+    breakdown: breakdownList.map(b => ({
+      sourceSem: b.sourceSem,
+      targetSem: b.targetSem,
+      sourceSemCode: b.sourceSemCode,
+      targetSemCode: b.targetSemCode,
+      count: b.count
+    }))
+  };
+  history.push(promoRecord);
+  localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify(history));
+
+  // 6. DISPATCH REAL-TIME SYSTEM EVENTS
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+    window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+  }
+
+  return {
+    success: true,
+    timestamp: promoRecord.timestamp,
+    academicCycle,
+    finalSemester,
+    totalPromoted,
+    finalSemesterExcludedCount,
+    breakdown: promoRecord.breakdown,
+    record: promoRecord
+  };
+};
+
+/**
+ * Downloads official Excel template for registering new students (First-Year Freshers or Transfer students).
+ */
+export const downloadStudentRegistrationTemplate = () => {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Registration Template with realistic fresher sample rows
+  const headers = [
+    'Enrollment Number',
+    'Student Name',
+    'Department',
+    'Semester',
+    'Division',
+    'Batch',
+    'Email',
+    'Roll Number'
+  ];
+
+  const sampleRows = [
+    ['25AD001', 'Aarav Sharma', 'AI & Data Science', '1st Sem', 'Div 1', 'Batch A', 'aarav.sharma@adit.ac.in', '1'],
+    ['25AD002', 'Bhavya Patel', 'AI & Data Science', '1st Sem', 'Div 1', 'Batch A', 'bhavya.patel@adit.ac.in', '2'],
+    ['25AD003', 'Chirag Joshi', 'AI & Data Science', '1st Sem', 'Div 1', 'Batch B', 'chirag.joshi@adit.ac.in', '3'],
+    ['25AD004', 'Drashti Shah', 'AI & Data Science', '1st Sem', 'Div 1', 'Batch B', 'drashti.shah@adit.ac.in', '4'],
+    ['25AD005', 'Eshaan Mehta', 'AI & Data Science', '1st Sem', 'Div 1', 'Batch C', 'eshaan.mehta@adit.ac.in', '5'],
+    ['25CP001', 'Hiren Vaghela', 'Computer Engineering', '1st Sem', 'Div 1', 'Batch A', 'hiren.v@adit.ac.in', '1'],
+    ['25IT001', 'Jiya Trivedi', 'Information Technology', '1st Sem', 'Div 1', 'Batch A', 'jiya.t@adit.ac.in', '1']
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  ws['!cols'] = [
+    { wch: 18 }, // Enrollment Number
+    { wch: 22 }, // Student Name
+    { wch: 24 }, // Department
+    { wch: 12 }, // Semester
+    { wch: 12 }, // Division
+    { wch: 12 }, // Batch
+    { wch: 26 }, // Email
+    { wch: 12 }  // Roll Number
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Student Registration');
+
+  // Sheet 2: Guidelines and reference values
+  const guideRows = [
+    ['ADIT STUDENT REGISTRATION TEMPLATE GUIDELINES', ''],
+    ['', ''],
+    ['FIELD', 'DESCRIPTION & ACCEPTED VALUES'],
+    ['Enrollment Number', 'REQUIRED. Must be globally unique (e.g., 25AD001, 12502040501101).'],
+    ['Student Name', 'REQUIRED. Full name of the student (e.g., Aarav Sharma).'],
+    ['Department', 'Accepted: AI & Data Science, Computer Engineering, Information Technology, EC, ME, Civil.'],
+    ['Semester', 'Defaults to "1st Sem" for incoming freshers. Use 3rd Sem for lateral diploma admissions.'],
+    ['Division', 'Accepted: Div 1, Div 2, Div 3.'],
+    ['Batch', 'Accepted: Batch A, Batch B, Batch C (defaults to Batch A if omitted).'],
+    ['Email', 'Optional. Student campus email address.'],
+    ['Roll Number', 'Optional class roll number.']
+  ];
+  const guideWs = XLSX.utils.aoa_to_sheet(guideRows);
+  guideWs['!cols'] = [{ wch: 25 }, { wch: 65 }];
+  XLSX.utils.book_append_sheet(wb, guideWs, 'Instructions');
+
+  XLSX.writeFile(wb, 'ADIT_New_Student_Registration_Template.xlsx');
+};
+
+/**
+ * Bulk imports campus students (freshers / transfers) with full validation.
+ */
+export const bulkRegisterStudents = (studentRows, defaultAcademicYear = DEFAULT_ACADEMIC_YEAR) => {
+  const allStudents = getStudents();
+  const classes = getClasses();
+  const existingEnrMap = new Map();
+  allStudents.forEach(s => {
+    existingEnrMap.set(String(s.enrollmentNo).trim().toLowerCase(), s);
+  });
+
+  const importedStudents = [];
+  const errors = [];
+  let importedCount = 0;
+  let duplicateCount = 0;
+  let errorCount = 0;
+
+  // Track enrollments within this batch to prevent internal duplicates
+  const batchEnrSet = new Set();
+
+  studentRows.forEach((row, idx) => {
+    const rowNum = idx + 1;
+    const name = String(row.name || row['Student Name'] || '').trim();
+    const enrollmentNo = String(row.enrollmentNo || row['Enrollment Number'] || row.EnrollmentNo || '').trim();
+    const dept = String(row.department || row.Department || row.dept || 'AI & Data Science').trim();
+    const sem = normalizeSem(row.semester || row.Semester || row.sem || '1st Sem');
+    const div = normalizeDiv(row.division || row.Division || row.class || 'Div 1');
+    const batch = String(row.batch || row.Batch || 'Batch A').trim();
+    const email = String(row.email || row.Email || '').trim();
+    const rollNo = String(row.rollNo || row['Roll Number'] || row.RollNo || '').trim();
+
+    if (!name || !enrollmentNo) {
+      errors.push(`Row ${rowNum}: Name and Enrollment Number are required.`);
+      errorCount++;
+      return;
+    }
+
+    const lowerEnr = enrollmentNo.toLowerCase();
+
+    // Check duplicate in file
+    if (batchEnrSet.has(lowerEnr)) {
+      errors.push(`Row ${rowNum}: Duplicate enrollment number "${enrollmentNo}" within this file.`);
+      duplicateCount++;
+      return;
+    }
+    batchEnrSet.add(lowerEnr);
+
+    // Check duplicate in database
+    if (existingEnrMap.has(lowerEnr)) {
+      const existing = existingEnrMap.get(lowerEnr);
+      errors.push(`Row ${rowNum}: Enrollment number "${enrollmentNo}" already registered for student "${existing.name}".`);
+      duplicateCount++;
+      return;
+    }
+
+    // Resolve or create class
+    let targetClass = findClassByCriteria(dept, sem, div, defaultAcademicYear);
+    if (!targetClass) {
+      let deptId = 'DEP_AI';
+      if (dept.toLowerCase().includes('comp')) deptId = 'DEP_CP';
+      else if (dept.toLowerCase().includes('info')) deptId = 'DEP_IT';
+      else if (dept.toLowerCase().includes('elec') || dept.toLowerCase().includes('ec')) deptId = 'DEP_EC';
+      else if (dept.toLowerCase().includes('mech')) deptId = 'DEP_ME';
+      else if (dept.toLowerCase().includes('civil')) deptId = 'DEP_CL';
+
+      targetClass = {
+        id: `CLASS_${deptId}_${sem.replace(/[^0-9]/g, '')}_${div.replace(/[^0-9]/g, '')}_${defaultAcademicYear}`,
+        departmentId: deptId,
+        departmentName: dept,
+        semester: sem,
+        division: div,
+        academicYear: defaultAcademicYear,
+        createdAt: new Date().toISOString(),
+        status: 'active'
+      };
+      classes.push(targetClass);
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+    }
+
+    const newStudent = {
+      id: 'S_' + Date.now().toString().slice(-6) + '_' + Math.random().toString(36).substr(2, 4),
+      name,
+      enrollmentNo,
+      rollNo: rollNo || String(allStudents.length + importedCount + 1),
+      email,
+      batch: batch || 'Batch A',
+      classId: targetClass.id,
+      departmentId: targetClass.departmentId,
+      department: dept,
+      dept: dept,
+      semester: sem,
+      sem: sem,
+      division: div,
+      class: div.replace(/[^0-9]/g, '') || '1',
+      academicYear: defaultAcademicYear,
+      status: 'Active',
+      createdAt: new Date().toISOString()
+    };
+
+    allStudents.push(newStudent);
+    existingEnrMap.set(lowerEnr, newStudent);
+    importedStudents.push(newStudent);
+    importedCount++;
+  });
+
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(allStudents));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
+
+  return {
+    success: true,
+    importedCount,
+    duplicateCount,
+    errorCount,
+    errors,
+    importedStudents
+  };
+};
+
+// =========================================================================
+// ELECTIVE SUBJECT MANAGEMENT & STUDENT GROUPING API
+// =========================================================================
+
+export const getElectiveGroups = (filter = {}) => {
+  initializeStorage();
+  const raw = localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS);
+  let groups = [];
+  try {
+    groups = JSON.parse(raw || '[]');
+  } catch (e) {
+    groups = DEFAULT_ELECTIVE_GROUPS;
+  }
+  if (!groups || groups.length === 0) {
+    groups = DEFAULT_ELECTIVE_GROUPS;
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(groups));
+  }
+
+  if (filter && Object.keys(filter).length > 0) {
+    return groups.filter(g => {
+      if (filter.semester && normalizeSem(g.semester) !== normalizeSem(filter.semester)) return false;
+      if (filter.academicYear && g.academicYear !== filter.academicYear) return false;
+      if (filter.status && g.status !== filter.status) return false;
+      return true;
+    });
+  }
+  return groups;
+};
+
+export const getElectiveGroupById = (groupId) => {
+  if (!groupId) return null;
+  const groups = getElectiveGroups();
+  return groups.find(g => g.id === groupId || String(g.id).toLowerCase() === String(groupId).toLowerCase()) || null;
+};
+
+export const saveElectiveGroup = (groupData) => {
+  if (!groupData.name || !groupData.name.trim()) throw new Error('Elective group name is required.');
+  if (!groupData.semester) throw new Error('Semester is required.');
+
+  const allGroups = getElectiveGroups();
+  const now = new Date().toISOString();
+
+  let groupId = groupData.id;
+  if (!groupId) {
+    groupId = 'ELEC_GRP_' + Date.now().toString().slice(-6) + '_' + Math.random().toString(36).substr(2, 4);
+  }
+
+  // Ensure subjects array has ids and classes
+  const cleanSubjects = (groupData.subjects || []).map((sub, sIdx) => {
+    const subId = sub.id || `ELEC_SUB_${groupId}_${sIdx + 1}`;
+    const cleanClasses = (sub.classes && sub.classes.length > 0) ? sub.classes.map((cls, cIdx) => ({
+      id: cls.id || `ELEC_CLS_${subId}_${cIdx + 1}`,
+      name: cls.name || `Elective Class ${String.fromCharCode(65 + cIdx)}`,
+      facultyId: cls.facultyId || '',
+      facultyName: cls.facultyName || ''
+    })) : [
+      {
+        id: `ELEC_CLS_${subId}_1`,
+        name: sub.className || `Elective Class ${String.fromCharCode(65 + sIdx)}`,
+        facultyId: sub.facultyId || '',
+        facultyName: sub.facultyName || ''
+      }
+    ];
+
+    return {
+      id: subId,
+      code: sub.code || '',
+      name: sub.name,
+      shortName: sub.shortName || sub.name,
+      classes: cleanClasses
+    };
+  });
+
+  const updatedGroup = {
+    id: groupId,
+    name: groupData.name.trim(),
+    semester: normalizeSem(groupData.semester),
+    academicYear: groupData.academicYear || DEFAULT_ACADEMIC_YEAR,
+    status: groupData.status || 'active',
+    subjects: cleanSubjects,
+    createdAt: groupData.createdAt || now,
+    updatedAt: now
+  };
+
+  const existingIdx = allGroups.findIndex(g => g.id === groupId);
+  if (existingIdx !== -1) {
+    allGroups[existingIdx] = updatedGroup;
+  } else {
+    allGroups.push(updatedGroup);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(allGroups));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-elective-groups-updated', { detail: { groupId } }));
+  }
+
+  return updatedGroup;
+};
+
+export const deleteElectiveGroup = (groupId) => {
+  if (!groupId) return false;
+  const allGroups = getElectiveGroups();
+  const filtered = allGroups.filter(g => g.id !== groupId);
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(filtered));
+
+  // Also remove assignments for this group
+  const allAssignments = getElectiveAssignments();
+  const filteredAssignments = allAssignments.filter(a => a.electiveGroupId !== groupId);
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(filteredAssignments));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-elective-groups-updated'));
+    window.dispatchEvent(new CustomEvent('adit-elective-assignments-updated'));
+  }
+  return true;
+};
+
+export const getElectiveAssignments = (filter = {}) => {
+  initializeStorage();
+  const raw = localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS);
+  let assignments = [];
+  try {
+    assignments = JSON.parse(raw || '[]');
+  } catch (e) {
+    assignments = DEFAULT_ELECTIVE_ASSIGNMENTS;
+  }
+  if (!assignments || assignments.length === 0) {
+    assignments = DEFAULT_ELECTIVE_ASSIGNMENTS;
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(assignments));
+  }
+
+  if (filter && Object.keys(filter).length > 0) {
+    return assignments.filter(a => {
+      if (filter.electiveGroupId && a.electiveGroupId !== filter.electiveGroupId) return false;
+      if (filter.electiveSubjectId && a.electiveSubjectId !== filter.electiveSubjectId) return false;
+      if (filter.electiveClassId && a.electiveClassId !== filter.electiveClassId) return false;
+      if (filter.studentId && a.studentId !== filter.studentId) return false;
+      if (filter.enrollmentNo && a.enrollmentNo !== filter.enrollmentNo) return false;
+      return true;
+    });
+  }
+  return assignments;
+};
+
+export const assignStudentToElective = ({
+  studentId,
+  enrollmentNo,
+  electiveGroupId,
+  electiveSubjectId,
+  electiveClassId,
+  academicYear
+}) => {
+  if (!electiveGroupId) throw new Error('Elective group ID is required.');
+  const group = getElectiveGroupById(electiveGroupId);
+  if (!group) throw new Error(`Elective group ${electiveGroupId} not found.`);
+
+  // Find student in master students database
+  const allStudents = getStudents();
+  const student = allStudents.find(s => 
+    (studentId && s.id === studentId) ||
+    (enrollmentNo && s.enrollmentNo === enrollmentNo)
+  );
+  if (!student) throw new Error('Student not found in master records.');
+
+  // Validate student semester matches group semester
+  if (normalizeSem(student.semester || student.sem) !== normalizeSem(group.semester)) {
+    throw new Error(`Student ${student.name} is in ${student.semester || student.sem}, but elective group is for ${group.semester}.`);
+  }
+
+  // Verify subject exists in the group
+  const subject = (group.subjects || []).find(s => s.id === electiveSubjectId || s.name === electiveSubjectId || s.code === electiveSubjectId);
+  if (!subject) throw new Error(`Elective subject ${electiveSubjectId} does not belong to group ${group.name}.`);
+
+  let resolvedClassId = electiveClassId;
+  if (!resolvedClassId && subject.classes && subject.classes.length > 0) {
+    resolvedClassId = subject.classes[0].id;
+  }
+
+  const allAssignments = getElectiveAssignments();
+  // Prevent duplicate: check if this student already has an assignment in this elective group
+  const existingIndex = allAssignments.findIndex(a => 
+    a.electiveGroupId === electiveGroupId && 
+    (a.studentId === student.id || (a.enrollmentNo && a.enrollmentNo === student.enrollmentNo))
+  );
+
+  const now = new Date().toISOString();
+  let updatedAssignment;
+
+  if (existingIndex !== -1) {
+    // Re-assign student within group (preserves single assignment rule)
+    allAssignments[existingIndex] = {
+      ...allAssignments[existingIndex],
+      electiveSubjectId: subject.id,
+      electiveClassId: resolvedClassId,
+      academicYear: academicYear || group.academicYear || DEFAULT_ACADEMIC_YEAR,
+      updatedAt: now
+    };
+    updatedAssignment = allAssignments[existingIndex];
+  } else {
+    // Create new assignment
+    updatedAssignment = {
+      id: 'ASGN_' + Date.now().toString().slice(-6) + '_' + Math.random().toString(36).substr(2, 4),
+      studentId: student.id,
+      enrollmentNo: student.enrollmentNo,
+      electiveGroupId,
+      electiveSubjectId: subject.id,
+      electiveClassId: resolvedClassId,
+      academicYear: academicYear || group.academicYear || DEFAULT_ACADEMIC_YEAR,
+      assignedAt: now,
+      updatedAt: now
+    };
+    allAssignments.push(updatedAssignment);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(allAssignments));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-elective-assignments-updated', { detail: { electiveGroupId } }));
+  }
+
+  return updatedAssignment;
+};
+
+export const bulkAssignStudentsToElectives = (assignmentsArray) => {
+  if (!Array.isArray(assignmentsArray)) return { success: false, error: 'Expected array of assignments' };
+  let successCount = 0;
+  let errors = [];
+  assignmentsArray.forEach(item => {
+    try {
+      assignStudentToElective(item);
+      successCount++;
+    } catch (err) {
+      errors.push({ item, error: err.message });
+    }
+  });
+  return { success: errors.length === 0, successCount, errorCount: errors.length, errors };
+};
+
+export const removeStudentFromElective = (studentIdOrEnrollment, electiveGroupId) => {
+  const allAssignments = getElectiveAssignments();
+  const filtered = allAssignments.filter(a => {
+    if (a.electiveGroupId !== electiveGroupId) return true;
+    if (a.studentId === studentIdOrEnrollment || a.enrollmentNo === studentIdOrEnrollment) {
+      return false;
+    }
+    return true;
+  });
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(filtered));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-elective-assignments-updated', { detail: { electiveGroupId } }));
+  }
+  return true;
+};
+
+export const getEligibleStudentsForElectiveGroup = (groupId) => {
+  const group = getElectiveGroupById(groupId);
+  if (!group) return [];
+
+  const targetSem = normalizeSem(group.semester);
+  const allStudents = getStudents();
+  // Filter students whose semester matches group semester across all departments and divisions
+  const eligible = allStudents.filter(s => normalizeSem(s.semester || s.sem) === targetSem);
+
+  const assignments = getElectiveAssignments({ electiveGroupId: groupId });
+  const asgnMap = new Map();
+  assignments.forEach(a => {
+    asgnMap.set(a.studentId, a);
+    if (a.enrollmentNo) asgnMap.set(a.enrollmentNo, a);
+  });
+
+  const subjectMap = new Map();
+  const classMap = new Map();
+  (group.subjects || []).forEach(sub => {
+    subjectMap.set(sub.id, sub.name || sub.shortName);
+    (sub.classes || []).forEach(cls => {
+      classMap.set(cls.id, cls.name);
+    });
+  });
+
+  return eligible.map(st => {
+    const asgn = asgnMap.get(st.id) || (st.enrollmentNo ? asgnMap.get(st.enrollmentNo) : null);
+    return {
+      ...st,
+      assigned: !!asgn,
+      electiveAssignment: asgn ? {
+        id: asgn.id,
+        electiveGroupId: asgn.electiveGroupId,
+        electiveSubjectId: asgn.electiveSubjectId,
+        electiveSubjectName: subjectMap.get(asgn.electiveSubjectId) || asgn.electiveSubjectId,
+        electiveClassId: asgn.electiveClassId,
+        electiveClassName: classMap.get(asgn.electiveClassId) || asgn.electiveClassId,
+        assignedAt: asgn.assignedAt
+      } : null
+    };
+  });
+};
+
+export const canFacultyTeachElective = (facultyOrUser, electiveGroupId, electiveSubjectId, electiveClassId = null) => {
+  if (!facultyOrUser) return false;
+  const user = facultyOrUser;
+  // Admin role has universal authorization across all electives
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) return true;
+
+  const groups = getElectiveGroups();
+  const group = groups.find(g => g.id === electiveGroupId || String(g.id).toLowerCase() === String(electiveGroupId).toLowerCase());
+  if (!group) return false;
+
+  const userId = user.facultyId || user.id;
+  const userName = (user.name || '').trim().toLowerCase();
+
+  const subjects = group.subjects || [];
+  const subject = subjects.find(s => 
+    s.id === electiveSubjectId || 
+    (s.code && s.code === electiveSubjectId) ||
+    (s.name && s.name.toLowerCase() === String(electiveSubjectId).toLowerCase()) ||
+    (s.shortName && s.shortName.toLowerCase() === String(electiveSubjectId).toLowerCase())
+  );
+
+  if (!subject) return false;
+
+  const classes = subject.classes || [];
+  if (electiveClassId) {
+    const cls = classes.find(c => c.id === electiveClassId || c.name === electiveClassId);
+    if (!cls) return false;
+    return (cls.facultyId && (cls.facultyId === userId || cls.facultyId === user.id)) ||
+           (cls.facultyName && cls.facultyName.trim().toLowerCase() === userName);
+  }
+
+  // If no specific electiveClassId was requested, check if faculty teaches ANY class in this elective subject
+  return classes.some(c => 
+    (c.facultyId && (c.facultyId === userId || c.facultyId === user.id)) ||
+    (c.facultyName && c.facultyName.trim().toLowerCase() === userName)
+  );
+};
+
+export const getAuthorizedFacultyElectives = (facultyOrUser = null) => {
+  const user = facultyOrUser || getCurrentUser();
+  if (!user) return [];
+  const allGroups = getElectiveGroups().filter(g => g.status !== 'inactive');
+
+  if (user.role === 'admin' || user.id === 'FAC_ADMIN' || user.isAdmin) {
+    return allGroups;
+  }
+
+  const userId = user.facultyId || user.id;
+  const userName = (user.name || '').trim().toLowerCase();
+
+  const authorizedGroups = [];
+
+  allGroups.forEach(g => {
+    const authSubjects = [];
+    (g.subjects || []).forEach(s => {
+      const authClasses = (s.classes || []).filter(c => 
+        (c.facultyId && (c.facultyId === userId || c.facultyId === user.id)) ||
+        (c.facultyName && c.facultyName.trim().toLowerCase() === userName)
+      );
+      if (authClasses.length > 0) {
+        authSubjects.push({
+          ...s,
+          classes: authClasses
+        });
+      }
+    });
+
+    if (authSubjects.length > 0) {
+      authorizedGroups.push({
+        ...g,
+        subjects: authSubjects
+      });
+    }
+  });
+
+  return authorizedGroups;
+};
+
+export const getStudentsForElectiveClass = ({ electiveGroupId, electiveSubjectId, electiveClassId }, userContext = null) => {
+  if (userContext && userContext.role === 'faculty') {
+    const authorized = canFacultyTeachElective(userContext, electiveGroupId, electiveSubjectId, electiveClassId);
+    if (!authorized) {
+      throw new Error(`Unauthorized Security Error: Faculty ${userContext.name || userContext.id} is not authorized for elective subject ${electiveSubjectId}.`);
+    }
+  }
+
+  const assignments = getElectiveAssignments({
+    electiveGroupId,
+    electiveSubjectId,
+    electiveClassId
+  });
+
+  if (!assignments || assignments.length === 0) return [];
+
+  const allStudents = getStudents();
+  const studentMap = new Map();
+  allStudents.forEach(s => {
+    studentMap.set(s.id, s);
+    if (s.enrollmentNo) studentMap.set(s.enrollmentNo, s);
+  });
+
+  const assignedStudents = [];
+  assignments.forEach(asgn => {
+    const st = studentMap.get(asgn.studentId) || (asgn.enrollmentNo ? studentMap.get(asgn.enrollmentNo) : null);
+    if (st) {
+      // Return student with their elective assignment metadata attached
+      assignedStudents.push({
+        ...st,
+        electiveAssignmentId: asgn.id,
+        electiveGroupId: asgn.electiveGroupId,
+        electiveSubjectId: asgn.electiveSubjectId,
+        electiveClassId: asgn.electiveClassId
+      });
+    }
+  });
+
+  return assignedStudents.sort((a, b) => {
+    const enrA = String(a.enrollmentNo || '');
+    const enrB = String(b.enrollmentNo || '');
+    return enrA.localeCompare(enrB, undefined, { numeric: true });
+  });
+};
+
+export const downloadElectiveAssignmentTemplate = (groupId) => {
+  const group = getElectiveGroupById(groupId);
+  if (!group) throw new Error('Elective group not found');
+
+  const eligibleStudents = getEligibleStudentsForElectiveGroup(groupId);
+
+  const rows = eligibleStudents.map(s => ({
+    'Enrollment Number': s.enrollmentNo,
+    'Student Name': s.name,
+    'Current Semester': s.semester || s.sem,
+    'Department': s.department || s.dept,
+    'Regular Division': s.division || s.class,
+    'Assigned Elective Subject': s.electiveAssignment?.electiveSubjectName || '',
+    'Assigned Elective Class': s.electiveAssignment?.electiveClassName || ''
+  }));
+
+  const subjectOptions = (group.subjects || []).map(s => ({
+    'Subject Code': s.code || '',
+    'Subject Name': s.name,
+    'Elective Classes': (s.classes || []).map(c => c.name).join(', ')
+  }));
+
+  if (typeof XLSX !== 'undefined') {
+    const wb = XLSX.utils.book_new();
+    const ws1 = XLSX.utils.json_to_sheet(rows);
+    const ws2 = XLSX.utils.json_to_sheet(subjectOptions);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Student Electives');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Available Subjects');
+    const filename = `${group.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_Elective_Allocation.xlsx`;
+    XLSX.writeFile(wb, filename);
+  }
+};
+
+export const bulkImportElectiveAssignments = (groupId, dataRows) => {
+  const group = getElectiveGroupById(groupId);
+  if (!group) throw new Error('Elective group not found');
+
+  if (!Array.isArray(dataRows) || dataRows.length === 0) {
+    throw new Error('No data rows provided for import.');
+  }
+
+  let importedCount = 0;
+  let skippedCount = 0;
+  let errors = [];
+
+  const subjectLookup = new Map();
+  (group.subjects || []).forEach(sub => {
+    subjectLookup.set(sub.id.toLowerCase(), sub);
+    subjectLookup.set(sub.name.toLowerCase(), sub);
+    if (sub.shortName) subjectLookup.set(sub.shortName.toLowerCase(), sub);
+    if (sub.code) subjectLookup.set(sub.code.toLowerCase(), sub);
+  });
+
+  dataRows.forEach((row, idx) => {
+    const enrollmentNo = String(row['Enrollment Number'] || row['enrollmentNo'] || row['enrollment'] || row['Enrollment'] || '').trim();
+    const subjectName = String(row['Assigned Elective Subject'] || row['electiveSubject'] || row['Subject'] || row['subject'] || '').trim();
+    const className = String(row['Assigned Elective Class'] || row['electiveClass'] || row['Class'] || '').trim();
+
+    if (!enrollmentNo || !subjectName) {
+      skippedCount++;
+      return;
+    }
+
+    const matchedSubject = subjectLookup.get(subjectName.toLowerCase());
+    if (!matchedSubject) {
+      errors.push(`Row ${idx + 1}: Unknown elective subject "${subjectName}"`);
+      return;
+    }
+
+    let matchedClassId = null;
+    if (className && matchedSubject.classes) {
+      const cls = matchedSubject.classes.find(c => c.name.toLowerCase() === className.toLowerCase() || c.id === className);
+      if (cls) matchedClassId = cls.id;
+    }
+    if (!matchedClassId && matchedSubject.classes && matchedSubject.classes.length > 0) {
+      matchedClassId = matchedSubject.classes[0].id;
+    }
+
+    try {
+      assignStudentToElective({
+        enrollmentNo,
+        electiveGroupId: groupId,
+        electiveSubjectId: matchedSubject.id,
+        electiveClassId: matchedClassId,
+        academicYear: group.academicYear
+      });
+      importedCount++;
+    } catch (err) {
+      errors.push(`Row ${idx + 1} (${enrollmentNo}): ${err.message}`);
+    }
+  });
+
+  return {
+    success: errors.length === 0,
+    importedCount,
+    skippedCount,
+    errorCount: errors.length,
+    errors
+  };
+};
+
+// =========================================================================
+// STUDENT PORTAL SERVICES (RBAC Secured, Protected Academic Data, Real-Time)
+// =========================================================================
+
+/**
+ * Calculates a student's attendance metrics across a list of session records.
+ * Follows institutional policy for approved exceptions.
+ * Returns null percentage and clear indicator if totalConducted === 0.
+ */
+export const calculateStudentAttendanceStats = (studentId, sessions = [], policyOverride = null) => {
+  const policy = policyOverride || getInstitutionalExceptionPolicy();
+  const totalConducted = Array.isArray(sessions) ? sessions.length : 0;
+  let regularPresent = 0;
+  let regularAbsent = 0;
+  let approvedExceptions = 0;
+  let unmarkedCount = 0;
+
+  // Resolve alternate identifier (id vs enrollmentNo)
+  let altId = null;
+  try {
+    const allSts = getStudents();
+    const foundSt = allSts.find(s => s.id === studentId || s.enrollmentNo === studentId);
+    if (foundSt) {
+      altId = foundSt.id === studentId ? foundSt.enrollmentNo : foundSt.id;
+    }
+  } catch (err) {}
+
+  if (Array.isArray(sessions)) {
+    sessions.forEach(session => {
+      // getSessions for student returns sanitized myStatus and isExcused
+      const status = session.myStatus || 
+        (session.records ? (session.records[studentId] !== undefined ? session.records[studentId] : (altId ? session.records[altId] : null)) : null) || 
+        (session.students ? (session.students[studentId] !== undefined ? session.students[studentId] : (altId ? session.students[altId] : null)) : null);
+
+      const excCheck = isStudentExcusedForSession(studentId, session.date, session.timeSlot || session.time, session.subjectId) ||
+                       (altId ? isStudentExcusedForSession(altId, session.date, session.timeSlot || session.time, session.subjectId) : { isExcused: false });
+      const isExcused = session.isExcused || excCheck.isExcused;
+
+      if (status === 'present' || status === 'late') {
+        regularPresent++;
+      } else if (status === 'od' || status === 'exception' || (status === 'absent' && isExcused) || isExcused) {
+        approvedExceptions++;
+      } else if (status === 'absent') {
+        regularAbsent++;
+      } else {
+        unmarkedCount++;
+      }
+    });
+  }
+
+  const totalAttended = regularPresent + approvedExceptions;
+  const totalMissed = regularAbsent;
+
+  let percentage = null;
+  let percentageFormatted = 'N/A';
+  let meetsThreshold = true;
+
+  if (totalConducted > 0) {
+    if (policy === INSTITUTIONAL_POLICIES.COUNT_ELIGIBLE) {
+      percentage = Math.round(Math.min(100, ((regularPresent + approvedExceptions) / totalConducted) * 100) * 10) / 10;
+    } else if (policy === INSTITUTIONAL_POLICIES.EXCLUDE_EXCEPTION) {
+      const effectiveTotal = Math.max(0, totalConducted - approvedExceptions);
+      percentage = effectiveTotal > 0 ? Math.round(Math.min(100, (regularPresent / effectiveTotal) * 100) * 10) / 10 : 100;
+    } else {
+      percentage = Math.round(Math.min(100, (regularPresent / totalConducted) * 100) * 10) / 10;
+    }
+    percentageFormatted = `${percentage}%`;
+    meetsThreshold = percentage >= 75;
+  }
+
+  return {
+    studentId,
+    totalConducted,
+    totalAttended,
+    totalMissed,
+    approvedExceptions,
+    regularPresent,
+    regularAbsent,
+    unmarkedCount,
+    percentage,
+    percentageFormatted,
+    meetsThreshold,
+    isEligible: meetsThreshold,
+    hasConductedLectures: totalConducted > 0
+  };
+};
+
+/**
+ * Retrieves the logged-in student's complete profile.
+ * Distinguishes immutable academic details from editable contact details.
+ */
+export const getStudentProfile = (userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user) return null;
+
+  const studentEnr = String(user.enrollmentNo || '').trim().toLowerCase();
+  const studentId = String(user.id || user.studentId || '').trim().toLowerCase();
+
+  const students = getStudents();
+  const found = students.find(s => 
+    String(s.enrollmentNo || '').trim().toLowerCase() === studentEnr ||
+    String(s.id || '').trim().toLowerCase() === studentId
+  );
+
+  const base = found || user;
+  const cls = base.classId ? getClassById(base.classId) : null;
+  const dept = cls ? cls.departmentName : (base.department || base.dept || '');
+  const sem = cls ? cls.semester : normalizeSem(base.semester || base.sem || '3rd Sem');
+  const div = cls ? cls.division : normalizeDiv(base.division || base.class || 'Div 1');
+  const year = cls ? cls.academicYear : (base.academicYear || DEFAULT_ACADEMIC_YEAR);
+
+  return {
+    id: base.id,
+    studentId: base.id,
+    enrollmentNo: base.enrollmentNo,
+    rollNo: base.rollNo || '',
+    name: base.name,
+    department: dept,
+    dept: dept,
+    semester: sem,
+    sem: sem,
+    division: div,
+    class: div,
+    batch: base.batch || 'Batch A',
+    academicYear: year,
+    email: base.email || '',
+    phone: base.phone || '',
+    className: `${dept} • ${sem} • ${div}`,
+    isProfileLocked: true
+  };
+};
+
+/**
+ * Updates permitted student contact info and password.
+ * Strictly prevents mutation of academic credentials.
+ */
+export const updateStudentProfile = (updates = {}, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user || user.role !== 'student') {
+    throw new Error('Unauthorized Security Error: Only authenticated students can update their profile.');
+  }
+
+  const studentEnr = String(user.enrollmentNo || '').trim();
+  const students = getStudents();
+  const idx = students.findIndex(s => 
+    String(s.enrollmentNo || '').trim().toLowerCase() === studentEnr.toLowerCase() ||
+    String(s.id || '') === String(user.id)
+  );
+
+  if (idx === -1) {
+    throw new Error('Student record not found in database.');
+  }
+
+  const student = students[idx];
+
+  // 1. Update contact fields (phone & email)
+  if (updates.email !== undefined) {
+    const cleanEmail = String(updates.email).trim();
+    if (cleanEmail && !cleanEmail.includes('@')) {
+      throw new Error('Please enter a valid email address.');
+    }
+    student.email = cleanEmail;
+  }
+
+  if (updates.phone !== undefined) {
+    student.phone = String(updates.phone).trim();
+  }
+
+  // 2. Change password if requested
+  if (updates.newPassword) {
+    const currentPass = String(updates.currentPassword || '').trim();
+    const newPass = String(updates.newPassword).trim();
+    const confirmPass = String(updates.confirmPassword || '').trim();
+
+    if (!currentPass) {
+      throw new Error('Please enter your current password.');
+    }
+    if (newPass.length < 4) {
+      throw new Error('New password must be at least 4 characters long.');
+    }
+    if (confirmPass && newPass !== confirmPass) {
+      throw new Error('New password and confirmation do not match.');
+    }
+
+    // Verify current password against stored hash or fallback
+    const storedHash = student.passwordHash;
+    const storedPlain = student.password;
+    const salt = student.salt || studentEnr;
+    const currentHash = hashPassword(currentPass, salt);
+
+    let isCurrentValid = false;
+    if (storedHash) {
+      isCurrentValid = (storedHash === currentHash || storedHash === hashPassword(currentPass));
+    } else if (storedPlain) {
+      isCurrentValid = (currentPass === storedPlain || currentPass === hashPassword(storedPlain));
+    } else {
+      isCurrentValid = (
+        currentPass === studentEnr ||
+        currentPass.toLowerCase() === studentEnr.toLowerCase() ||
+        currentPass === 'student123' ||
+        currentPass === '1234'
+      );
+    }
+
+    if (!isCurrentValid) {
+      throw new Error('Current password verification failed. Please try again.');
+    }
+
+    // Hash and store the new password
+    const newSalt = `ADIT_SALT_${Date.now()}`;
+    student.salt = newSalt;
+    student.passwordHash = hashPassword(newPass, newSalt);
+    delete student.password; // Remove any plaintext password
+  }
+
+  student.updatedAt = new Date().toISOString();
+  students[idx] = student;
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+
+  // Sync session in currentUser if same user
+  const currentSession = getCurrentUser();
+  if (currentSession && (currentSession.enrollmentNo === student.enrollmentNo || currentSession.id === student.id)) {
+    setCurrentUser({
+      ...currentSession,
+      phone: student.phone,
+      email: student.email
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-students-updated'));
+  }
+
+  return {
+    success: true,
+    message: 'Profile updated successfully.',
+    profile: getStudentProfile(user)
+  };
+};
+
+/**
+ * Returns all subjects in which the student is enrolled (regular + elective roster).
+ * Calculates real-time attendance statistics for each subject.
+ */
+export const getStudentEnrolledSubjects = (userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user || user.role !== 'student') return [];
+
+  const studentId = user.id || user.studentId;
+  const studentEnr = String(user.enrollmentNo || '').trim().toUpperCase();
+  const studentSem = normalizeSem(user.semester || user.sem || '3rd Sem');
+  const studentDiv = normalizeDiv(user.division || user.class || 'Div 1');
+  const studentDept = user.department || user.dept || '';
+
+  const allSubjects = getSubjects();
+  const enrolledList = [];
+  const seenSubjectIds = new Set();
+
+  // 1. Regular subjects matching department & semester
+  const regularSubjects = allSubjects.filter(s => {
+    if (s.isElective) return false;
+    const semMatch = normalizeSem(s.sem || s.semester) === studentSem;
+    if (!semMatch) return false;
+    if (s.dept && studentDept) {
+      const sDept = s.dept.toLowerCase();
+      const stDept = studentDept.toLowerCase();
+      if (!sDept.includes(stDept) && !stDept.includes(sDept)) return false;
+    }
+    if (s.class && s.class !== 'ALL' && s.class !== 'All') {
+      const sClass = normalizeDiv(s.class);
+      if (sClass !== studentDiv && s.class !== studentDiv.replace(/[^0-9]/g, '')) return false;
+    }
+    return true;
+  });
+
+  const faculties = getFaculties();
+  const facultyMap = new Map();
+  faculties.forEach(f => facultyMap.set(f.id, f.name));
+
+  regularSubjects.forEach(s => {
+    seenSubjectIds.add(s.id);
+    let facultyName = s.faculty || s.assignedFaculty || '';
+    if (!facultyName) {
+      const alloc = getAllocationForSubject(s.id);
+      if (alloc && alloc.divisions) {
+        const divAlloc = alloc.divisions.find(d => normalizeDiv(d.name) === studentDiv || d.id === studentDiv.replace(/[^0-9]/g, '')) || alloc.divisions[0];
+        if (divAlloc) {
+          facultyName = divAlloc.facultyName || (divAlloc.facultyId ? facultyMap.get(divAlloc.facultyId) : '');
+        }
+      }
+    }
+    if (!facultyName) facultyName = 'Faculty Member';
+
+    const subjectSessions = getSessions({ subjectId: s.id }, user);
+    const stats = calculateStudentAttendanceStats(studentId, subjectSessions);
+
+    enrolledList.push({
+      id: s.id,
+      subjectId: s.id,
+      name: s.name,
+      code: s.code || s.subjectCode || 'REG',
+      shortName: s.shortName || s.name,
+      credits: s.credits || 4,
+      department: s.dept || studentDept,
+      semester: studentSem,
+      division: studentDiv,
+      facultyName,
+      type: 'regular',
+      isElective: false,
+      stats
+    });
+  });
+
+  // 2. Elective subjects from elective class rosters
+  const classes = getClasses();
+  const electiveClasses = classes.filter(c => c.isElective && (
+    (c.studentEnrollmentNos && c.studentEnrollmentNos.some(enr => String(enr).trim().toUpperCase() === studentEnr)) ||
+    (c.studentIds && c.studentIds.includes(studentId))
+  ));
+
+  electiveClasses.forEach(c => {
+    const subId = c.subjectId || c.electiveSubjectId || `ELECTIVE_${c.id}`;
+    if (!seenSubjectIds.has(subId)) {
+      seenSubjectIds.add(subId);
+      const matchedSub = allSubjects.find(s => s.id === subId || s.name === c.subjectName);
+      const subjectSessions = getSessions({ subjectId: subId }, user);
+      const stats = calculateStudentAttendanceStats(studentId, subjectSessions);
+
+      enrolledList.push({
+        id: subId,
+        subjectId: subId,
+        name: c.subjectName || (matchedSub ? matchedSub.name : 'Elective Subject'),
+        code: (matchedSub && matchedSub.code) || c.subjectCode || c.code || 'ELECTIVE',
+        shortName: (matchedSub && matchedSub.shortName) || c.subjectName || 'Elective',
+        credits: (matchedSub && matchedSub.credits) || 3,
+        department: 'Elective (Open)',
+        semester: normalizeSem(c.semester || studentSem),
+        division: c.name || c.division || 'Elective Class',
+        facultyName: c.facultyName || c.assignedFacultyName || 'Assigned Faculty',
+        type: 'elective',
+        isElective: true,
+        electiveClassId: c.id,
+        electiveClassName: c.name,
+        stats
+      });
+    }
+  });
+
+  // 3. Elective subjects from elective groups assignments
+  try {
+    const assignments = getElectiveAssignments({ studentId, enrollmentNo: studentEnr });
+    assignments.forEach(asgn => {
+      const subId = asgn.electiveSubjectId;
+      if (subId && !seenSubjectIds.has(subId)) {
+        seenSubjectIds.add(subId);
+        const group = getElectiveGroupById(asgn.electiveGroupId);
+        let subName = 'Elective Subject';
+        let subCode = 'ELECTIVE';
+        let subFaculty = 'Faculty Member';
+        if (group && group.subjects) {
+          const sObj = group.subjects.find(s => s.id === subId);
+          if (sObj) {
+            subName = sObj.name;
+            subCode = sObj.code || 'ELECTIVE';
+            if (sObj.classes && asgn.electiveClassId) {
+              const cObj = sObj.classes.find(c => c.id === asgn.electiveClassId);
+              if (cObj && cObj.facultyName) subFaculty = cObj.facultyName;
+            }
+          }
+        }
+        const subjectSessions = getSessions({ subjectId: subId }, user);
+        const stats = calculateStudentAttendanceStats(studentId, subjectSessions);
+
+        enrolledList.push({
+          id: subId,
+          subjectId: subId,
+          name: subName,
+          code: subCode,
+          shortName: subName,
+          credits: 3,
+          department: 'Elective (Open)',
+          semester: studentSem,
+          division: asgn.electiveClassName || 'Elective Class',
+          facultyName: subFaculty,
+          type: 'elective',
+          isElective: true,
+          electiveClassId: asgn.electiveClassId,
+          stats
+        });
+      }
+    });
+  } catch (err) {
+    // ignore
+  }
+
+  return enrolledList;
+};
+
+/**
+ * Returns overall aggregate attendance for the logged-in student.
+ */
+export const getStudentOverallAttendance = (userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user || user.role !== 'student') return null;
+
+  const subjects = getStudentEnrolledSubjects(user);
+  let totalConducted = 0;
+  let totalAttended = 0;
+  let totalMissed = 0;
+  let totalExceptions = 0;
+
+  subjects.forEach(sub => {
+    if (sub.stats) {
+      totalConducted += sub.stats.totalConducted || 0;
+      totalAttended += sub.stats.totalAttended || 0;
+      totalMissed += sub.stats.totalMissed || 0;
+      totalExceptions += sub.stats.approvedExceptions || 0;
+    }
+  });
+
+  let percentage = null;
+  let percentageFormatted = 'N/A';
+  let meetsThreshold = true;
+
+  if (totalConducted > 0) {
+    percentage = Math.round(((totalAttended) / totalConducted) * 1000) / 10;
+    percentageFormatted = `${percentage}%`;
+    meetsThreshold = percentage >= 75;
+  }
+
+  return {
+    totalSubjects: subjects.length,
+    totalConducted,
+    totalAttended,
+    totalMissed,
+    totalExceptions,
+    percentage,
+    percentageFormatted,
+    meetsThreshold,
+    isEligible: meetsThreshold,
+    hasConductedLectures: totalConducted > 0,
+    subjects
+  };
+};
+
+/**
+ * Returns detailed lecture-by-lecture attendance records for a specific subject.
+ */
+export const getSubjectAttendanceDetails = (subjectId, userContext = null) => {
+  const user = userContext || getCurrentUser();
+  if (!user || user.role !== 'student') return null;
+
+  const subjects = getStudentEnrolledSubjects(user);
+  const subject = subjects.find(s => s.id === subjectId || s.subjectId === subjectId);
+  if (!subject) return null;
+
+  const sessions = getSessions({ subjectId: subject.id }, user);
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const dDiff = new Date(b.date) - new Date(a.date);
+    if (dDiff !== 0) return dDiff;
+    const getStartTime = (s) => (s.startTime || (s.timeSlot ? s.timeSlot.split('-')[0].trim() : '') || '');
+    return getStartTime(b).localeCompare(getStartTime(a));
+  });
+
+  const history = sortedSessions.map(s => {
+    let displayStatus = 'Unmarked';
+    if (s.myStatus === 'present') displayStatus = 'Present';
+    else if (s.myStatus === 'absent') displayStatus = 'Absent';
+    else if (s.myStatus === 'od' || s.isExcused) displayStatus = 'Duty Leave / Exception';
+
+    const slot = s.timeSlot || ((s.startTime && s.endTime) ? `${s.startTime} - ${s.endTime}` : 'Regular Slot');
+
+    return {
+      id: s.id,
+      date: s.date,
+      timeSlot: slot,
+      topic: s.topic || s.topicCovered || s.topicName || 'Regular Lecture',
+      facultyName: s.facultyName || subject.facultyName || 'Faculty Member',
+      status: displayStatus,
+      statusRaw: s.myStatus,
+      isExcused: Boolean(s.isExcused),
+      remark: s.myRemark || ''
+    };
+  });
+
+  return {
+    subject,
+    stats: subject.stats,
+    sessions: history
+  };
+};
+
+// Expose on window for runtime and test verification
+if (typeof window !== 'undefined') {
+  window.getElectiveGroups = getElectiveGroups;
+  window.getElectiveGroupById = getElectiveGroupById;
+  window.saveElectiveGroup = saveElectiveGroup;
+  window.deleteElectiveGroup = deleteElectiveGroup;
+  window.getElectiveAssignments = getElectiveAssignments;
+  window.assignStudentToElective = assignStudentToElective;
+  window.bulkAssignStudentsToElectives = bulkAssignStudentsToElectives;
+  window.removeStudentFromElective = removeStudentFromElective;
+  window.getEligibleStudentsForElectiveGroup = getEligibleStudentsForElectiveGroup;
+  window.canFacultyTeachElective = canFacultyTeachElective;
+  window.getAuthorizedFacultyElectives = getAuthorizedFacultyElectives;
+  window.getStudentsForElectiveClass = getStudentsForElectiveClass;
+  window.downloadElectiveAssignmentTemplate = downloadElectiveAssignmentTemplate;
+  window.bulkImportElectiveAssignments = bulkImportElectiveAssignments;
+  window.parseAndValidateElectiveStudentList = parseAndValidateElectiveStudentList;
+  window.updateElectiveClassRoster = updateElectiveClassRoster;
+
+  // Authentication & Core API
+  window.loginUser = loginUser;
+  window.logoutUser = logoutUser;
+  window.getCurrentUser = getCurrentUser;
+  window.setCurrentUser = setCurrentUser;
+  window.hashPassword = hashPassword;
+  window.getStudents = getStudents;
+  window.saveStudent = saveStudent;
+  window.deleteStudent = deleteStudent;
+  window.getClasses = getClasses;
+  window.getClassById = getClassById;
+  window.saveClass = saveClass;
+  window.deleteClass = deleteClass;
+  window.getSubjects = getSubjects;
+  window.saveSubject = saveSubject;
+  window.deleteSubject = deleteSubject;
+  window.getFaculties = getFaculties;
+  window.saveFaculty = saveFaculty;
+  window.deleteFaculty = deleteFaculty;
+  window.getSessions = getSessions;
+  window.saveSession = saveSession;
+  window.deleteSession = deleteSession;
+
+  // Storage & Exceptions API
+  window.initializeStorage = initializeStorage;
+  window.getExceptions = getExceptions;
+  window.saveException = saveException;
+  window.deleteException = deleteException;
+  window.isStudentExcusedForSession = isStudentExcusedForSession;
+  window.getInstitutionalExceptionPolicy = getInstitutionalExceptionPolicy;
+  window.setInstitutionalExceptionPolicy = setInstitutionalExceptionPolicy;
+
+  // Student Portal Services
+  window.calculateStudentAttendanceStats = calculateStudentAttendanceStats;
+  window.getStudentProfile = getStudentProfile;
+  window.updateStudentProfile = updateStudentProfile;
+  window.getStudentEnrolledSubjects = getStudentEnrolledSubjects;
+  window.getStudentOverallAttendance = getStudentOverallAttendance;
+  window.getSubjectAttendanceDetails = getSubjectAttendanceDetails;
+}

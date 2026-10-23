@@ -11,6 +11,7 @@ import PrintView from './components/PrintView';
 import ManageMaster from './components/ManageMaster';
 import AdminPanel from './components/AdminPanel';
 import FacultyPanel from './components/FacultyPanel';
+import StudentPanel from './components/StudentPanel';
 import LoginView from './components/LoginView';
 import { 
   initializeStorage, 
@@ -141,7 +142,26 @@ export default function App() {
     );
   }
 
-  // 3. Admin User -> Render Admin Panel or Portal View
+  // 3. Student User -> Render Dedicated Student Panel (Restricted from Faculty & Admin Panels)
+  if (currentUser.role === 'student') {
+    return (
+      <>
+        <StudentPanel 
+          currentUser={currentUser} 
+          showToast={showToast} 
+          onExit={handleLogout} 
+        />
+        {toastMessage && (
+          <div className="toast-notification">
+            <CheckCircle size={18} style={{ color: '#34d399' }} />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // 4. Admin User -> Render Admin Panel or Portal View
   const renderActiveView = () => {
     switch (activeTab) {
       case 'dashboard':

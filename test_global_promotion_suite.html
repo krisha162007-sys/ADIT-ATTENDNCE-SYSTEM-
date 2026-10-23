@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADIT Global One-Click Semester Promotion Test Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Location','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { window[n] = _nat[n]; });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>ADIT Global One-Click Semester Promotion Verification Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: -9999px; top: -9999px;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      try {
+        // Reset storage to pristine baseline
+        initializeStorage();
+        clearPromotionHistoryForTesting();
+
+        // -------------------------------------------------------------
+        // SEED TEST DATA: Multi-Semester Cohort (Sem 1 to Sem 8)
+        // -------------------------------------------------------------
+        const multiSemStudents = [
+          { id: 'ST_S1_01', enrollmentNo: 'EN_S1_01', name: 'Student Sem1', sem: '1st Sem', semester: '1st Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch A', rollNo: '101' },
+          { id: 'ST_S1_02', enrollmentNo: 'EN_S1_02', name: 'Student Sem1 B', sem: '1st Sem', semester: '1st Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch B', rollNo: '102' },
+          { id: 'ST_S2_01', enrollmentNo: 'EN_S2_01', name: 'Student Sem2', sem: '2nd Sem', semester: '2nd Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch A', rollNo: '201' },
+          { id: 'ST_S3_01', enrollmentNo: 'EN_S3_01', name: 'Student Sem3', sem: '3rd Sem', semester: '3rd Sem', department: 'Information Technology', division: 'Div 1', batch: 'Batch C', rollNo: '301' },
+          { id: 'ST_S4_01', enrollmentNo: 'EN_S4_01', name: 'Student Sem4', sem: '4th Sem', semester: '4th Sem', department: 'AI & Data Science', division: 'Div 1', batch: 'Batch A', rollNo: '401' },
+          { id: 'ST_S5_01', enrollmentNo: 'EN_S5_01', name: 'Student Sem5', sem: '5th Sem', semester: '5th Sem', department: 'Computer Engineering', division: 'Div 2', batch: 'Batch B', rollNo: '501' },
+          { id: 'ST_S6_01', enrollmentNo: 'EN_S6_01', name: 'Student Sem6', sem: '6th Sem', semester: '6th Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch A', rollNo: '601' },
+          { id: 'ST_S7_01', enrollmentNo: 'EN_S7_01', name: 'Student Sem7', sem: '7th Sem', semester: '7th Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch A', rollNo: '701' },
+          { id: 'ST_S8_01', enrollmentNo: 'EN_S8_01', name: 'Student Sem8 (Final)', sem: '8th Sem', semester: '8th Sem', department: 'Computer Engineering', division: 'Div 1', batch: 'Batch B', rollNo: '801' },
+          { id: 'ST_S8_02', enrollmentNo: 'EN_S8_02', name: 'Student Sem8 B (Final)', sem: '8th Sem', semester: '8th Sem', department: 'Information Technology', division: 'Div 1', batch: 'Batch A', rollNo: '802' }
+        ];
+
+        // Seed students
+        multiSemStudents.forEach(s => saveStudent(s));
+
+        // Seed a historical attendance session for Sem 3 student
+        saveSession({
+          id: 'TEST_GLOBAL_PROMO_HISTORICAL_SESS',
+          date: '2026-10-05',
+          timeSlot: '10:00 - 10:50',
+          department: 'Information Technology',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          subjectId: 'SUB_IT_01',
+          subjectName: 'Operating Systems',
+          records: { 'ST_S3_01': 'present', 'ST_S1_01': 'absent' }
+        }, { id: 'admin', role: 'admin' });
+
+        // -------------------------------------------------------------
+        // TEST 1: getGlobalPromotionPreview accurately scans all semesters
+        // -------------------------------------------------------------
+        const preview = getGlobalPromotionPreview({ academicCycle: '2026-27', finalSemester: 8 });
+        const b1 = preview.breakdown.find(b => b.semNum === 1);
+        const b2 = preview.breakdown.find(b => b.semNum === 2);
+        const b3 = preview.breakdown.find(b => b.semNum === 3);
+        const b4 = preview.breakdown.find(b => b.semNum === 4);
+        const b5 = preview.breakdown.find(b => b.semNum === 5);
+        const b6 = preview.breakdown.find(b => b.semNum === 6);
+        const b7 = preview.breakdown.find(b => b.semNum === 7);
+
+        const test1Pass = (
+          preview.totalEligible >= 8 &&
+          b1.count >= 2 && b2.count >= 1 && b3.count >= 1 &&
+          b4.count >= 1 && b5.count >= 1 && b6.count >= 1 && b7.count >= 1 &&
+          preview.finalSemesterExcludedCount >= 2 &&
+          !preview.isAlreadyPromotedForCycle
+        );
+        log(`TEST 1: getGlobalPromotionPreview accurately groups students into 7 progression buckets (Sem 1->2 ... Sem 7->8) and identifies Sem 8 final-semester students (Eligible: ${preview.totalEligible}, Final Excluded: ${preview.finalSemesterExcludedCount})`, test1Pass);
+
+        // -------------------------------------------------------------
+        // TEST 2: Single-action simultaneous global promotion execution
+        // -------------------------------------------------------------
+        let promoEventFired = false;
+        const onPromo = () => { promoEventFired = true; };
+        window.addEventListener('adit-students-updated', onPromo);
+
+        const promoRes = promoteAllStudentsGlobally({ academicCycle: '2026-27', finalSemester: 8 });
+        window.removeEventListener('adit-students-updated', onPromo);
+
+        const test2Pass = promoRes.success && promoRes.totalPromoted >= 8 && promoEventFired;
+        log(`TEST 2: promoteAllStudentsGlobally executes simultaneously across all semesters in a single transaction (Promoted: ${promoRes.totalPromoted}, Event fired: ${promoEventFired})`, test2Pass);
+
+        // -------------------------------------------------------------
+        // TEST 3: Strict +1 semester progression across all cohort groups
+        // -------------------------------------------------------------
+        const updatedStudents = getStudents();
+        const uS1_1 = updatedStudents.find(s => s.id === 'ST_S1_01');
+        const uS1_2 = updatedStudents.find(s => s.id === 'ST_S1_02');
+        const uS2 = updatedStudents.find(s => s.id === 'ST_S2_01');
+        const uS3 = updatedStudents.find(s => s.id === 'ST_S3_01');
+        const uS4 = updatedStudents.find(s => s.id === 'ST_S4_01');
+        const uS5 = updatedStudents.find(s => s.id === 'ST_S5_01');
+        const uS6 = updatedStudents.find(s => s.id === 'ST_S6_01');
+        const uS7 = updatedStudents.find(s => s.id === 'ST_S7_01');
+
+        const test3Pass = (
+          uS1_1.sem === '2nd Sem' && uS1_2.sem === '2nd Sem' &&
+          uS2.sem === '3rd Sem' &&
+          uS3.sem === '4th Sem' &&
+          uS4.sem === '5th Sem' &&
+          uS5.sem === '6th Sem' &&
+          uS6.sem === '7th Sem' &&
+          uS7.sem === '8th Sem'
+        );
+        log(`TEST 3: Every student advances strictly +1 semester (S1->S2: ${uS1_1.sem}, S2->S3: ${uS2.sem}, S3->S4: ${uS3.sem}, S4->S5: ${uS4.sem}, S5->S6: ${uS5.sem}, S6->S7: ${uS6.sem}, S7->S8: ${uS7.sem})`, test3Pass);
+
+        // -------------------------------------------------------------
+        // TEST 4: No double promotion in single operation
+        // -------------------------------------------------------------
+        // Former Sem 1 student must be Sem 2, NOT Sem 3 or higher!
+        const test4Pass = uS1_1.sem === '2nd Sem' && uS1_2.sem === '2nd Sem';
+        log(`TEST 4: Transaction snapshot isolation verified — Sem 1 students advanced solely to Sem 2 without being re-promoted to Sem 3 during the same action`, test4Pass);
+
+        // -------------------------------------------------------------
+        // TEST 5: Semester 8 final-semester students strictly excluded
+        // -------------------------------------------------------------
+        const uS8_1 = updatedStudents.find(s => s.id === 'ST_S8_01');
+        const uS8_2 = updatedStudents.find(s => s.id === 'ST_S8_02');
+        const test5Pass = (
+          uS8_1.sem === '8th Sem' &&
+          uS8_2.sem === '8th Sem' &&
+          promoRes.finalSemesterExcludedCount >= 2
+        );
+        log(`TEST 5: Semester 8 final-semester students excluded from promotion (S8_1: ${uS8_1.sem}, S8_2: ${uS8_2.sem}, Excluded count: ${promoRes.finalSemesterExcludedCount})`, test5Pass);
+
+        // -------------------------------------------------------------
+        // TEST 6: Student attributes and batch preservation
+        // -------------------------------------------------------------
+        const test6Pass = (
+          uS1_1.enrollmentNo === 'EN_S1_01' && uS1_1.name === 'Student Sem1' && uS1_1.batch === 'Batch A' &&
+          uS1_2.enrollmentNo === 'EN_S1_02' && uS1_2.name === 'Student Sem1 B' && uS1_2.batch === 'Batch B' &&
+          uS3.batch === 'Batch C' && uS3.department === 'Information Technology'
+        );
+        log(`TEST 6: Enrollment numbers, student IDs, names, departments, and batches (Batch A/B/C) preserved with 100% fidelity`, test6Pass);
+
+        // -------------------------------------------------------------
+        // TEST 7: Historical attendance records integrity
+        // -------------------------------------------------------------
+        const allSessions = getSessions({}, { role: 'admin' });
+        const histSess = allSessions.find(s => s.id === 'TEST_GLOBAL_PROMO_HISTORICAL_SESS' || s.date === '2026-10-05');
+        const test7Pass = (
+          histSess &&
+          histSess.records &&
+          histSess.records['ST_S3_01'] === 'present' &&
+          histSess.records['ST_S1_01'] === 'absent' &&
+          histSess.sem === '3rd Sem'
+        );
+        log(`TEST 7: Historical attendance records preserved without fabrication or alteration (Session intact: ${histSess?.date}, ST_S3_01: ${histSess?.records ? histSess.records['ST_S3_01'] : 'none'})`, test7Pass);
+
+        // -------------------------------------------------------------
+        // TEST 8: Accidental duplicate promotion safeguard
+        // -------------------------------------------------------------
+        let dupBlocked = false;
+        try {
+          // Attempting second promotion for same cycle without override
+          promoteAllStudentsGlobally({ academicCycle: '2026-27', finalSemester: 8, overrideCycleCheck: false });
+          dupBlocked = false;
+        } catch (err) {
+          dupBlocked = err.message && err.message.includes('Accidental Duplicate Promotion Prevented');
+        }
+
+        // Verify students did not advance again
+        const checkStudents = getStudents();
+        const noAdvance = checkStudents.find(s => s.id === 'ST_S1_01').sem === '2nd Sem';
+
+        const test8Pass = dupBlocked && noAdvance;
+        log(`TEST 8: Accidental duplicate promotion prevention blocked repeated run for cycle 2026-27 (Error caught: ${dupBlocked}, Semester unchanged: ${noAdvance})`, test8Pass);
+
+        // -------------------------------------------------------------
+        // TEST 9: Authorized recovery override allows legitimate transition
+        // -------------------------------------------------------------
+        let overrideSuccess = false;
+        try {
+          const overrideRes = promoteAllStudentsGlobally({ academicCycle: '2026-27', finalSemester: 8, overrideCycleCheck: true });
+          overrideSuccess = overrideRes.success;
+        } catch (e) {
+          overrideSuccess = false;
+        }
+        log(`TEST 9: Authorized recovery override allows legitimate execution when authorized by administrator (Success: ${overrideSuccess})`, overrideSuccess);
+
+        // -------------------------------------------------------------
+        // TEST 10: "Promote All Students" Button in Student Management UI
+        // -------------------------------------------------------------
+        const mount = document.getElementById('render-mount');
+        const adminElement = React.createElement(AdminPanel, {
+          initialTab: 'classes',
+          onNavigate: () => {},
+          currentRole: 'admin',
+          currentUser: { id: 'admin', name: 'Admin', role: 'admin' }
+        });
+        ReactDOM.render(adminElement, mount);
+        const html = mount.innerHTML;
+
+        const hasPromoteAllBtn = html.includes('Promote All Students');
+        const test10Pass = hasPromoteAllBtn;
+        log(`TEST 10: Student Management UI displays "Promote All Students" button in action toolbar (Present: ${hasPromoteAllBtn})`, test10Pass);
+
+        // Final summary
+        const allPassed = results.every(r => r.pass);
+        const summary = results.map(r => r.text).join('\n');
+        document.getElementById('test-results').textContent = 
+          summary + '\n\n' +
+          (allPassed ? '🎉 ALL 10 GLOBAL PROMOTION VERIFICATION TESTS PASSED SUCCESSFULLY!' : '⚠️ SOME TESTS FAILED.');
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed, results, summary })
+        }).catch(() => {});
+
+      } catch (err) {
+        log(`EXECUTION EXCEPTION: ${err.message}\n${err.stack}`, false);
+        document.getElementById('test-results').textContent = results.map(r => r.text).join('\n');
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allPassed: false, error: (err.stack || err.toString()) })
+        }).catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>

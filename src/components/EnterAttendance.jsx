@@ -30,7 +30,8 @@ import {
   DEFAULT_ACADEMIC_YEAR,
   ACADEMIC_YEARS,
   normalizeSem,
-  normalizeDiv
+  normalizeDiv,
+  getStudentsForAcademicGroup
 } from '../services/attendanceStorage';
 import { getScheduledLecturesForDate } from '../services/timetableStorage';
 import TimetableModal from './TimetableModal';
@@ -43,6 +44,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
   const [selectedDept, setSelectedDept] = useState(departments[0]?.name || 'AI & Data Science');
   const [sem, setSem] = useState('3rd Sem');
   const [division, setDivision] = useState('Div 1');
+  const [selectedBatch, setSelectedBatch] = useState('ALL');
   const [academicYear, setAcademicYear] = useState(DEFAULT_ACADEMIC_YEAR);
   const [subjectId, setSubjectId] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
@@ -106,33 +108,31 @@ export default function EnterAttendance({ onSaved, showToast }) {
            getOrCreateClass(selectedDept, sem, division, academicYear);
   }, [selectedDept, sem, division, academicYear]);
 
-  // Retrieve enrolled students for this specific Class
+  // Retrieve enrolled students strictly from Admin Panel records (single source of truth)
   const classStudents = useMemo(() => {
-    if (activeClass && activeClass.id) {
-      const enrolled = getStudentsByClassId(activeClass.id);
-      if (enrolled && enrolled.length > 0) return enrolled;
-    }
-    // Fallback: search by criteria or all students
-    const criteriaEnrolled = getStudentsForClassCriteria(selectedDept, sem, division, academicYear);
-    if (criteriaEnrolled && criteriaEnrolled.length > 0) return criteriaEnrolled;
-    return getStudents();
-  }, [activeClass, selectedDept, sem, division, academicYear]);
+    return getStudentsForAcademicGroup({
+      department: selectedDept,
+      semester: sem,
+      division: division,
+      batch: selectedBatch,
+      academicYear: academicYear
+    });
+  }, [selectedDept, sem, division, selectedBatch, academicYear]);
 
   // Attendance record status map: studentId -> 'present' | 'absent'
   const [records, setRecords] = useState({});
   const [remarks, setRemarks] = useState({});
 
-  // When class students change, update records map defaulting each to 'present'
+  // When class students change, reset records map completely to prevent stale student data
   useEffect(() => {
-    setRecords(prev => {
-      const nextRecords = { ...prev };
-      classStudents.forEach(s => {
-        if (!nextRecords[s.id]) {
-          nextRecords[s.id] = 'present';
-        }
-      });
-      return nextRecords;
+    const nextRecords = {};
+    const nextRemarks = {};
+    classStudents.forEach(s => {
+      nextRecords[s.id] = 'present';
+      nextRemarks[s.id] = '';
     });
+    setRecords(nextRecords);
+    setRemarks(nextRemarks);
   }, [classStudents]);
 
   const handleStatusChange = (studentId, status) => {
@@ -175,6 +175,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
       department: selectedDept,
       sem,
       division,
+      batch: selectedBatch,
       academicYear,
       classId: activeClass ? activeClass.id : null,
       timeSlot: selectedTimeSlot,
@@ -376,6 +377,24 @@ export default function EnterAttendance({ onSaved, showToast }) {
               <option value="Div 1">Division 1 (Div 1)</option>
               <option value="Div 2">Division 2 (Div 2)</option>
               <option value="Div 3">Division 3 (Div 3)</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Layers size={14} style={{ color: '#2563eb' }} />
+              <span>Batch</span>
+            </label>
+            <select
+              className="form-control"
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
+              style={{ fontWeight: '700' }}
+            >
+              <option value="ALL">All Batches</option>
+              <option value="Batch A">Batch A</option>
+              <option value="Batch B">Batch B</option>
+              <option value="Batch C">Batch C</option>
             </select>
           </div>
 

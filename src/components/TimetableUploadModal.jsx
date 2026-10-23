@@ -535,10 +535,55 @@ export default function TimetableUploadModal({
                 )}
               </div>
 
+              {/* Validation Summary and Error Reporting */}
+              {previewData.errorRows && previewData.errorRows.length > 0 && (
+                <div style={{
+                  padding: '12px 14px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#991b1b'
+                }}>
+                  <div style={{ fontWeight: '800', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertCircle size={15} />
+                    <span>{previewData.errorRows.length} Row Validation Error(s) Detected:</span>
+                  </div>
+                  <ul style={{ margin: '0', paddingLeft: '20px', lineHeight: 1.5 }}>
+                    {previewData.errorRows.slice(0, 5).map((err, i) => (
+                      <li key={i}>{err.error || err.message}</li>
+                    ))}
+                    {previewData.errorRows.length > 5 && (
+                      <li>...and {previewData.errorRows.length - 5} more error rows.</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {previewData.conflictRows && previewData.conflictRows.length > 0 && (
+                <div style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#92400e'
+                }}>
+                  <div style={{ fontWeight: '800', marginBottom: '2px' }}>
+                    ⚠️ {previewData.conflictRows.length} Potential Conflict(s) Detected:
+                  </div>
+                  <ul style={{ margin: '0', paddingLeft: '20px', lineHeight: 1.4 }}>
+                    {previewData.conflictRows.slice(0, 3).map((c, i) => (
+                      <li key={i}>{c.warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Detected lectures preview table */}
               {previewData.previewLectures && previewData.previewLectures.length > 0 && (
                 <div style={{
-                  maxHeight: '180px',
+                  maxHeight: '220px',
                   overflowY: 'auto',
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px',
@@ -551,7 +596,8 @@ export default function TimetableUploadModal({
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Time</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Subject</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Room</th>
-                        <th style={{ padding: '6px 10px', textAlign: 'left' }}>{targetScope === 'faculty' ? 'Class' : 'Faculty'}</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'left' }}>{targetScope === 'faculty' ? 'Class • Batch' : 'Faculty'}</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'left' }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -566,7 +612,24 @@ export default function TimetableUploadModal({
                           </td>
                           <td style={{ padding: '6px 10px', color: '#64748b' }}>{lec.room}</td>
                           <td style={{ padding: '6px 10px', color: '#334155', fontWeight: '600' }}>
-                            {targetScope === 'faculty' ? `${lec.sem} ${lec.div}` : (lec.facultyName || 'Assigned')}
+                            {targetScope === 'faculty' 
+                              ? `${lec.sem} ${lec.div}${lec.batch && lec.batch !== 'All' ? ` (${lec.batch})` : ''}` 
+                              : (lec.facultyName || 'Assigned')}
+                          </td>
+                          <td style={{ padding: '6px 10px' }}>
+                            {lec.status === 'conflict' ? (
+                              <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#b45309', fontSize: '10px' }}>
+                                Conflict
+                              </span>
+                            ) : lec.status === 'duplicate' ? (
+                              <span className="badge" style={{ backgroundColor: '#f3e8ff', color: '#7e22ce', fontSize: '10px' }}>
+                                Duplicate
+                              </span>
+                            ) : (
+                              <span className="badge" style={{ backgroundColor: '#dcfce7', color: '#15803d', fontSize: '10px' }}>
+                                Ready
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}

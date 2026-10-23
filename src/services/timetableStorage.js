@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { getSubjects, getFaculties } from './attendanceStorage';
+import { getSubjects, getFaculties, getCurrentUser, getDepartments } from './attendanceStorage';
 
 export const TT_STORAGE_KEYS = {
   TIMETABLE: 'adit_attendance_timetable',
@@ -56,7 +56,18 @@ export const getTimetableEntries = () => {
   const data = localStorage.getItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES);
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      let needsSave = false;
+      parsed.forEach(e => {
+        if (!e.id) {
+          e.id = generateId();
+          needsSave = true;
+        }
+      });
+      if (needsSave) {
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(parsed));
+      }
+      return parsed;
     } catch (e) {
       console.error(e);
     }
@@ -202,6 +213,221 @@ export const checkConflicts = (entry, excludeId = null) => {
   return conflicts;
 };
 
+export const normalizeTimeSlot = (slotStr) => {
+  if (!slotStr) return '';
+  return slotStr
+    .split('-')
+    .map(part => {
+      const trimmed = part.trim();
+      const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
+      if (match) {
+        const h = parseInt(match[1], 10);
+        const m = match[2];
+        return `${h}:${m}`;
+      }
+      return trimmed;
+    })
+    .join(' - ');
+};
+
+export const parseTimeRangeMinutes = (timeSlotStr) => {
+  if (!timeSlotStr) return null;
+  const parts = timeSlotStr.split('-').map(s => s.trim());
+  if (parts.length < 2) return null;
+  const parseMin = (tStr) => {
+    let isPM = /pm/i.test(tStr);
+    let isAM = /am/i.test(tStr);
+    let clean = tStr.replace(/[^\d:]/g, '');
+    let [h, m] = clean.split(':').map(Number);
+    if (isNaN(h)) return 0;
+    if (isNaN(m)) m = 0;
+    if (!isAM && !isPM) {
+      if (h >= 1 && h <= 7) h += 12;
+    } else if (isPM && h < 12) {
+      h += 12;
+    } else if (isAM && h === 12) {
+      h = 0;
+    }
+    return h * 60 + m;
+  };
+  const startMin = parseMin(parts[0]);
+  const endMin = parseMin(parts[1]);
+  return { startMin, endMin };
+};
+
+export const doTimeSlotsOverlap = (slot1, slot2) => {
+  if (!slot1 || !slot2) return false;
+  if (slot1.trim().toLowerCase() === slot2.trim().toLowerCase()) return true;
+  if (normalizeTimeSlot(slot1) === normalizeTimeSlot(slot2)) return true;
+  const r1 = parseTimeRangeMinutes(slot1);
+  const r2 = parseTimeRangeMinutes(slot2);
+  if (!r1 || !r2) return false;
+  return r1.startMin < r2.endMin && r1.endMin > r2.startMin;
+};
+
+export const getDateForDayName = (dayName) => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const targetDayIdx = days.indexOf(dayName);
+  const now = new Date();
+  if (targetDayIdx === -1) return now.toISOString().split('T')[0];
+  const currentDayIdx = now.getDay();
+  const diff = targetDayIdx - currentDayIdx;
+  const d = new Date(now);
+  d.setDate(now.getDate() + diff);
+  return d.toISOString().split('T')[0];
+};
+
+export const checkRescheduleConflicts = (params = {}, entriesList = null) => {
+  const { entryId, facultyId, day, timeSlot, room, date } = params;
+  const entries = entriesList || getTimetableEntries();
+  const conflicts = [];
+
+  if (!day || !timeSlot) return conflicts;
+
+  entries.forEach(e => {
+    if (entryId && e.id === entryId) return; // skip self
+    if (e.day !== day) return;
+
+    if (doTimeSlotsOverlap(e.timeSlot, timeSlot)) {
+      // 1. Faculty conflict: Same faculty already teaching at this time
+      if (facultyId && e.facultyId === facultyId) {
+        conflicts.push(`Faculty conflict: You already have "${e.subjectName || e.subjectId}" scheduled on ${day} at ${e.timeSlot} in ${e.room || 'Classroom'}.`);
+      }
+
+      // 2. Room conflict: Selected room is already booked by another lecture at this time
+      if (room && e.room && room.trim().toLowerCase() !== 'tbd' && e.room.trim().toLowerCase() !== 'tbd' &&
+          room.trim().toLowerCase() === e.room.trim().toLowerCase()) {
+        conflicts.push(`Room conflict: ${room} is already booked on ${day} at ${e.timeSlot} for ${e.subjectName || e.subjectId} (${e.facultyName || 'Another Faculty'}).`);
+      }
+    }
+  });
+
+  return conflicts;
+};
+
+export const rescheduleLectureEntry = (params = {}, userContext = null) => {
+  const user = userContext || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+  if (!user) {
+    throw new Error('Authentication required: You must be logged in to reschedule a lecture.');
+  }
+
+  const { entryId, facultyId, day, timeSlot, newDate, newStartTime, newEndTime, newTimeSlot, newRoom, reason } = params;
+
+  if (!newDate) {
+    throw new Error('Validation Error: A new date is required to reschedule a lecture.');
+  }
+  if (!newStartTime || !newEndTime) {
+    if (!newTimeSlot) {
+      throw new Error('Validation Error: New start time and end time are required.');
+    }
+  }
+  if (!reason || !reason.trim()) {
+    throw new Error('Validation Error: A reason for rescheduling must be provided.');
+  }
+
+  const entries = getTimetableEntries();
+  let targetIndex = -1;
+
+  if (entryId) {
+    targetIndex = entries.findIndex(e => e.id === entryId);
+  }
+
+  // Fallback: match by facultyId, day, and timeSlot
+  if (targetIndex === -1 && (facultyId || params.slotFacultyId) && (day || params.slotDay) && (timeSlot || params.slotTimeSlot)) {
+    const fId = facultyId || params.slotFacultyId;
+    const d = day || params.slotDay;
+    const ts = timeSlot || params.slotTimeSlot;
+    const normTs = normalizeTimeSlot(ts);
+    targetIndex = entries.findIndex(e => e.facultyId === fId && e.day === d && (e.timeSlot === ts || normalizeTimeSlot(e.timeSlot) === normTs));
+  }
+
+  if (targetIndex === -1) {
+    throw new Error('Lecture entry not found in timetable.');
+  }
+
+  const targetEntry = entries[targetIndex];
+
+  // Security & Backend Authorization:
+  // Faculty members can only reschedule lectures assigned to them.
+  const userFacultyId = user.id || user.facultyId;
+  const isAdmin = user.role === 'admin' || user.isAdmin || user.id === 'FAC_ADMIN';
+
+  if (!isAdmin && user.role === 'faculty') {
+    if (targetEntry.facultyId && targetEntry.facultyId !== userFacultyId) {
+      throw new Error(`Unauthorized Security Error: You cannot reschedule lectures assigned to another faculty member (${targetEntry.facultyName || targetEntry.facultyId}).`);
+    }
+  }
+
+  // Derive new day of week
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dateObj = new Date(newDate + 'T00:00:00');
+  if (isNaN(dateObj.getTime())) {
+    throw new Error('Validation Error: Invalid date format.');
+  }
+  const newDay = daysOfWeek[dateObj.getDay()];
+  if (newDay === 'Sunday') {
+    throw new Error('Validation Error: Lectures cannot be rescheduled to Sunday.');
+  }
+
+  // Format timeSlot
+  let finalTimeSlot = newTimeSlot;
+  if (!finalTimeSlot && newStartTime && newEndTime) {
+    finalTimeSlot = `${newStartTime} - ${newEndTime}`;
+  }
+
+  const finalRoom = (newRoom !== undefined && newRoom !== null && String(newRoom).trim() !== '') ? String(newRoom).trim() : (targetEntry.room || 'Classroom');
+
+  // Conflict validation
+  const conflicts = checkRescheduleConflicts({
+    entryId: targetEntry.id,
+    facultyId: targetEntry.facultyId,
+    day: newDay,
+    timeSlot: finalTimeSlot,
+    room: finalRoom,
+    date: newDate
+  }, entries);
+
+  if (conflicts.length > 0) {
+    throw new Error(`Schedule Conflict Detected:\n• ${conflicts.join('\n• ')}`);
+  }
+
+  // Update entry while preserving subject, department, and assigned faculty
+  const updatedEntry = {
+    ...targetEntry,
+    facultyId: targetEntry.facultyId,
+    facultyName: targetEntry.facultyName,
+    subjectId: targetEntry.subjectId,
+    subjectName: targetEntry.subjectName,
+    subjectFullName: targetEntry.subjectFullName,
+    semId: targetEntry.semId,
+    divId: targetEntry.divId,
+    sem: targetEntry.sem,
+    div: targetEntry.div,
+    departmentId: targetEntry.departmentId,
+    
+    // Updated slot details
+    day: newDay,
+    timeSlot: finalTimeSlot,
+    room: finalRoom,
+    
+    // Reschedule audit metadata
+    isRescheduled: true,
+    rescheduledDate: newDate,
+    rescheduleReason: reason.trim(),
+    originalDay: targetEntry.originalDay || targetEntry.day,
+    originalTimeSlot: targetEntry.originalTimeSlot || targetEntry.timeSlot,
+    originalRoom: targetEntry.originalRoom || targetEntry.room,
+    rescheduledAt: new Date().toISOString(),
+    rescheduledBy: userFacultyId
+  };
+
+  entries[targetIndex] = updatedEntry;
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
+
+  return updatedEntry;
+};
+
 export const notifyTimetableSync = () => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-timetable-synced'));
@@ -275,7 +501,7 @@ export const resetFacultyTimetablesToDefault = () => {
 export const resetAllTimetablesToDefault = resetFacultyTimetablesToDefault;
 
 // Seed Master Map
-const DEFAULT_FACULTY_TIMETABLES = {
+export const DEFAULT_FACULTY_TIMETABLES = {
   'FAC_PS': {
     Monday: {
       '9:00 - 9:55': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
@@ -655,6 +881,7 @@ export const copyFacultyTimetable = (fromId, toId) => {
 };
 
 export const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
+  if (!newTimetable || typeof newTimetable !== 'object') return;
   const entries = getTimetableEntries();
   const filtered = entries.filter(e => e.facultyId !== facultyId);
   
@@ -708,6 +935,7 @@ export const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
 };
 
 export const applyUploadedClassTimetable = (sem, div, newTimetable, deptNameOrId = null) => {
+  if (!newTimetable || typeof newTimetable !== 'object') return;
   const entries = getTimetableEntries();
   const normSem = normalizeSem(sem);
   const normDiv = normalizeDiv(div);
@@ -859,7 +1087,13 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
   const d = new Date(dateStr + 'T00:00:00');
   const dayName = DAYS[d.getDay()];
   const entries = getTimetableEntries();
-  const dayEntries = entries.filter(e => e.day === dayName && e.facultyId === facultyId);
+  const dayEntries = entries.filter(e => {
+    if (e.facultyId !== facultyId) return false;
+    if (e.isRescheduled && e.rescheduledDate) {
+      return e.rescheduledDate === dateStr;
+    }
+    return e.day === dayName;
+  });
   if (dayEntries.length > 0) {
     const lectures = dayEntries.map(e => ({
       id: e.id,
@@ -870,9 +1104,13 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
       facultyName: e.facultyName,
       sem: e.semId || e.sem,
       div: e.divId || e.div,
+      batch: e.batch,
       departmentId: e.departmentId,
       room: e.room,
-      type: e.type || 'Lecture'
+      type: e.type || 'Lecture',
+      isRescheduled: !!e.isRescheduled,
+      rescheduledDate: e.rescheduledDate,
+      rescheduleReason: e.rescheduleReason
     }));
     return { dayName, lectures };
   }
@@ -884,15 +1122,20 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
     const s = daySlots[time];
     if (s && s.subject) {
       lectures.push({
+        id: s.id,
         time,
         subjectId: s.subject,
         subjectName: s.name || s.subject,
         facultyId,
         sem: s.sem,
         div: s.div,
+        batch: s.batch,
         room: s.room,
         type: s.type || 'Lecture',
-        color: s.color
+        color: s.color,
+        isRescheduled: !!s.isRescheduled,
+        rescheduledDate: s.rescheduledDate,
+        rescheduleReason: s.rescheduleReason
       });
     }
   });
@@ -1076,10 +1319,17 @@ const _isGridFormat = (rows) => {
   return dayHits.length >= 3;
 };
 
-const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = 'DEP_AI') => {
+const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = 'DEP_AI', targetFacultyId = null) => {
   const timetable = {};
   TIMETABLE_DAYS.forEach(d => { timetable[d] = {}; });
   const previewLectures = [];
+  const errorRows = [];
+  const conflictRows = [];
+  const duplicateRows = [];
+  const validLectures = [];
+
+  const registeredFaculties = getFaculties();
+  const existingEntries = getTimetableEntries();
 
   // ── FORMAT A: GRID (time × day) ──
   if (_isGridFormat(rows)) {
@@ -1123,18 +1373,228 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           type,
           color: getSubjectColor(parsed.subject)
         };
-        previewLectures.push({
+        const lec = {
           day,
           time: timeSlot,
           subject: parsed.subject,
           room,
           sem,
           div,
-          departmentId: deptId
-        });
+          departmentId: deptId,
+          status: 'valid'
+        };
+        previewLectures.push(lec);
+        validLectures.push(lec);
       });
     }
-    return { timetable, previewLectures };
+    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures };
+  }
+
+  // ── FORMAT C: COLUMNAR TIMETABLE ──
+  // Checks if spreadsheet has explicit columns for Faculty, Subject, Day, Time/Start/End, Room, Batch
+  let headerRowIdx = -1;
+  const colMap = {};
+  for (let i = 0; i < Math.min(6, rows.length); i++) {
+    const r = rows[i].map(c => String(c || '').trim().toLowerCase());
+    const hasFac = r.some(c => c.includes('faculty') || c.includes('professor') || c.includes('teacher'));
+    const hasSubj = r.some(c => c.includes('subject') || c.includes('course'));
+    const hasDay = r.some(c => c.includes('day'));
+    const hasTime = r.some(c => c.includes('time') || c.includes('slot') || c.includes('start'));
+    if ((hasFac || hasSubj) && (hasDay || hasTime)) {
+      headerRowIdx = i;
+      r.forEach((h, cIdx) => {
+        if (/faculty\s*id|faculty\s*code|fac_id|fac\s*id/i.test(h)) colMap.facId = cIdx;
+        else if (/faculty|faculty\s*name|professor|teacher|instructor/i.test(h)) colMap.facName = cIdx;
+        else if (/dept|department/i.test(h)) colMap.dept = cIdx;
+        else if (/subject|subject\s*name|subject\s*code|course/i.test(h)) colMap.subj = cIdx;
+        else if (/semester|sem/i.test(h)) colMap.sem = cIdx;
+        else if (/division|div/i.test(h)) colMap.div = cIdx;
+        else if (/batch|student\s*batch|group/i.test(h)) colMap.batch = cIdx;
+        else if (/^day|day\s*of\s*week/i.test(h)) colMap.day = cIdx;
+        else if (/start\s*time|from\s*time|start/i.test(h)) colMap.start = cIdx;
+        else if (/end\s*time|to\s*time|end/i.test(h)) colMap.end = cIdx;
+        else if (/time\s*slot|time|slot/i.test(h)) colMap.time = cIdx;
+        else if (/room|room\s*no|room\s*number|classroom|lab/i.test(h)) colMap.room = cIdx;
+        else if (/type|slot\s*type/i.test(h)) colMap.type = cIdx;
+      });
+      break;
+    }
+  }
+
+  if (headerRowIdx !== -1 && colMap.subj !== undefined && colMap.day !== undefined) {
+    const seenSheetKeys = new Set();
+    for (let ri = headerRowIdx + 1; ri < rows.length; ri++) {
+      const row = rows[ri];
+      if (!row || row.every(c => !c)) continue;
+      const rowNum = ri + 1;
+
+      const rawFacId = colMap.facId !== undefined ? String(row[colMap.facId] || '').trim() : '';
+      const rawFacName = colMap.facName !== undefined ? String(row[colMap.facName] || '').trim() : '';
+      const rawSubj = String(row[colMap.subj] || '').trim();
+      const rawDay = String(row[colMap.day] || '').trim();
+      const rawDept = colMap.dept !== undefined ? String(row[colMap.dept] || '').trim() : '';
+      const rawSem = colMap.sem !== undefined ? String(row[colMap.sem] || '').trim() : defaultSem;
+      const rawDiv = colMap.div !== undefined ? String(row[colMap.div] || '').trim() : defaultDiv;
+      const rawBatch = colMap.batch !== undefined ? String(row[colMap.batch] || '').trim() : 'All';
+      const rawRoom = colMap.room !== undefined ? String(row[colMap.room] || '').trim() : 'Room 201';
+      const rawType = colMap.type !== undefined ? String(row[colMap.type] || '').trim() : 'Lecture';
+
+      let rawTime = '';
+      if (colMap.start !== undefined && colMap.end !== undefined && row[colMap.start] && row[colMap.end]) {
+        rawTime = `${String(row[colMap.start]).trim()} - ${String(row[colMap.end]).trim()}`;
+      } else if (colMap.time !== undefined) {
+        rawTime = String(row[colMap.time] || '').trim();
+      }
+
+      // Check subject
+      if (!rawSubj || /lunch|break/i.test(rawSubj)) continue;
+
+      // Validate Day
+      const dayHit = TIMETABLE_DAYS.find(d => d.toLowerCase() === rawDay.toLowerCase() || rawDay.toLowerCase().includes(d.toLowerCase()));
+      if (!dayHit) {
+        const errStr = `Row ${rowNum}: Invalid day "${rawDay}". Must be Monday - Saturday.`;
+        errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
+        continue;
+      }
+
+      // Validate Time Slot
+      let timeSlot = TIME_SLOTS.find(ts =>
+        ts.replace(/\s/g, '') === rawTime.replace(/\s/g, '') ||
+        ts.replace(/\s/g, '').startsWith(rawTime.replace(/\s/g, '').slice(0, 5))
+      ) || _fuzzyTimeSlot(rawTime);
+
+      if (!timeSlot || !TIME_SLOTS.includes(timeSlot)) {
+        const errStr = `Row ${rowNum}: Invalid or unrecognized lecture time "${rawTime}".`;
+        errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
+        continue;
+      }
+
+      if (timeSlot === '12:40 - 1:25') continue; // lunch slot
+
+      // Validate Faculty
+      let matchedFaculty = null;
+      if (rawFacId) {
+        matchedFaculty = registeredFaculties.find(f => f.id.toLowerCase() === rawFacId.toLowerCase());
+        if (!matchedFaculty) {
+          // If ID not found directly, try matching by faculty name
+          matchedFaculty = registeredFaculties.find(f => f.name.toLowerCase() === rawFacId.toLowerCase() || (rawFacName && f.name.toLowerCase() === rawFacName.toLowerCase()));
+        }
+        if (!matchedFaculty) {
+          const errStr = `Row ${rowNum}: Faculty ID "${rawFacId}" is not recognized or registered in the system.`;
+          errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
+          continue;
+        }
+      } else if (rawFacName) {
+        matchedFaculty = registeredFaculties.find(f => f.name.toLowerCase().includes(rawFacName.toLowerCase()) || rawFacName.toLowerCase().includes(f.name.toLowerCase()));
+      }
+
+      // Fallback faculty if targetFacultyId provided
+      if (!matchedFaculty && targetFacultyId) {
+        matchedFaculty = registeredFaculties.find(f => f.id === targetFacultyId);
+      }
+
+      const assignedFacId = matchedFaculty ? matchedFaculty.id : (targetFacultyId || 'FAC_PS');
+      const assignedFacName = matchedFaculty ? matchedFaculty.name : (rawFacName || 'Prof. Priya Shah');
+
+      // Check Conflicts
+      let hasConflict = false;
+      let conflictMsg = '';
+
+      // 1. Room conflict: same room, same day & time by another class/faculty
+      const roomConflict = existingEntries.find(e =>
+        e.day === dayHit &&
+        e.timeSlot === timeSlot &&
+        e.room && e.room.toLowerCase() === rawRoom.toLowerCase() &&
+        e.facultyId !== assignedFacId
+      );
+      if (roomConflict) {
+        hasConflict = true;
+        conflictMsg = `Room conflict: ${rawRoom} is already occupied by ${roomConflict.facultyName || 'another faculty'} (${roomConflict.subjectName}) on ${dayHit} ${timeSlot}.`;
+        conflictRows.push({ row: rowNum, warning: conflictMsg, reason: conflictMsg, message: conflictMsg });
+      }
+
+      // 2. Faculty Overlapping conflict: same faculty scheduled for multiple slots
+      const facultyOverlap = existingEntries.find(e =>
+        e.day === dayHit &&
+        e.timeSlot === timeSlot &&
+        e.facultyId === assignedFacId &&
+        (e.sem !== normalizeSem(rawSem) || e.div !== normalizeDiv(rawDiv))
+      );
+      if (facultyOverlap) {
+        hasConflict = true;
+        conflictMsg = `Faculty overlap: ${assignedFacName} already has lecture (${facultyOverlap.subjectName}) on ${dayHit} ${timeSlot}.`;
+        conflictRows.push({ row: rowNum, warning: conflictMsg, reason: conflictMsg, message: conflictMsg });
+      }
+
+      // 3. Duplicate entry (checks both DB entries and intra-sheet duplicates)
+      const semNorm = normalizeSem(rawSem);
+      const divNorm = normalizeDiv(rawDiv);
+      const sheetKey = `${assignedFacId}_${dayHit}_${timeSlot}_${rawSubj}_${semNorm}_${divNorm}`;
+      const isDupInSheet = seenSheetKeys.has(sheetKey);
+      const isDupInDb = existingEntries.some(e =>
+        e.day === dayHit &&
+        e.timeSlot === timeSlot &&
+        e.facultyId === assignedFacId &&
+        e.subjectName === rawSubj &&
+        normalizeSem(e.semId || e.sem) === semNorm &&
+        normalizeDiv(e.divId || e.div) === divNorm
+      );
+      const isDuplicate = isDupInDb || isDupInSheet;
+      seenSheetKeys.add(sheetKey);
+
+      if (isDuplicate) {
+        const dupMsg = `Duplicate lecture: ${rawSubj} already exists for ${assignedFacName} on ${dayHit} ${timeSlot}.`;
+        duplicateRows.push({ row: rowNum, warning: dupMsg, reason: dupMsg, message: dupMsg });
+      }
+
+      const color = getSubjectColor(rawSubj);
+
+      const lecObj = {
+        rowNum,
+        day: dayHit,
+        time: timeSlot,
+        subject: rawSubj,
+        name: rawSubj,
+        room: rawRoom,
+        sem: semNorm,
+        div: divNorm,
+        batch: rawBatch,
+        department: rawDept || defaultDeptId,
+        departmentId: defaultDeptId,
+        facultyId: assignedFacId,
+        facultyName: assignedFacName,
+        type: rawType || (rawSubj.toLowerCase().includes('lab') ? 'Lab' : 'Lecture'),
+        color,
+        hasConflict,
+        conflictMsg,
+        isDuplicate,
+        status: hasConflict ? 'conflict' : isDuplicate ? 'duplicate' : 'valid'
+      };
+
+      previewLectures.push(lecObj);
+      if (!hasConflict) {
+        validLectures.push(lecObj);
+      }
+
+      // If matches target faculty, populate the timetable grid view
+      if (!targetFacultyId || assignedFacId === targetFacultyId) {
+        timetable[dayHit][timeSlot] = {
+          subject: rawSubj,
+          name: rawSubj,
+          sem: semNorm,
+          div: divNorm,
+          batch: rawBatch,
+          departmentId: defaultDeptId,
+          room: rawRoom,
+          type: rawType || (rawSubj.toLowerCase().includes('lab') ? 'Lab' : 'Lecture'),
+          color,
+          facultyId: assignedFacId,
+          facultyName: assignedFacName
+        };
+      }
+    }
+
+    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures };
   }
 
   // ── FORMAT B: LIST (Day | TimeSlot | Subject … columns) ──
@@ -1173,23 +1633,28 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
     if (scopeIsClass) {
       const room = c4 || 'Room 201'; const type = c5 || 'Lecture'; const facultyName = c6 || '';
       timetable[currentDay][timeSlot] = { subject: c2, name: c3 || c2, sem: normalizeSem(defaultSem), div: normalizeDiv(defaultDiv), departmentId: defaultDeptId, room, type, color: getSubjectColor(c2), facultyName };
-      previewLectures.push({ day: currentDay, time: timeSlot, subject: c2, room, facultyName, sem: normalizeSem(defaultSem), div: normalizeDiv(defaultDiv), departmentId: defaultDeptId });
+      previewLectures.push({ day: currentDay, time: timeSlot, subject: c2, room, facultyName, sem: normalizeSem(defaultSem), div: normalizeDiv(defaultDiv), departmentId: defaultDeptId, status: 'valid' });
     } else {
       const sem = normalizeSem(c4 || defaultSem); const div = normalizeDiv(c5 || defaultDiv);
       const room = c6 || 'Room 201'; const type = c7 || 'Lecture';
       timetable[currentDay][timeSlot] = { subject: c2, name: c3 || c2, sem, div, departmentId: defaultDeptId, room, type, color: getSubjectColor(c2) };
-      previewLectures.push({ day: currentDay, time: timeSlot, subject: c2, room, sem, div, departmentId: defaultDeptId });
+      previewLectures.push({ day: currentDay, time: timeSlot, subject: c2, room, sem, div, departmentId: defaultDeptId, status: 'valid' });
     }
   }
-  return { timetable, previewLectures };
+  return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures: previewLectures };
 };
 
-const _readAsUint8Array = (file) => new Promise((resolve, reject) => {
-  const r = new FileReader();
-  r.onload = e => resolve(new Uint8Array(e.target.result));
-  r.onerror = () => reject(new Error('Cannot read file. It may be locked or corrupted.'));
-  r.readAsArrayBuffer(file);
-});
+const _readAsUint8Array = (file) => {
+  if (file instanceof Uint8Array) return Promise.resolve(file);
+  if (file instanceof ArrayBuffer) return Promise.resolve(new Uint8Array(file));
+  if (Array.isArray(file)) return Promise.resolve(new Uint8Array(file));
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(new Uint8Array(e.target.result));
+    r.onerror = () => reject(new Error('Cannot read file. It may be locked or corrupted.'));
+    r.readAsArrayBuffer(file);
+  });
+};
 
 export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, divFilter, deptNameOrId) => {
   if (!file) throw new Error('No file provided.');
@@ -1201,7 +1666,7 @@ export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, 
   if (!sheet) throw new Error('Spreadsheet has no sheets.');
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
   if (!rows || rows.length < 2) throw new Error('Spreadsheet appears to be empty.');
-    let defaultDeptId = 'DEP_AI';
+  let defaultDeptId = 'DEP_AI';
   if (deptNameOrId) {
     if (deptNameOrId.startsWith('DEP_')) defaultDeptId = deptNameOrId;
     else if (deptNameOrId.includes('IT') || deptNameOrId.includes('Information')) defaultDeptId = 'DEP_IT';
@@ -1216,10 +1681,13 @@ export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, 
       }
     } catch(e) {}
   }
-  const { timetable, previewLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', false, defaultDeptId);
+  const { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', false, defaultDeptId, facultyId);
   const summary = calculateTimetableSummary(timetable);
-  const fileInfo = { name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', type: file.name.endsWith('.csv') ? 'csv' : 'excel' };
-  return { timetable, fileInfo, summary, previewLectures };
+  const fileName = (file && file.name) ? file.name : 'uploaded_timetable.xlsx';
+  const fileSize = (file && file.size) ? (file.size / 1024).toFixed(1) + ' KB' : 'Spreadsheet';
+  const fileType = fileName.toLowerCase().endsWith('.csv') ? 'csv' : 'excel';
+  const fileInfo = { name: fileName, size: fileSize, type: fileType };
+  return { timetable, fileInfo, summary, previewLectures, errorRows, conflictRows, duplicateRows, validLectures };
 };
 
 export const parseExcelTimetableForClass = async (file, semFilter, divFilter, deptName) => {
@@ -1234,7 +1702,9 @@ export const parseExcelTimetableForClass = async (file, semFilter, divFilter, de
   if (!rows || rows.length < 2) throw new Error('Spreadsheet appears to be empty.');
   const { timetable, previewLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', true);
   const summary = calculateTimetableSummary(timetable);
-  const fileInfo = { name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', type: 'excel' };
+  const fileName = (file && file.name) ? file.name : 'class_timetable.xlsx';
+  const fileSize = (file && file.size) ? (file.size / 1024).toFixed(1) + ' KB' : 'Spreadsheet';
+  const fileInfo = { name: fileName, size: fileSize, type: 'excel' };
   return { timetable, fileInfo, summary, previewLectures };
 };
 
@@ -1319,9 +1789,67 @@ export const validateTimetable = (normalizedResult) => {
 };
 
 export const commitUploadedTimetable = (targetScope, targetId, timetableData, options = {}) => {
-  if (!timetableData || !timetableData.timetable) {
+  // Support overload calls:
+  // commitUploadedTimetable(validLecturesArray)
+  // commitUploadedTimetable(parseResultObject)
+  // commitUploadedTimetable('faculty', 'FAC01', timetableData, options)
+  if (Array.isArray(targetScope)) {
+    timetableData = { validLectures: targetScope };
+    targetScope = 'faculty';
+    targetId = null;
+  } else if (targetScope && typeof targetScope === 'object' && (targetScope.validLectures || targetScope.timetable)) {
+    timetableData = targetScope;
+    targetScope = 'faculty';
+    targetId = null;
+  }
+
+  if (!timetableData) {
     throw new Error('No timetable data provided to save.');
   }
+
+  // If columnar validLectures are available with explicit faculty assignments:
+  if (timetableData.validLectures && timetableData.validLectures.length > 0) {
+    const existingEntries = getTimetableEntries();
+    // Group valid lectures by facultyId
+    const facultiesInUpload = new Set(timetableData.validLectures.map(l => l.facultyId).filter(Boolean));
+    
+    // If targetScope is faculty and no faculty IDs were specified in rows, default to targetId
+    if (facultiesInUpload.size === 0 && targetId) {
+      facultiesInUpload.add(targetId);
+    }
+
+    // Filter out previous entries for these faculties so we replace with the new upload without duplicates
+    let updatedEntries = existingEntries.filter(e => !facultiesInUpload.has(e.facultyId));
+
+    timetableData.validLectures.forEach(lec => {
+      const facId = lec.facultyId || targetId || 'FAC_PS';
+      const facName = lec.facultyName || 'Faculty';
+      updatedEntries.push({
+        id: generateId(),
+        facultyId: facId,
+        facultyName: facName,
+        departmentId: lec.departmentId || 'DEP_AI',
+        subjectId: lec.subject,
+        subjectName: lec.subject,
+        subjectFullName: lec.name || lec.subject,
+        semId: lec.sem,
+        divId: lec.div,
+        sem: lec.sem,
+        div: lec.div,
+        batch: lec.batch || 'All',
+        room: lec.room || 'Room 201',
+        color: lec.color || getSubjectColor(lec.subject),
+        type: lec.type || 'Lecture',
+        day: lec.day,
+        timeSlot: lec.time
+      });
+    });
+
+    localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(updatedEntries));
+    notifyTimetableSync();
+    return timetableData.validLectures.length;
+  }
+
   if (targetScope === 'faculty') {
     applyUploadedFacultyTimetable(targetId, timetableData.timetable);
     return true;
@@ -2054,56 +2582,109 @@ export const parseImageOrPdfFile = async (file, targetScope = 'faculty', targetI
 // =========================================================================
 
 export const downloadFacultyTimetableTemplate = (facultyName = 'Faculty', deptName = 'Department', semName = '3rd Semester') => {
-  // GRID FORMAT matching real timetable spreadsheets:
-  // Row 0: time | Monday | Tuesday | Wednesday | Thursday | Friday | Saturday
-  // Row 1+: time slot | subject (each day's cell)
-  // Each cell: "SUBJECT / Room XYZ" - multi-line, matching real faculty timetable format
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const headerRow = ['time', ...days];
-  const aoa = [headerRow];
+  const wb = XLSX.utils.book_new();
+  const faculties = getFaculties();
 
+  // Sheet 1: Columnar Timetable Schedule Template with realistic sample rows
+  const colHeaders = [
+    'Faculty ID',
+    'Faculty Name',
+    'Department',
+    'Subject',
+    'Semester',
+    'Division',
+    'Batch',
+    'Day',
+    'Start Time',
+    'End Time',
+    'Room Number'
+  ];
+
+  const colRows = [
+    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS', '3rd Sem', 'Div 1', 'All', 'Monday', '9:00', '9:55', 'Room 201'],
+    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DS', '3rd Sem', 'Div 1', 'All', 'Monday', '10:00', '10:50', 'Room 201'],
+    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS Lab', '3rd Sem', 'Div 1', 'Batch A', 'Tuesday', '1:25', '3:10', 'Lab 2'],
+    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DS Lab', '3rd Sem', 'Div 1', 'Batch B', 'Wednesday', '1:25', '3:10', 'Lab 2'],
+    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS Lab', '3rd Sem', 'Div 1', 'Batch C', 'Thursday', '1:25', '3:10', 'Lab 2'],
+    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS', '5th Sem', 'Div 1', 'All', 'Monday', '9:00', '9:55', 'Room 301'],
+    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS Lab', '5th Sem', 'Div 1', 'Batch A', 'Wednesday', '1:25', '3:10', 'CC-Lab 1'],
+    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS Lab', '5th Sem', 'Div 1', 'Batch B', 'Friday', '1:25', '3:10', 'CC-Lab 1']
+  ];
+
+  const wsCol = XLSX.utils.aoa_to_sheet([colHeaders, ...colRows]);
+  wsCol['!cols'] = [
+    { wch: 14 }, // Faculty ID
+    { wch: 22 }, // Faculty Name
+    { wch: 24 }, // Department
+    { wch: 16 }, // Subject
+    { wch: 12 }, // Semester
+    { wch: 12 }, // Division
+    { wch: 12 }, // Batch
+    { wch: 14 }, // Day
+    { wch: 12 }, // Start Time
+    { wch: 12 }, // End Time
+    { wch: 14 }  // Room Number
+  ];
+  XLSX.utils.book_append_sheet(wb, wsCol, 'Timetable Schedule');
+
+  // Sheet 2: Weekly Grid Template
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const gridRows = [['Time Slot', ...days]];
   TIME_SLOTS.forEach(slot => {
     const row = [slot];
     days.forEach(() => {
       row.push(slot === '12:40 - 1:25' ? 'LUNCH' : '');
     });
-    aoa.push(row);
+    gridRows.push(row);
   });
+  const wsGrid = XLSX.utils.aoa_to_sheet(gridRows);
+  wsGrid['!cols'] = [{ wch: 16 }, ...days.map(() => ({ wch: 20 }))];
+  XLSX.utils.book_append_sheet(wb, wsGrid, 'Weekly Grid');
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  // Column widths: time col + one col per day
-  ws['!cols'] = [{wch:16}, ...days.map(() => ({wch:20}))];
-  // Enable wrap text for all data cells so multi-line content shows
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:G10');
-  for (let R = range.s.r; R <= range.e.r; R++) {
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const addr = XLSX.utils.encode_cell({ r: R, c: C });
-      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
-      ws[addr].s = ws[addr].s || {};
-      ws[addr].s.alignment = { wrapText: true, vertical: 'top' };
-    }
-  }
-  XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
-
-  // Instructions sheet
-  const iws = XLSX.utils.aoa_to_sheet([
-    ['Faculty', facultyName],
-    ['Department', deptName],
-    ['Semester', semName],
-    ['', ''],
-    ['HOW TO FILL:', 'In each cell (Mon-Sat column), type the subject short name.'],
-    ['Multi-line:', 'Line 1: Subject code (e.g. DBMS)'],
-    ['', 'Line 2: Class/Division (e.g. 3AI) — optional'],
-    ['', 'Line 3: Room number (e.g. 201 or IT-6) — optional'],
-    ['Example cell:', 'DBMS\n3AI (201)'],
-    ['', ''],
-    ['Leave blank', 'for free periods'],
-    ['For Lab:', 'Add "Lab" anywhere in cell, e.g. DBMS Lab\n201'],
-    ['Time slots', TIME_SLOTS.join(', ')]
+  // Sheet 3: Registered Faculty Directory (Reference)
+  const facRefHeaders = ['Faculty ID', 'Faculty Name', 'Department', 'Designation', 'Email'];
+  const facRefRows = faculties.map(f => [
+    f.id,
+    f.name,
+    f.dept || f.department || 'AI & Data Science',
+    f.designation || 'Assistant Professor',
+    f.email || ''
   ]);
-  XLSX.utils.book_append_sheet(wb, iws, 'Instructions');
+  const wsFac = XLSX.utils.aoa_to_sheet([facRefHeaders, ...facRefRows]);
+  wsFac['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 28 }];
+  XLSX.utils.book_append_sheet(wb, wsFac, 'Faculty Directory');
 
-  try { XLSX.writeFile(wb, 'timetable_template_' + (facultyName||'faculty').replace(/[\s.]/g,'_') + '.xlsx'); }
-  catch(e) { throw new Error('Failed to download template: ' + e.message); }
+  // Sheet 4: Instructions & Reference Values
+  const instRows = [
+    ['ADIT FACULTY TIMETABLE UPLOAD TEMPLATE - GUIDELINES', ''],
+    ['', ''],
+    ['COLUMN', 'REQUIREMENT / ACCEPTED VALUES'],
+    ['Faculty ID', 'Must match an existing registered Faculty ID from "Faculty Directory" sheet (e.g., FAC_PS, FAC_SM).'],
+    ['Faculty Name', 'Full name of the faculty member.'],
+    ['Department', 'Accepted: AI & Data Science, Computer Engineering, Information Technology, EC, ME, Civil.'],
+    ['Subject', 'Subject short name or full title (e.g., DBMS, DS, Python, OS).'],
+    ['Semester', 'Accepted: 1st Sem to 8th Sem.'],
+    ['Division', 'Accepted: Div 1, Div 2, Div 3, or All.'],
+    ['Batch', 'Accepted: Batch A, Batch B, Batch C, or All (use specific batch for practical lab sessions).'],
+    ['Day', 'Accepted: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.'],
+    ['Start Time & End Time', `Use standard lecture slots: ${TIME_SLOTS.filter(s => s !== '12:40 - 1:25').join(', ')}`],
+    ['Room Number', 'Classroom or Lab (e.g., Room 201, Room 301, Lab 2, CC-Lab 1).']
+  ];
+  const wsInst = XLSX.utils.aoa_to_sheet(instRows);
+  wsInst['!cols'] = [{ wch: 25 }, { wch: 75 }];
+  XLSX.utils.book_append_sheet(wb, wsInst, 'Instructions');
+
+  XLSX.writeFile(wb, 'ADIT_Faculty_Timetable_Template.xlsx');
 };
+
+if (typeof window !== 'undefined') {
+  window.rescheduleLectureEntry = rescheduleLectureEntry;
+  window.checkRescheduleConflicts = checkRescheduleConflicts;
+  window.doTimeSlotsOverlap = doTimeSlotsOverlap;
+  window.getDateForDayName = getDateForDayName;
+  window.normalizeTimeSlot = normalizeTimeSlot;
+  window.getTimetableEntries = getTimetableEntries;
+  window.getFacultyTimetable = getFacultyTimetable;
+  window.notifyTimetableSync = notifyTimetableSync;
+}
+

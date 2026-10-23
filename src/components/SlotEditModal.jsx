@@ -25,6 +25,7 @@ export default function SlotEditModal({
   const [fullName, setFullName] = useState(_existingName || (availableSubjects[0]?.name || ''));
   const [sem, setSem] = useState(existingSlot?.sem || existingSlot?.semId || semesterName || '3rd Sem');
   const [div, setDiv] = useState(existingSlot?.div || existingSlot?.divId || divisionName || 'Div 1');
+  const [batch, setBatch] = useState(existingSlot?.batch || 'All');
   const [room, setRoom] = useState(existingSlot?.room || 'Room 201');
   const [type, setType] = useState(existingSlot?.type || 'Lecture');
   const [color, setColor] = useState(existingSlot?.color || getSubjectColor(_existingSubject || 'DBMS'));
@@ -63,6 +64,7 @@ export default function SlotEditModal({
       name: fullName || subject.trim(),
       sem,
       div,
+      batch,
       room: room.trim() || 'Room 201',
       type,
       color: color || getSubjectColor(subject),
@@ -272,8 +274,8 @@ export default function SlotEditModal({
               </div>
             </div>
 
-            {/* Type */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+            {/* Type & Batch */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
                 <label style={{ fontWeight: '700', fontSize: '13px' }}>Slot Type</label>
                 <select
@@ -285,6 +287,20 @@ export default function SlotEditModal({
                   <option value="Lab">Laboratory</option>
                   <option value="Seminar">Seminar</option>
                   <option value="Tutorial">Tutorial</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: '700', fontSize: '13px' }}>Student Batch</label>
+                <select
+                  className="form-control"
+                  value={batch}
+                  onChange={(e) => setBatch(e.target.value)}
+                >
+                  <option value="All">All Batches (Entire Class)</option>
+                  <option value="Batch A">Batch A</option>
+                  <option value="Batch B">Batch B</option>
+                  <option value="Batch C">Batch C</option>
                 </select>
               </div>
             </div>

@@ -794,7 +794,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   COLLEGE ERP ATTENDANCE SHEET GRID SYSTEM (Matches GH Patel / ADIT ERP Sheet)
+   COLLEGE ERP ATTENDANCE SHEET GRID SYSTEM (ADIT ERP Sheet)
    ========================================================================== */
 .erp-attendance-view {
   width: 100%;
@@ -1222,6 +1222,76 @@ h1, h2, h3, h4, h5, h6 {
   .timetable-cell-interactive {
     cursor: default !important;
   }
+}
+
+/* ==========================================================================
+   Take Attendance Multi-Column Checkbox Student Checklist (Reference Photo Style)
+   ========================================================================== */
+.student-multi-col-list {
+  column-count: 3;
+  column-gap: 28px;
+  column-rule: 1px solid #e2e8f0;
+  width: 100%;
+}
+
+.student-checklist-container {
+  column-count: 3;
+  column-gap: 28px;
+  column-rule: 1px solid #e2e8f0;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .student-multi-col-list,
+  .student-checklist-container {
+    column-count: 2;
+    column-gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .student-multi-col-list,
+  .student-checklist-container {
+    column-count: 1;
+    column-gap: 0;
+    column-rule: none;
+  }
+}
+
+.student-checkbox-card,
+.student-checklist-entry {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  display: block;
+  margin-bottom: 6px;
+  background-color: transparent;
+  border-bottom: 1px solid #f1f5f9;
+  border-radius: 6px;
+  padding: 6px 6px 8px 6px;
+  transition: background-color 0.15s ease;
+  user-select: none;
+}
+
+.student-checkbox-card:hover,
+.student-checklist-entry:hover {
+  background-color: #f8fafc;
+}
+
+.student-checkbox-card.is-present {
+  background-color: #f0fdf4;
+}
+
+.student-checkbox-card.is-absent {
+  background-color: #fff1f2;
+}
+
+.student-checkbox-card.is-excused {
+  background-color: #eff6ff;
+}
+
+.student-checkbox-card.is-unmarked {
+  background-color: transparent;
 }
 
   </style>

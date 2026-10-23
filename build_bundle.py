@@ -54,6 +54,7 @@ def build():
         'src/components/DepartmentAdminPanel.jsx',
         'src/components/AdminPanel.jsx',
         'src/components/FacultyPanel.jsx',
+        'src/components/StudentPanel.jsx',
         'src/components/LoginView.jsx',
         'src/App.jsx',
     ]
@@ -72,8 +73,10 @@ def build():
     parts.append('''
 // ==================== Mount Root ====================
 const rootElement = document.getElementById('root');
-const root = ReactDOM.createRoot(rootElement);
-root.render(React.createElement(App));
+if (rootElement) {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(React.createElement(App));
+}
 ''')
 
     raw_jsx = '\n\n'.join(parts)

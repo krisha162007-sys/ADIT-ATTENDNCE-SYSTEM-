@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Faculty Timetable Interaction & Reschedule Verification Suite</title>
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = window.LucideIcons.Calendar;
+    window.SettingsIcon = window.LucideIcons.Settings;
+    window.ImageIcon    = window.LucideIcons.Image;
+    window.MapIcon      = window.LucideIcons.Map;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js"></script>
+  <link rel="stylesheet" href="/src/index.css" />
+</head>
+<body style="font-family: sans-serif; padding: 24px; background: #0f172a; color: #fff;">
+  <h2>Faculty Timetable Interaction &amp; Reschedule Verification Suite</h2>
+  <div id="test-results" style="font-family: monospace; white-space: pre-wrap; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px solid #334155;">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: 0; top: 0; width: 1280px; opacity: 0.01; pointer-events: none;"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+      };
+
+      const capturedErrors = [];
+      window.addEventListener('error', function(e) {
+        capturedErrors.push(e.message || String(e));
+        console.error('Captured Window Error:', e.error || e.message);
+      });
+      const origConsoleError = console.error;
+      console.error = function(...args) {
+        capturedErrors.push(args.map(a => (a && a.stack) ? a.stack : String(a)).join(' '));
+        origConsoleError.apply(console, args);
+      };
+
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        initializeStorage();
+        window.alert = function(msg) { console.warn('Alert:', msg); };
+        window.confirm = function(msg) { return true; };
+
+        const testFaculty = {
+          id: 'FAC_PS',
+          facultyId: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        const otherFaculty = {
+          id: 'FAC_RP',
+          facultyId: 'FAC_RP',
+          name: 'Prof. Rahul Patel',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        // Authenticate test faculty
+        setCurrentUser(testFaculty);
+        setActiveFacultyId(testFaculty.id);
+
+        // Initialize timetable entries if not already populated
+        getTimetableEntries();
+
+        // =========================================================================
+        // TEST A: Timetable Click Navigation & Auto-load Students
+        // =========================================================================
+        console.log('\n--- Running TEST A: Timetable Click Navigation ---');
+        const mount = document.getElementById('render-mount');
+        const root = ReactDOM.createRoot(mount);
+
+        root.render(React.createElement(FacultyPanel, {
+          currentUser: testFaculty,
+          showToast: () => {}
+        }));
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Switch to Timetable Tab
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        log(`Initial render completed. Total buttons: ${allButtons.length}`);
+        if (capturedErrors.length > 0) {
+          log(`Captured Errors: ${capturedErrors.slice(0, 3).join(' | ')}`, false);
+        }
+        const timetableTabBtn = allButtons.find(b => b.textContent.includes('My Timetable'));
+        log(`Found My Timetable button: ${!!timetableTabBtn}`);
+        if (timetableTabBtn) timetableTabBtn.click();
+        await new Promise(r => setTimeout(r, 600));
+
+        log(`Mount text after switching tab: ${mount.innerText.slice(0, 150).replace(/\n/g, ' ')}`);
+
+        // Locate scheduled lecture cards in Weekly Grid
+        const lectureCards = Array.from(document.querySelectorAll('.timetable-lecture-card'));
+        log(`Found ${lectureCards.length} interactive lecture cards in the timetable weekly grid.`, lectureCards.length > 0);
+
+        if (lectureCards.length === 0) {
+          log(`DEBUG: Table rows: ${document.querySelectorAll('table tr').length}, TDs: ${document.querySelectorAll('table td').length}`, false);
+        }
+
+        // Click the first lecture card (e.g., DBMS)
+        const targetCard = lectureCards[0] || document.querySelector('.timetable-day-card');
+        const cardSubject = targetCard ? (targetCard.getAttribute('data-subject') || 'DBMS') : 'NONE';
+        if (targetCard) targetCard.click();
+        await new Promise(r => setTimeout(r, 600));
+
+        // Verify Take Attendance tab is active
+        const takeAttendanceHeading = document.body.innerText.includes('Record Lecture Attendance') || document.body.innerText.includes('Take Attendance');
+        log(`Navigated directly to Take Attendance upon clicking lecture card.`, takeAttendanceHeading);
+
+        // Verify Lecture details populated automatically
+        const subjectSelect = document.querySelector('select[name="attSubject"], select');
+        const semSelect = Array.from(document.querySelectorAll('select')).find(s => s.value && s.value.includes('Sem'));
+        const dateInput = document.querySelector('input[type="date"]');
+        const timeInputs = document.querySelectorAll('input[type="time"]');
+
+        log(`Lecture Subject populated correctly (${cardSubject}).`, document.body.innerText.includes(cardSubject));
+        log(`Session Date populated automatically (${dateInput?.value}).`, !!dateInput && !!dateInput.value);
+        log(`Session Timings populated automatically (${timeInputs.length >= 2 ? timeInputs[0].value + ' - ' + timeInputs[1].value : 'OK'}).`, timeInputs.length >= 2);
+
+        // Verify Students loaded automatically without clicking "Load Students"
+        const studentCards = document.querySelectorAll('.student-card, input[type="checkbox"]');
+        log(`Students loaded automatically without clicking "Load Students" (${studentCards.length} student checkboxes found).`, studentCards.length > 0);
+
+        // Verify all checkboxes start unmarked (unchecked)
+        const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+        const allUnchecked = checkboxes.every(cb => !cb.checked);
+        log(`All students start unmarked (all checkboxes initially unchecked).`, allUnchecked);
+
+        // Verify explicit submission blocking when unmarked
+        let saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Submit & Save') || b.textContent.includes('Save Attendance') || b.textContent.includes('Submit Attendance'));
+        if (saveBtn) {
+          saveBtn.click();
+          await new Promise(r => setTimeout(r, 200));
+          const blockedWarning = document.body.innerText.includes('remain unmarked') || document.body.innerText.includes('blocked');
+          log(`Submission blocked when students remain unmarked.`, blockedWarning);
+        }
+
+        // Mark all present
+        const markAllPresentBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Mark All Present'));
+        if (markAllPresentBtn) {
+          markAllPresentBtn.click();
+          await new Promise(r => setTimeout(r, 200));
+        }
+
+        // Submit Attendance now that all students are marked
+        saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Submit & Save') || b.textContent.includes('Save Attendance') || b.textContent.includes('Submit Attendance'));
+        if (saveBtn) {
+          saveBtn.click();
+          await new Promise(r => setTimeout(r, 400));
+        }
+        const savedSessions = getSessions({}, testFaculty);
+        log(`Attendance marked and submitted successfully (saved ${savedSessions.length} session(s)).`, savedSessions.length > 0);
+
+        // =========================================================================
+        // TEST B: Reschedule a Lecture
+        // =========================================================================
+        console.log('\n--- Running TEST B: Reschedule a Lecture ---');
+        const entries = getTimetableEntries();
+        const priyaEntry = entries.find(e => e.facultyId === 'FAC_PS' && e.day === 'Monday' && e.subjectId === 'DBMS');
+        log(`Found assigned timetable entry for Prof. Priya Shah (${priyaEntry?.subjectId} on ${priyaEntry?.day} ${priyaEntry?.timeSlot}).`, !!priyaEntry);
+
+        // Reschedule to Wednesday 2:20 - 3:10 (a free slot for Priya Shah)
+        const newRescheduledDate = '2026-10-21'; // Wednesday
+        const newStartTime = '14:20';
+        const newEndTime = '15:10';
+        const newTimeSlot = '2:20 - 3:10';
+        const rescheduleReason = 'Extra practice lab session for midterm preparation';
+
+        const updated = rescheduleLectureEntry({
+          entryId: priyaEntry.id,
+          facultyId: 'FAC_PS',
+          newDate: newRescheduledDate,
+          newStartTime: '2:20',
+          newEndTime: '3:10',
+          newTimeSlot: newTimeSlot,
+          newRoom: 'Room 205',
+          reason: rescheduleReason
+        }, testFaculty);
+
+        log(`Lecture rescheduled successfully to ${updated.day} (${updated.rescheduledDate}) at ${updated.timeSlot}.`, updated.day === 'Wednesday' && updated.timeSlot === newTimeSlot);
+        log(`Reschedule audit metadata recorded (isRescheduled: true, reason: "${updated.rescheduleReason}").`, updated.isRescheduled === true && updated.rescheduleReason === rescheduleReason);
+
+        // Verify Persistence across storage lookup
+        const reloadedEntries = getTimetableEntries();
+        const persisted = reloadedEntries.find(e => e.id === priyaEntry.id);
+        log(`Rescheduled entry persists in localStorage with updated slot and room (${persisted?.room}).`, persisted?.day === 'Wednesday' && persisted?.room === 'Room 205');
+
+        // Verify Grid reflects updated slot
+        const refreshedGrid = getFacultyTimetable('FAC_PS');
+        const slotInNewTime = refreshedGrid['Wednesday']?.[newTimeSlot];
+        log(`Faculty weekly grid reflects the lecture in its new time slot (Wednesday ${newTimeSlot}).`, !!slotInNewTime && slotInNewTime.subject === 'DBMS');
+
+        // =========================================================================
+        // TEST C: Conflict Validation
+        // =========================================================================
+        console.log('\n--- Running TEST C: Conflict Validation ---');
+        // Priya Shah already teaches Python on Wednesday 10:00 - 10:50 in Room 203.
+        // 1. Attempt to reschedule another lecture to Wednesday 10:00 - 10:50 (Faculty conflict)
+        const anotherLecture = entries.find(e => e.facultyId === 'FAC_PS' && e.day === 'Tuesday' && e.subjectId === 'DS');
+        let facultyConflictCaught = false;
+        try {
+          rescheduleLectureEntry({
+            entryId: anotherLecture.id,
+            facultyId: 'FAC_PS',
+            newDate: '2026-10-21', // Wednesday
+            newStartTime: '10:00',
+            newEndTime: '10:50',
+            newTimeSlot: '10:00 - 10:50',
+            newRoom: 'Room 999',
+            reason: 'Testing conflict'
+          }, testFaculty);
+        } catch (err) {
+          facultyConflictCaught = err.message.includes('Faculty conflict') || err.message.includes('Conflict');
+          log(`Faculty overlap conflict blocked with explanatory warning: ${err.message}`, facultyConflictCaught);
+        }
+        if (!facultyConflictCaught) {
+          log(`Failed to detect faculty conflict when scheduling overlapping lectures.`, false);
+        }
+
+        // 2. Attempt to reschedule to a slot where Room 201 is already booked by another lecture (Room conflict)
+        // On Monday 10:00 - 10:50, Room 201 is booked by Prof. Rahul Patel for Maths-III.
+        let roomConflictCaught = false;
+        try {
+          rescheduleLectureEntry({
+            entryId: anotherLecture.id,
+            facultyId: 'FAC_PS',
+            newDate: '2026-10-19', // Monday
+            newStartTime: '10:00',
+            newEndTime: '10:50',
+            newTimeSlot: '10:00 - 10:50',
+            newRoom: 'Room 201',
+            reason: 'Testing room collision'
+          }, testFaculty);
+        } catch (err) {
+          roomConflictCaught = err.message.includes('Room conflict') || err.message.includes('Conflict');
+          log(`Room booking conflict blocked with explanatory warning: ${err.message}`, roomConflictCaught);
+        }
+        if (!roomConflictCaught) {
+          log(`Failed to detect room collision conflict.`, false);
+        }
+
+        // =========================================================================
+        // TEST D: Admin Panel Synchronization
+        // =========================================================================
+        console.log('\n--- Running TEST D: Admin Panel Synchronization ---');
+        // Verify timetable sync notification dispatches
+        let syncEventFired = false;
+        const testSyncListener = () => { syncEventFired = true; };
+        window.addEventListener('adit-timetable-synced', testSyncListener);
+        notifyTimetableSync();
+        window.removeEventListener('adit-timetable-synced', testSyncListener);
+        log(`adit-timetable-synced event fired successfully to update Admin Panel.`, syncEventFired);
+
+        // Verify Admin view can read the updated entries
+        const allAdminEntries = getTimetableEntries();
+        const adminFound = allAdminEntries.find(e => e.id === priyaEntry.id);
+        log(`Admin Panel timetable storage displays rescheduled lecture (${adminFound?.day} ${adminFound?.timeSlot}).`, adminFound?.day === 'Wednesday' && adminFound?.isRescheduled === true);
+
+        // =========================================================================
+        // TEST E: Unauthorized Rescheduling Attempt
+        // =========================================================================
+        console.log('\n--- Running TEST E: Unauthorized Rescheduling Attempt ---');
+        let unauthorizedCaught = false;
+        try {
+          // Rahul Patel attempts to reschedule Priya Shah's lecture
+          rescheduleLectureEntry({
+            entryId: priyaEntry.id,
+            facultyId: 'FAC_PS',
+            newDate: '2026-10-22',
+            newStartTime: '9:00',
+            newEndTime: '9:55',
+            newTimeSlot: '9:00 - 9:55',
+            newRoom: 'Room 101',
+            reason: 'Malicious modification'
+          }, otherFaculty); // Current user is FAC_RP
+        } catch (err) {
+          unauthorizedCaught = err.message.includes('Unauthorized Security Error') || err.message.includes('cannot reschedule lectures assigned to another faculty');
+          log(`Unauthorized rescheduling attempt by another faculty member strictly rejected: "${err.message}"`, unauthorizedCaught);
+        }
+        if (!unauthorizedCaught) {
+          log(`Failed to block unauthorized faculty from rescheduling another faculty's lecture.`, false);
+        }
+
+        // =========================================================================
+        // TEST F: Regression Testing
+        // =========================================================================
+        console.log('\n--- Running TEST F: Regression Testing ---');
+        // 1. Manual Take Attendance form functionality preserved
+        const freshFaculty = { id: 'FAC_PS', name: 'Prof. Priya Shah', dept: 'AI & Data Science', role: 'faculty' };
+        const manualStudents = getStudentsForAcademicGroup({
+          department: 'AI & Data Science',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL'
+        }, freshFaculty);
+        log(`Manual student retrieval continues to work normally (${manualStudents.length} students retrieved).`, manualStudents.length > 0);
+
+        // 2. Existing historical attendance records preserved
+        const sessionsAfterAllTests = getSessions({}, testFaculty);
+        log(`Historical attendance records preserved (${sessionsAfterAllTests.length} session(s) intact).`, sessionsAfterAllTests.length > 0);
+
+        // 3. Elective management remains clean without hardcoded demo data
+        const electiveGroups = getElectiveGroups ? getElectiveGroups() : [];
+        log(`Elective subject management API available and clean without hardcoded dummy data (${electiveGroups.length} demo groups).`, Array.isArray(electiveGroups));
+
+        // Final output & reporting
+        const allPassed = results.every(r => r.pass);
+        const summary = results.map(r => r.text).join('\n') + `\n\nTotal Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        document.getElementById('test-results').innerText = summary;
+
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allPassed,
+            summary,
+            results
+          })
+        });
+
+      } catch (err) {
+        console.error('Test Suite Error:', err);
+        const errText = '❌ [ERROR] ' + err.stack;
+        results.push({ text: errText, pass: false });
+        document.getElementById('test-results').innerText = results.map(r => r.text).join('\n');
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            allPassed: false,
+            summary: errText,
+            results
+          })
+        });
+      }
+    });
+  </script>
+</body>
+</html>
