@@ -215,7 +215,7 @@ export const checkConflicts = (entry, excludeId = null) => {
 export const normalizeTimeSlot = (slotStr) => {
   if (!slotStr) return '';
   return slotStr
-    .split('-')
+    .split(/[-–—]/)
     .map(part => {
       const trimmed = part.trim();
       const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
@@ -231,7 +231,7 @@ export const normalizeTimeSlot = (slotStr) => {
 
 export const parseTimeRangeMinutes = (timeSlotStr) => {
   if (!timeSlotStr) return null;
-  const parts = timeSlotStr.split('-').map(s => s.trim());
+  const parts = timeSlotStr.split(/[-–—]/).map(s => s.trim());
   if (parts.length < 2) return null;
   const parseMin = (tStr) => {
     let isPM = /pm/i.test(tStr);
@@ -252,6 +252,66 @@ export const parseTimeRangeMinutes = (timeSlotStr) => {
   const startMin = parseMin(parts[0]);
   const endMin = parseMin(parts[1]);
   return { startMin, endMin };
+};
+
+export const getSessionIdentity = (entry) => {
+  if (!entry) return null;
+  return entry.sessionId || 
+         entry.sessionGroupId || 
+         entry.lectureId || 
+         entry.sharedSessionId || 
+         entry.batchSessionId || 
+         entry.labGroupId || 
+         entry.multiSlotId || 
+         null;
+};
+
+export const canMergeConsecutiveSlots = (slotA, slotB) => {
+  if (!slotA || !slotB) return false;
+
+  // 1. MUST have an explicit shared session identity
+  const idA = getSessionIdentity(slotA);
+  const idB = getSessionIdentity(slotB);
+  if (!idA || !idB || String(idA).trim() !== String(idB).trim()) {
+    return false;
+  }
+
+  // 2. Same subject (ID, code, or name)
+  const subA = (slotA.subject || slotA.subjectId || slotA.subjectName || '').trim().toLowerCase();
+  const subB = (slotB.subject || slotB.subjectId || slotB.subjectName || '').trim().toLowerCase();
+  if (subA !== subB) return false;
+
+  // 3. Same semester (e.g. 'Semester 1' or '1st Sem')
+  if (normalizeSem(slotA.semId || slotA.sem) !== normalizeSem(slotB.semId || slotB.sem)) {
+    return false;
+  }
+
+  // 4. Same division (e.g. 'Division 1' or 'Div 1')
+  if (normalizeDiv(slotA.divId || slotA.div) !== normalizeDiv(slotB.divId || slotB.div)) {
+    return false;
+  }
+
+  // 5. Same class or batch, wherever applicable
+  const batchA = (slotA.batch || 'ALL').trim().toUpperCase();
+  const batchB = (slotB.batch || 'ALL').trim().toUpperCase();
+  if (batchA !== batchB) {
+    return false;
+  }
+
+  // 6. Same faculty member
+  const facA = (slotA.facultyId || '').trim();
+  const facB = (slotB.facultyId || '').trim();
+  if (facA && facB && facA !== facB) {
+    return false;
+  }
+
+  // 7. Same scheduled day and date (rescheduledDate)
+  if (slotA.day !== slotB.day) return false;
+  const dateA = slotA.rescheduledDate || '';
+  const dateB = slotB.rescheduledDate || '';
+  if (dateA !== dateB) return false;
+
+  return true;
 };
 
 export const doTimeSlotsOverlap = (slot1, slot2) => {
@@ -283,8 +343,12 @@ export const checkRescheduleConflicts = (params = {}, entriesList = null) => {
 
   if (!day || !timeSlot) return conflicts;
 
+  const targetEntry = entryId ? entries.find(e => e.id === entryId) : null;
+  const targetSessionId = params.sessionId || getSessionIdentity(targetEntry);
+
   entries.forEach(e => {
     if (entryId && e.id === entryId) return; // skip self
+    if (targetSessionId && getSessionIdentity(e) === targetSessionId) return; // skip constituent entries of the same session
     if (e.day !== day) return;
 
     if (doTimeSlotsOverlap(e.timeSlot, timeSlot)) {
@@ -420,7 +484,31 @@ export const rescheduleLectureEntry = (params = {}, userContext = null) => {
     rescheduledBy: userFacultyId
   };
 
+  const targetSessionId = getSessionIdentity(targetEntry);
+
   entries[targetIndex] = updatedEntry;
+
+  // If this entry was part of a multi-slot session, update the entire scheduled session
+  if (targetSessionId) {
+    entries.forEach((e, idx) => {
+      if (idx !== targetIndex && getSessionIdentity(e) === targetSessionId && e.facultyId === targetEntry.facultyId) {
+        entries[idx] = {
+          ...e,
+          day: newDay,
+          room: finalRoom,
+          isRescheduled: true,
+          rescheduledDate: newDate,
+          rescheduleReason: reason.trim(),
+          originalDay: e.originalDay || e.day,
+          originalTimeSlot: e.originalTimeSlot || e.timeSlot,
+          originalRoom: e.originalRoom || e.room,
+          rescheduledAt: new Date().toISOString(),
+          rescheduledBy: userFacultyId
+        };
+      }
+    });
+  }
+
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
 
@@ -2506,6 +2594,8 @@ export const downloadFacultyTimetableTemplate = (facultyName = 'Faculty', deptNa
 };
 
 if (typeof window !== 'undefined') {
+  window.getSessionIdentity = getSessionIdentity;
+  window.canMergeConsecutiveSlots = canMergeConsecutiveSlots;
   window.rescheduleLectureEntry = rescheduleLectureEntry;
   window.checkRescheduleConflicts = checkRescheduleConflicts;
   window.doTimeSlotsOverlap = doTimeSlotsOverlap;

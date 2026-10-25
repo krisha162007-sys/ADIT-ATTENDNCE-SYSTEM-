@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADIT Multi-Slot Lecture & Timetable Verification Suite</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=9999"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8fafc; }
+    #test-log { background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+    #render-mount { border: 1px solid #cbd5e1; background: #ffffff; border-radius: 8px; padding: 16px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h2>ADIT Timetable Multi-Slot Merging Verification Suite</h2>
+  <div id="test-log">Running test suite...</div>
+  <div id="render-mount"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const logBox = document.getElementById('test-log');
+      const log = (msg, pass = true) => {
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        results.push({ text, pass });
+        console.log(text);
+        if (logBox) logBox.textContent += '\n' + text;
+      };
+
+      const capturedErrors = [];
+      window.addEventListener('error', function(e) {
+        capturedErrors.push(e.message || String(e));
+        console.error('Captured Window Error:', e.error || e.message);
+      });
+      const origConsoleError = console.error;
+      console.error = function(...args) {
+        capturedErrors.push(args.map(a => (a && a.stack) ? a.stack : String(a)).join(' '));
+        origConsoleError.apply(console, args);
+      };
+
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        initializeStorage();
+        window.alert = function(msg) { console.warn('Alert:', msg); };
+        window.confirm = function(msg) { return true; };
+
+        const testFaculty = {
+          id: 'FAC_PS',
+          facultyId: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        setCurrentUser(testFaculty);
+        setActiveFacultyId(testFaculty.id);
+
+        // Seed subjects
+        const seedSubjects = [
+          { id: 'CPC', code: 'CPC', name: 'Computer Programming with C', shortName: 'CPC', department: 'AI & Data Science', semester: '1st Sem' },
+          { id: 'CPC_S3', code: 'CPC_S3', name: 'Computer Programming with C', shortName: 'CPC', department: 'AI & Data Science', semester: '3rd Sem' },
+          { id: 'PROG_LAB', code: 'PROG_LAB', name: 'Programming Lab', shortName: 'Programming Lab', department: 'AI & Data Science', semester: '1st Sem' },
+          { id: 'DBMS', code: 'DBMS', name: 'Database Management Systems', shortName: 'DBMS', department: 'AI & Data Science', semester: '3rd Sem' }
+        ];
+        localStorage.setItem('adit_attendance_subjects', JSON.stringify(seedSubjects));
+
+        // Seed students
+        const seedStudents = [
+          { id: 'ST_001', rollNo: '01', name: 'Aarav Sharma', enrollmentNo: '210010116001', semester: '1st Sem', division: 'Div 1', department: 'AI & Data Science', batch: 'Batch A', status: 'active' },
+          { id: 'ST_002', rollNo: '02', name: 'Diya Patel', enrollmentNo: '210010116002', semester: '1st Sem', division: 'Div 1', department: 'AI & Data Science', batch: 'Batch A', status: 'active' },
+          { id: 'ST_003', rollNo: '03', name: 'Kabir Mehta', enrollmentNo: '210010116003', semester: '1st Sem', division: 'Div 1', department: 'AI & Data Science', batch: 'Batch B', status: 'active' }
+        ];
+        localStorage.setItem('adit_attendance_students', JSON.stringify(seedStudents));
+
+        // =========================================================================
+        // SEED TIMETABLE ENTRIES COVERING ALL SCENARIOS:
+        // =========================================================================
+        // Example A: Monday - Same Subject, Same Sem, Same Div, Same Batch, Same Faculty, Matching sessionId
+        // 10:00 - 10:50 and 10:55 - 11:45 -> MUST MERGE into 1 card (10:00–11:45)
+        const slotA1 = {
+          id: 'tte_exA_1',
+          facultyId: 'FAC_PS',
+          facultyName: 'Prof. Priya Shah',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          subjectFullName: 'Computer Programming with C',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch A',
+          room: 'Lab 1',
+          day: 'Monday',
+          timeSlot: '10:00 - 10:50',
+          sessionId: 'sess_cpc_lab_batchA'
+        };
+        const slotA2 = {
+          id: 'tte_exA_2',
+          facultyId: 'FAC_PS',
+          facultyName: 'Prof. Priya Shah',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          subjectFullName: 'Computer Programming with C',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch A',
+          room: 'Lab 1',
+          day: 'Monday',
+          timeSlot: '10:55 - 11:45',
+          sessionId: 'sess_cpc_lab_batchA'
+        };
+
+        // Example B: Tuesday - Different Semesters (1st Sem vs 3rd Sem)
+        // 10:00 - 10:50 (1st Sem) vs 10:55 - 11:45 (3rd Sem) -> MUST NOT MERGE
+        const slotB1 = {
+          id: 'tte_exB_1',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 101',
+          day: 'Tuesday',
+          timeSlot: '10:00 - 10:50',
+          sessionId: 'sess_b1'
+        };
+        const slotB2 = {
+          id: 'tte_exB_2',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '3rd Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 101',
+          day: 'Tuesday',
+          timeSlot: '10:55 - 11:45',
+          sessionId: 'sess_b2'
+        };
+
+        // Example C: Wednesday - Different Divisions (Div 1 vs Div 2)
+        // 10:00 - 10:50 (Div 1) vs 10:55 - 11:45 (Div 2) -> MUST NOT MERGE
+        const slotC1 = {
+          id: 'tte_exC_1',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 102',
+          day: 'Wednesday',
+          timeSlot: '10:00 - 10:50',
+          sessionId: 'sess_c1'
+        };
+        const slotC2 = {
+          id: 'tte_exC_2',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '1st Sem',
+          div: 'Div 2',
+          batch: 'ALL',
+          room: 'Room 102',
+          day: 'Wednesday',
+          timeSlot: '10:55 - 11:45',
+          sessionId: 'sess_c2'
+        };
+
+        // Example D: Thursday - Different Batches (Batch A vs Batch B)
+        // 10:00 - 10:50 (Batch A) vs 10:55 - 11:45 (Batch B) -> MUST NOT MERGE
+        const slotD1 = {
+          id: 'tte_exD_1',
+          facultyId: 'FAC_PS',
+          subjectId: 'PROG_LAB',
+          subjectName: 'Programming Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch A',
+          room: 'Lab 2',
+          day: 'Thursday',
+          timeSlot: '10:00 - 10:50',
+          sessionId: 'sess_d1'
+        };
+        const slotD2 = {
+          id: 'tte_exD_2',
+          facultyId: 'FAC_PS',
+          subjectId: 'PROG_LAB',
+          subjectName: 'Programming Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch B',
+          room: 'Lab 2',
+          day: 'Thursday',
+          timeSlot: '10:55 - 11:45',
+          sessionId: 'sess_d2'
+        };
+
+        // Example E: Friday - Separate Lectures for Same Class (Same Sem 1, Div 1, CPC, BUT separate session identity)
+        // 10:00 - 10:50 vs 10:55 - 11:45 -> MUST NOT MERGE
+        const slotE1 = {
+          id: 'tte_exE_1',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 201',
+          day: 'Friday',
+          timeSlot: '10:00 - 10:50'
+          // No shared session ID -> independently scheduled
+        };
+        const slotE2 = {
+          id: 'tte_exE_2',
+          facultyId: 'FAC_PS',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 201',
+          day: 'Friday',
+          timeSlot: '10:55 - 11:45'
+          // No shared session ID -> independently scheduled
+        };
+
+        // Scenario F: Saturday - Lunch Break Barrier
+        // Slot before lunch (11:50 - 12:40) and slot after lunch (1:25 - 2:15) with same sessionId
+        // MUST NOT MERGE ACROSS LUNCH BREAK!
+        const slotF1 = {
+          id: 'tte_exF_1',
+          facultyId: 'FAC_PS',
+          subjectId: 'DBMS',
+          subjectName: 'DBMS',
+          sem: '3rd Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 301',
+          day: 'Saturday',
+          timeSlot: '11:50 - 12:40',
+          sessionId: 'sess_sat_dbms'
+        };
+        const slotF2 = {
+          id: 'tte_exF_2',
+          facultyId: 'FAC_PS',
+          subjectId: 'DBMS',
+          subjectName: 'DBMS',
+          sem: '3rd Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 301',
+          day: 'Saturday',
+          timeSlot: '1:25 - 2:15',
+          sessionId: 'sess_sat_dbms'
+        };
+
+        const allSeedEntries = [slotA1, slotA2, slotB1, slotB2, slotC1, slotC2, slotD1, slotD2, slotE1, slotE2, slotF1, slotF2];
+        localStorage.setItem('adit_timetable_entries', JSON.stringify(allSeedEntries));
+
+        // Test API helpers directly
+        log('canMergeConsecutiveSlots identifies Example A slots as mergable', canMergeConsecutiveSlots(slotA1, slotA2) === true);
+        log('canMergeConsecutiveSlots rejects Example B (different semesters)', canMergeConsecutiveSlots(slotB1, slotB2) === false);
+        log('canMergeConsecutiveSlots rejects Example C (different divisions)', canMergeConsecutiveSlots(slotC1, slotC2) === false);
+        log('canMergeConsecutiveSlots rejects Example D (different batches)', canMergeConsecutiveSlots(slotD1, slotD2) === false);
+        log('canMergeConsecutiveSlots rejects Example E (no shared session ID)', canMergeConsecutiveSlots(slotE1, slotE2) === false);
+
+        // Mount Faculty Panel and verify visual rendering in Weekly Grid View
+        const mount = document.getElementById('render-mount');
+        const root = ReactDOM.createRoot(mount);
+
+        root.render(React.createElement(FacultyPanel, {
+          currentUser: testFaculty,
+          showToast: () => {}
+        }));
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Switch to Timetable tab
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        log(`Initial render buttons: ${allButtons.length}`);
+        const timetableTabBtn = allButtons.find(b => b.textContent.includes('My Timetable'));
+        log(`Found My Timetable button: ${!!timetableTabBtn}`);
+        if (timetableTabBtn) timetableTabBtn.click();
+        await new Promise(r => setTimeout(r, 600));
+        log(`Mount text: ${mount.innerText.slice(0, 150).replace(/\n/g, ' ')}`);
+        const allTables = document.querySelectorAll('table');
+        log(`Total tables found: ${allTables.length}`);
+        if (capturedErrors && capturedErrors.length > 0) {
+          log(`Captured Errors: ${capturedErrors.slice(0, 3).join(' | ')}`, false);
+        }
+
+        // Verify Example A (Monday): Rendered as 1 continuous card spanning 2 rows
+        const monCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Monday"]'));
+        log(`Example A (Monday): Exactly 1 merged card rendered (found ${monCards.length})`, monCards.length === 1);
+
+        const monCard = monCards[0];
+        const isMulti = monCard?.getAttribute('data-is-multislot') === 'true';
+        const span = monCard?.getAttribute('data-span');
+        const monCardTime = monCard?.getAttribute('data-time') || '';
+        log(`Example A: Card has data-is-multislot="true" and data-span="2" (span=${span})`, isMulti && span === '2');
+        log(`Example A: Card displays combined time range 10:00–11:45 (${monCardTime})`, monCardTime.includes('10:00') && monCardTime.includes('11:45'));
+
+        const monParentTd = monCard?.closest('td');
+        log(`Example A: Parent <td> has rowSpan=2`, monParentTd?.getAttribute('rowspan') === '2' || monParentTd?.rowSpan === 2);
+
+        // Verify text content of Example A card: CPC, 1st Sem • Div 1 • Batch A, 10:00–11:45
+        const monText = monCard?.innerText || '';
+        log(`Example A: Card displays subject "CPC"`, monText.includes('CPC'));
+        log(`Example A: Card displays semester, division, batch "1st Sem • Div 1 • Batch A"`, monText.includes('1st Sem') && monText.includes('Div 1') && monText.includes('Batch A'));
+        log(`Example A: Card displays room "Lab 1"`, monText.includes('Lab 1'));
+
+        // Verify Example B (Tuesday): Different semesters -> 2 separate cards
+        const tueCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Tuesday"]'));
+        log(`Example B (Tuesday): Kept separate as 2 individual cards (found ${tueCards.length})`, tueCards.length === 2);
+
+        // Verify Example C (Wednesday): Different divisions -> 2 separate cards
+        const wedCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Wednesday"]'));
+        log(`Example C (Wednesday): Kept separate as 2 individual cards (found ${wedCards.length})`, wedCards.length === 2);
+
+        // Verify Example D (Thursday): Different batches -> 2 separate cards
+        const thuCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Thursday"]'));
+        log(`Example D (Thursday): Kept separate as 2 individual cards (found ${thuCards.length})`, thuCards.length === 2);
+
+        // Verify Example E (Friday): Same class but separate sessions -> 2 separate cards
+        const friCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Friday"]'));
+        log(`Example E (Friday): Kept separate as 2 individual cards (found ${friCards.length})`, friCards.length === 2);
+
+        // Verify Scenario F (Saturday): Lunch break barrier -> 2 separate cards before and after lunch
+        const satCards = Array.from(document.querySelectorAll('.timetable-lecture-card[data-day="Saturday"]'));
+        const allCards = Array.from(document.querySelectorAll('.timetable-lecture-card'));
+        log(`DEBUG: Saturday cards found: ${satCards.map(c => c.getAttribute('data-time') + ' ' + c.getAttribute('data-subject')).join(' | ')}`);
+        log(`DEBUG: All cards in table: ${allCards.map(c => c.getAttribute('data-day') + ':' + c.getAttribute('data-time')).join(', ')}`);
+        log(`Scenario F (Saturday): Did not merge across lunch break (found ${satCards.length} cards)`, satCards.length === 2);
+
+        // Verify Table Column Alignment: Total TDs per row
+        const tableRows = Array.from(document.querySelectorAll('table.data-table tbody tr'));
+        log(`Table rendered all rows (found ${tableRows.length} rows)`, tableRows.length >= 8);
+
+        // Test Interaction: Clicking the merged Example A card opens Take Attendance with prefilled timings & loaded students
+        if (monCard) {
+          monCard.click();
+          await new Promise(r => setTimeout(r, 600));
+
+          const activeTabHeading = document.body.innerText.includes('Record Lecture Attendance');
+          log(`Clicking merged card opens "Record Lecture Attendance" view`, activeTabHeading);
+
+          const timeInputs = document.querySelectorAll('input[type="time"]');
+          const startTimeVal = timeInputs[0]?.value;
+          const endTimeVal = timeInputs[1]?.value;
+          log(`Take Attendance timings pre-filled with complete multi-slot range (10:00 - 11:45, found ${startTimeVal} - ${endTimeVal})`, startTimeVal === '10:00' && endTimeVal === '11:45');
+
+          const subjectSelect = document.body.innerText.includes('CPC');
+          log(`Take Attendance subject correctly prefilled as CPC`, subjectSelect);
+
+          // Batch A students loaded automatically
+          const studentRows = document.querySelectorAll('.student-checkbox-card, input[type="checkbox"]');
+          log(`Correct student roster loaded for Batch A (${studentRows.length} students)`, studentRows.length >= 2);
+
+          // Mark students present and save attendance
+          const markAllBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Mark All Present'));
+          if (markAllBtn) {
+            markAllBtn.click();
+            await new Promise(r => setTimeout(r, 200));
+          }
+
+          const saveBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Submit & Save') || b.textContent.includes('Save Attendance'));
+          if (saveBtn) {
+            saveBtn.click();
+            await new Promise(r => setTimeout(r, 400));
+          }
+
+          // Verify attendance was recorded ONCE for the whole scheduled session (not once per occupied row)
+          const allSessions = getSessions({}, testFaculty);
+          const cpcSessions = allSessions.filter(s => s.subjectId === 'CPC' || s.subjectName === 'CPC');
+          log(`Attendance recorded ONCE for the whole scheduled session (recorded ${cpcSessions.length} session, time: ${cpcSessions[0]?.timeSlot})`, cpcSessions.length === 1 && cpcSessions[0]?.timeSlot === '10:00 - 11:45');
+        }
+
+        // Test Rescheduling of Multi-Slot Session: Updates the entire session
+        const updatedResched = rescheduleLectureEntry({
+          entryId: slotA1.id,
+          facultyId: 'FAC_PS',
+          newDate: '2026-10-21', // Wednesday
+          newStartTime: '14:20',
+          newEndTime: '16:05',
+          newTimeSlot: '2:20 - 4:05',
+          newRoom: 'Lab 3',
+          reason: 'Moved lab to Wednesday afternoon'
+        }, testFaculty);
+
+        const reloadedEntries = getTimetableEntries();
+        const rescheduledA1 = reloadedEntries.find(e => e.id === slotA1.id);
+        const rescheduledA2 = reloadedEntries.find(e => e.id === slotA2.id);
+        log(`Rescheduling updated slot A1 (day: ${rescheduledA1?.day}, room: ${rescheduledA1?.room})`, rescheduledA1?.day === 'Wednesday' && rescheduledA1?.room === 'Lab 3');
+        log(`Rescheduling simultaneously updated constituent slot A2 of the session (day: ${rescheduledA2?.day}, room: ${rescheduledA2?.room})`, rescheduledA2?.day === 'Wednesday' && rescheduledA2?.room === 'Lab 3');
+
+        // Test Day View with multi-slot session
+        if (timetableTabBtn) timetableTabBtn.click();
+        await new Promise(r => setTimeout(r, 400));
+        const dayViewBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Day View') || b.textContent.includes('Single Day'));
+        if (dayViewBtn) {
+          dayViewBtn.click();
+          await new Promise(r => setTimeout(r, 400));
+          // Switch to Monday
+          const monDayBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Monday');
+          if (monDayBtn) {
+            monDayBtn.click();
+            await new Promise(r => setTimeout(r, 400));
+          }
+        }
+
+        // Post test results
+        const allPassed = results.every(r => r.pass);
+        const summary = `Total Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        console.log(summary);
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed, summary })
+        });
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: err.message, stack: err.stack, allPassed: false })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

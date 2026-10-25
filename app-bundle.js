@@ -1061,6 +1061,27 @@ const getFacultyAuthorizedAssignments = (facultyOrUser = null) => {
       }
     } catch (e) {
     }
+    try {
+      const rawTT = localStorage.getItem("adit_timetable_entries");
+      if (rawTT) {
+        const entries = JSON.parse(rawTT);
+        entries.forEach((e) => {
+          const matchTT = e.facultyId === facId || e.facultyName && e.facultyName.trim().toLowerCase() === facName;
+          if (matchTT) {
+            addAssignment(
+              e.departmentId || e.department || user.dept,
+              e.semId || e.sem,
+              e.divId || e.div,
+              e.batch || "ALL",
+              e.subjectId || e.subject,
+              e.subjectFullName || e.subjectName || e.subject,
+              e.subjectId || e.subject
+            );
+          }
+        });
+      }
+    } catch (e) {
+    }
   }
   try {
     const subjects = getSubjects();
@@ -4022,7 +4043,7 @@ const checkConflicts = (entry, excludeId = null) => {
 };
 const normalizeTimeSlot = (slotStr) => {
   if (!slotStr) return "";
-  return slotStr.split("-").map((part) => {
+  return slotStr.split(/[-–—]/).map((part) => {
     const trimmed = part.trim();
     const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
     if (match) {
@@ -4035,7 +4056,7 @@ const normalizeTimeSlot = (slotStr) => {
 };
 const parseTimeRangeMinutes = (timeSlotStr) => {
   if (!timeSlotStr) return null;
-  const parts = timeSlotStr.split("-").map((s) => s.trim());
+  const parts = timeSlotStr.split(/[-–—]/).map((s) => s.trim());
   if (parts.length < 2) return null;
   const parseMin = (tStr) => {
     let isPM = /pm/i.test(tStr);
@@ -4056,6 +4077,42 @@ const parseTimeRangeMinutes = (timeSlotStr) => {
   const startMin = parseMin(parts[0]);
   const endMin = parseMin(parts[1]);
   return { startMin, endMin };
+};
+const getSessionIdentity = (entry) => {
+  if (!entry) return null;
+  return entry.sessionId || entry.sessionGroupId || entry.lectureId || entry.sharedSessionId || entry.batchSessionId || entry.labGroupId || entry.multiSlotId || null;
+};
+const canMergeConsecutiveSlots = (slotA, slotB) => {
+  if (!slotA || !slotB) return false;
+  const idA = getSessionIdentity(slotA);
+  const idB = getSessionIdentity(slotB);
+  if (!idA || !idB || String(idA).trim() !== String(idB).trim()) {
+    return false;
+  }
+  const subA = (slotA.subject || slotA.subjectId || slotA.subjectName || "").trim().toLowerCase();
+  const subB = (slotB.subject || slotB.subjectId || slotB.subjectName || "").trim().toLowerCase();
+  if (subA !== subB) return false;
+  if (normalizeSem(slotA.semId || slotA.sem) !== normalizeSem(slotB.semId || slotB.sem)) {
+    return false;
+  }
+  if (normalizeDiv(slotA.divId || slotA.div) !== normalizeDiv(slotB.divId || slotB.div)) {
+    return false;
+  }
+  const batchA = (slotA.batch || "ALL").trim().toUpperCase();
+  const batchB = (slotB.batch || "ALL").trim().toUpperCase();
+  if (batchA !== batchB) {
+    return false;
+  }
+  const facA = (slotA.facultyId || "").trim();
+  const facB = (slotB.facultyId || "").trim();
+  if (facA && facB && facA !== facB) {
+    return false;
+  }
+  if (slotA.day !== slotB.day) return false;
+  const dateA = slotA.rescheduledDate || "";
+  const dateB = slotB.rescheduledDate || "";
+  if (dateA !== dateB) return false;
+  return true;
 };
 const doTimeSlotsOverlap = (slot1, slot2) => {
   if (!slot1 || !slot2) return false;
@@ -4082,8 +4139,11 @@ const checkRescheduleConflicts = (params = {}, entriesList = null) => {
   const entries = entriesList || getTimetableEntries();
   const conflicts = [];
   if (!day || !timeSlot) return conflicts;
+  const targetEntry = entryId ? entries.find((e) => e.id === entryId) : null;
+  const targetSessionId = params.sessionId || getSessionIdentity(targetEntry);
   entries.forEach((e) => {
     if (entryId && e.id === entryId) return;
+    if (targetSessionId && getSessionIdentity(e) === targetSessionId) return;
     if (e.day !== day) return;
     if (doTimeSlotsOverlap(e.timeSlot, timeSlot)) {
       if (facultyId && e.facultyId === facultyId) {
@@ -4188,7 +4248,27 @@ const rescheduleLectureEntry = (params = {}, userContext = null) => {
     rescheduledAt: (/* @__PURE__ */ new Date()).toISOString(),
     rescheduledBy: userFacultyId
   };
+  const targetSessionId = getSessionIdentity(targetEntry);
   entries[targetIndex] = updatedEntry;
+  if (targetSessionId) {
+    entries.forEach((e, idx) => {
+      if (idx !== targetIndex && getSessionIdentity(e) === targetSessionId && e.facultyId === targetEntry.facultyId) {
+        entries[idx] = {
+          ...e,
+          day: newDay,
+          room: finalRoom,
+          isRescheduled: true,
+          rescheduledDate: newDate,
+          rescheduleReason: reason.trim(),
+          originalDay: e.originalDay || e.day,
+          originalTimeSlot: e.originalTimeSlot || e.timeSlot,
+          originalRoom: e.originalRoom || e.room,
+          rescheduledAt: (/* @__PURE__ */ new Date()).toISOString(),
+          rescheduledBy: userFacultyId
+        };
+      }
+    });
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
   return updatedEntry;
@@ -6006,6 +6086,8 @@ const downloadFacultyTimetableTemplate = (facultyName = "Faculty", deptName = "D
   XLSX.writeFile(wb, "ADIT_Faculty_Timetable_Template.xlsx");
 };
 if (typeof window !== "undefined") {
+  window.getSessionIdentity = getSessionIdentity;
+  window.canMergeConsecutiveSlots = canMergeConsecutiveSlots;
   window.rescheduleLectureEntry = rescheduleLectureEntry;
   window.checkRescheduleConflicts = checkRescheduleConflicts;
   window.doTimeSlotsOverlap = doTimeSlotsOverlap;
@@ -13462,7 +13544,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Subject"))))));
 }
-const SUBJECT_COLOR_THEMES = {
+var SUBJECT_COLOR_THEMES = {
   purple: { bg: "#fbf7ff", border: "#ddd6fe", text: "#5b21b6", badgeBg: "#ede9fe", badgeText: "#6d28d9" },
   green: { bg: "#f0fdf4", border: "#bbf7d0", text: "#166534", badgeBg: "#dcfce7", badgeText: "#15803d" },
   emerald: { bg: "#ecfdf5", border: "#a7f3d0", text: "#065f46", badgeBg: "#d1fae5", badgeText: "#047857" },
@@ -13473,10 +13555,15 @@ const SUBJECT_COLOR_THEMES = {
   slate: { bg: "#f8fafc", border: "#cbd5e1", text: "#334155", badgeBg: "#f1f5f9", badgeText: "#475569" },
   blue: { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af", badgeBg: "#dbeafe", badgeText: "#1d4ed8" }
 };
-const getCardStyleForSubject = (subjectNameOrCode) => {
-  const colorName = getSubjectColor(subjectNameOrCode);
-  return SUBJECT_COLOR_THEMES[colorName] || SUBJECT_COLOR_THEMES.blue;
-};
+if (typeof window !== "undefined") {
+  window.SUBJECT_COLOR_THEMES = SUBJECT_COLOR_THEMES;
+}
+function getCardStyleForSubject(subjectNameOrCode) {
+  const colorName = (typeof getSubjectColor === "function" ? getSubjectColor(subjectNameOrCode) : "blue") || "blue";
+  const themes = (typeof SUBJECT_COLOR_THEMES !== "undefined" ? SUBJECT_COLOR_THEMES : typeof window !== "undefined" ? window.SUBJECT_COLOR_THEMES : null) || {};
+  return themes[colorName] || themes.blue || { bg: "#eff6ff", border: "#bfdbfe", text: "#1e40af", badgeBg: "#dbeafe", badgeText: "#1d4ed8" };
+}
+;
 function FacultyPanel({ currentUser, showToast, onExit }) {
   const [facultiesList, setFacultiesList] = useState(getFaculties());
   const currentFaculty = useMemo(() => {
@@ -13725,7 +13812,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     }
     setAttDate(dateToUse);
     const timeSlotStr = lec.time || lec.timeSlot || "09:00 - 09:55";
-    const times = timeSlotStr.split("-");
+    const times = timeSlotStr.split(/[-–—]/);
     let sTime = times[0]?.trim() || "09:00";
     let eTime = times[1]?.trim() || "09:55";
     if (sTime.length === 4 && sTime[1] === ":") sTime = "0" + sTime;
@@ -14812,8 +14899,49 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     );
   })), !isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a", marginBottom: "16px" } }, "Schedule for ", selectedTimetableDay), (() => {
     const daySlots = facultyTimetableGrid[selectedTimetableDay] || {};
-    const activeSlots = Object.keys(daySlots).filter((t) => daySlots[t] && daySlots[t].subject);
-    if (activeSlots.length === 0) {
+    const isLunchTime = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
+    const rawActiveKeys = Object.keys(daySlots).filter((t) => daySlots[t] && daySlots[t].subject);
+    rawActiveKeys.sort((a, b) => {
+      const ma = parseTimeRangeMinutes(a)?.startMin ?? 0;
+      const mb = parseTimeRangeMinutes(b)?.startMin ?? 0;
+      return ma - mb;
+    });
+    const groupedDaySlots = [];
+    for (let i = 0; i < rawActiveKeys.length; i++) {
+      const t = rawActiveKeys[i];
+      const slot = daySlots[t];
+      const mergedList = [slot];
+      const slotParts = (slot.timeSlot || t).split(/[-–—]/);
+      const firstStart = slotParts[0]?.trim() || "09:00";
+      let lastEnd = slotParts[1]?.trim() || "09:55";
+      let j = i + 1;
+      while (j < rawActiveKeys.length) {
+        const nextT = rawActiveKeys[j];
+        if (isLunchTime(nextT)) break;
+        const nextSlot = daySlots[nextT];
+        if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+          mergedList.push(nextSlot);
+          const nextParts = (nextSlot.timeSlot || nextT).split(/[-–—]/);
+          lastEnd = nextParts[1]?.trim() || lastEnd;
+          j++;
+        } else {
+          break;
+        }
+      }
+      const span = mergedList.length;
+      const timeRange = span > 1 ? `${firstStart}\u2013${lastEnd}` : slot.timeSlot || t;
+      const mergedDaySlot = {
+        ...slot,
+        time: timeRange,
+        timeSlot: timeRange,
+        span,
+        isMultiSlot: span > 1,
+        allMergedSlots: mergedList
+      };
+      groupedDaySlots.push({ timeRange, slot: mergedDaySlot, span, isMulti: span > 1 });
+      i = j - 1;
+    }
+    if (groupedDaySlots.length === 0) {
       return /* @__PURE__ */ React.createElement("div", { style: {
         padding: "40px 20px",
         textAlign: "center",
@@ -14822,23 +14950,26 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
         border: "1px dashed #cbd5e1"
       } }, /* @__PURE__ */ React.createElement(Calendar, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "15px", fontWeight: "700", color: "#334155", margin: "0 0 4px" } }, "No Lectures Scheduled for ", selectedTimetableDay), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: 0 } }, "You have no timetable assignments for this day."));
     }
-    return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" } }, activeSlots.map((time) => {
-      const slot = daySlots[time];
+    return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" } }, groupedDaySlots.map(({ timeRange, slot, span, isMulti }) => {
       return /* @__PURE__ */ React.createElement(
         "div",
         {
-          key: time,
+          key: timeRange + slot.id,
           className: "timetable-day-card",
           onClick: () => selectLectureForAttendance({
             ...slot,
-            time: slot.timeSlot || time,
+            time: timeRange,
+            timeSlot: timeRange,
             day: selectedTimetableDay,
             subjectId: slot.subjectId || slot.subject,
             subjectName: slot.name || slot.subject,
             sem: slot.sem,
             div: slot.div,
             batch: slot.batch || "ALL",
-            room: slot.room
+            room: slot.room,
+            isMultiSlot: isMulti,
+            span,
+            allMergedSlots: slot.allMergedSlots
           }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay)),
           style: {
             padding: "18px",
@@ -14851,16 +14982,16 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
             justifyContent: "space-between",
             cursor: "pointer"
           },
-          title: "Click to take attendance"
+          title: isMulti ? `Click to take attendance for this ${span}-period session (${timeRange})` : "Click to take attendance"
         },
         /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: {
           fontSize: "12px",
-          fontWeight: "700",
-          color: "#1e3a8a",
-          backgroundColor: "#eff6ff",
+          fontWeight: "800",
+          color: isMulti ? "#1e40af" : "#1e3a8a",
+          backgroundColor: isMulti ? "#dbeafe" : "#eff6ff",
           padding: "3px 8px",
           borderRadius: "6px"
-        } }, time), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", alignItems: "center" } }, slot.isRescheduled && /* @__PURE__ */ React.createElement("span", { style: {
+        } }, timeRange), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", alignItems: "center" } }, slot.isRescheduled && /* @__PURE__ */ React.createElement("span", { style: {
           fontSize: "10px",
           fontWeight: "800",
           backgroundColor: "#fef3c7",
@@ -14868,14 +14999,21 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
           padding: "2px 6px",
           borderRadius: "4px",
           border: "1px solid #fde68a"
-        } }, "Rescheduled"), /* @__PURE__ */ React.createElement("span", { style: {
+        } }, "Rescheduled"), isMulti && /* @__PURE__ */ React.createElement("span", { style: {
+          fontSize: "10.5px",
+          fontWeight: "800",
+          backgroundColor: "#e0e7ff",
+          color: "#4338ca",
+          padding: "2px 8px",
+          borderRadius: "4px"
+        } }, "\u{1F52C} ", span, " Periods / Lab"), /* @__PURE__ */ React.createElement("span", { style: {
           fontSize: "11px",
           fontWeight: "700",
           backgroundColor: "#f1f5f9",
           color: "#475569",
           padding: "2px 8px",
           borderRadius: "4px"
-        } }, slot.type || "Lecture"))), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px" } }, slot.name || slot.subject), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "0 0 12px", fontWeight: "600" } }, slot.sem, " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `(${slot.batch})` : "", " ", slot.room ? `\u2022 ${slot.room}` : "")),
+        } }, slot.type || (isMulti ? "Practical Lab" : "Lecture")))), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px" } }, slot.name || slot.subject), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "0 0 12px", fontWeight: "600" } }, slot.sem, " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `(${slot.batch})` : "", " ", slot.room ? `\u2022 ${slot.room}` : "")),
         /* @__PURE__ */ React.createElement("div", { style: { marginTop: "8px" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
           "button",
           {
@@ -14885,14 +15023,18 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
               e.stopPropagation();
               selectLectureForAttendance({
                 ...slot,
-                time: slot.timeSlot || time,
+                time: timeRange,
+                timeSlot: timeRange,
                 day: selectedTimetableDay,
                 subjectId: slot.subjectId || slot.subject,
                 subjectName: slot.name || slot.subject,
                 sem: slot.sem,
                 div: slot.div,
                 batch: slot.batch || "ALL",
-                room: slot.room
+                room: slot.room,
+                isMultiSlot: isMulti,
+                span,
+                allMergedSlots: slot.allMergedSlots
               }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay));
             },
             style: {
@@ -14920,45 +15062,161 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     const isToday = day === todayDayName;
     return /* @__PURE__ */ React.createElement("th", { key: day, style: { textAlign: "center", padding: "14px 10px", fontWeight: "800", color: isToday ? "#2563eb" : "#0f172a", borderRight: "1px solid #e2e8f0", minWidth: "135px" } }, /* @__PURE__ */ React.createElement("div", null, day), isToday && /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", fontSize: "10px", backgroundColor: "#dbeafe", color: "#1e40af", padding: "1px 6px", borderRadius: "4px", fontWeight: "800", marginTop: "2px" } }, "Today"));
   }))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+    const isLunchTime = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
     const allSlotsToRender = [];
     TIME_SLOTS.forEach((s) => allSlotsToRender.push(s));
     TIMETABLE_DAYS.forEach((day) => {
       const dayObj = facultyTimetableGrid[day] || {};
       Object.keys(dayObj).forEach((s) => {
         if (!allSlotsToRender.some((ex) => normalizeTimeSlot(ex) === normalizeTimeSlot(s))) {
-          allSlotsToRender.push(s);
+          const sRng = parseTimeRangeMinutes(s);
+          const isSpanningExisting = sRng && allSlotsToRender.filter((ex) => {
+            const exRng = parseTimeRangeMinutes(ex);
+            return exRng && exRng.startMin >= sRng.startMin && exRng.endMin <= sRng.endMin;
+          }).length >= 2;
+          if (!isSpanningExisting) {
+            allSlotsToRender.push(s);
+          }
         }
       });
     });
-    return allSlotsToRender.map((time) => {
-      const isLunch = time.includes("12:40") || time.includes("LUNCH");
+    allSlotsToRender.sort((a, b) => {
+      const ma = parseTimeRangeMinutes(a)?.startMin ?? 0;
+      const mb = parseTimeRangeMinutes(b)?.startMin ?? 0;
+      return ma - mb;
+    });
+    const getSlotForRow = (dayName, timeStr) => {
+      const dayObj = facultyTimetableGrid[dayName] || {};
+      const normT = normalizeTimeSlot(timeStr);
+      let slot = dayObj[timeStr];
+      if (!slot) {
+        for (const k of Object.keys(dayObj)) {
+          if (normalizeTimeSlot(k) === normT) {
+            slot = dayObj[k];
+            break;
+          }
+        }
+      }
+      if (!slot) {
+        const rowRng = parseTimeRangeMinutes(timeStr);
+        if (rowRng) {
+          for (const k of Object.keys(dayObj)) {
+            const entry = dayObj[k];
+            if (entry && entry.subject) {
+              const entryRng = parseTimeRangeMinutes(entry.timeSlot || k);
+              if (entryRng && Math.abs(entryRng.startMin - rowRng.startMin) <= 5) {
+                slot = entry;
+                break;
+              }
+            }
+          }
+        }
+      }
+      return slot;
+    };
+    const dayCellMap = {};
+    TIMETABLE_DAYS.forEach((dayName) => {
+      dayCellMap[dayName] = new Array(allSlotsToRender.length);
+    });
+    TIMETABLE_DAYS.forEach((dayName) => {
+      for (let rIdx = 0; rIdx < allSlotsToRender.length; rIdx++) {
+        if (dayCellMap[dayName][rIdx]) continue;
+        const time = allSlotsToRender[rIdx];
+        if (isLunchTime(time)) {
+          dayCellMap[dayName][rIdx] = { type: "lunch" };
+          continue;
+        }
+        const slot = getSlotForRow(dayName, time);
+        if (!slot || !slot.subject) {
+          dayCellMap[dayName][rIdx] = { type: "empty" };
+          continue;
+        }
+        let span = 1;
+        const mergedSlotsList = [slot];
+        const slotRng = parseTimeRangeMinutes(slot.timeSlot || time);
+        let checkIdx = rIdx + 1;
+        while (checkIdx < allSlotsToRender.length) {
+          const nextTime = allSlotsToRender[checkIdx];
+          if (isLunchTime(nextTime)) break;
+          const nextSlot = getSlotForRow(dayName, nextTime);
+          if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+            span++;
+            mergedSlotsList.push(nextSlot);
+            dayCellMap[dayName][checkIdx] = { type: "skip" };
+            checkIdx++;
+            continue;
+          }
+          if (slotRng) {
+            const nextRng = parseTimeRangeMinutes(nextTime);
+            if (nextRng && nextRng.startMin < slotRng.endMin) {
+              span++;
+              dayCellMap[dayName][checkIdx] = { type: "skip" };
+              checkIdx++;
+              continue;
+            }
+          }
+          break;
+        }
+        let timeRange = slot.timeSlot || time;
+        if (span > 1) {
+          const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || "";
+          const lastSlot = mergedSlotsList[mergedSlotsList.length - 1];
+          let lastEnd = "";
+          if (lastSlot && lastSlot.timeSlot) {
+            const p = lastSlot.timeSlot.split(/[-–—]/);
+            lastEnd = (p[1] || p[0]).trim();
+          } else if (slotRng && slot.timeSlot && slot.timeSlot.includes("-")) {
+            lastEnd = slot.timeSlot.split(/[-–—]/)[1]?.trim() || "";
+          } else {
+            const lastRowTime = allSlotsToRender[rIdx + span - 1];
+            const p = lastRowTime.split(/[-–—]/);
+            lastEnd = (p[1] || p[0]).trim();
+          }
+          timeRange = `${firstStart}\u2013${lastEnd}`;
+        }
+        const mergedSlot = {
+          ...slot,
+          timeSlot: timeRange,
+          time: timeRange,
+          span,
+          isMultiSlot: span > 1,
+          allMergedSlots: mergedSlotsList
+        };
+        dayCellMap[dayName][rIdx] = {
+          type: "card",
+          slot: mergedSlot,
+          span,
+          timeRange
+        };
+      }
+    });
+    return allSlotsToRender.map((time, rIdx) => {
+      const isLunch = isLunchTime(time);
       if (isLunch) {
         return /* @__PURE__ */ React.createElement("tr", { key: time, style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569", padding: "12px 8px", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), /* @__PURE__ */ React.createElement("td", { colSpan: TIMETABLE_DAYS.length, style: { textAlign: "center", padding: "12px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "800", letterSpacing: "0.08em", fontSize: "12px" } }, "\u{1F371} LUNCH RECESS (12:40 PM \u2013 1:25 PM)"));
       }
       return /* @__PURE__ */ React.createElement("tr", { key: time, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#1e3a8a", padding: "12px 8px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), TIMETABLE_DAYS.map((dayName) => {
-        const normT = normalizeTimeSlot(time);
-        let slot = facultyTimetableGrid[dayName]?.[time];
-        if (!slot && facultyTimetableGrid[dayName]) {
-          for (const k of Object.keys(facultyTimetableGrid[dayName])) {
-            if (normalizeTimeSlot(k) === normT) {
-              slot = facultyTimetableGrid[dayName][k];
-              break;
-            }
-          }
+        const cellInfo = dayCellMap[dayName]?.[rIdx];
+        if (!cellInfo || cellInfo.type === "skip") {
+          return null;
         }
-        if (!slot || !slot.subject) {
+        if (cellInfo.type === "empty") {
           return /* @__PURE__ */ React.createElement("td", { key: dayName, style: { textAlign: "center", color: "#cbd5e1", padding: "14px 8px", borderRight: "1px solid #e2e8f0", backgroundColor: "#ffffff" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "16px", color: "#94a3b8" } }, "\u2013"));
         }
+        const { slot, span, timeRange } = cellInfo;
+        const isMulti = span > 1;
         const theme = getCardStyleForSubject(slot.subject);
         return /* @__PURE__ */ React.createElement(
           "td",
           {
             key: dayName,
+            rowSpan: span > 1 ? span : void 0,
             style: {
               padding: "8px",
               borderRight: "1px solid #e2e8f0",
               verticalAlign: "top",
-              backgroundColor: "#ffffff"
+              backgroundColor: "#ffffff",
+              height: isMulti ? "100%" : void 0
             }
           },
           /* @__PURE__ */ React.createElement(
@@ -14967,13 +15225,16 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
               className: "timetable-lecture-card",
               "data-entry-id": slot.id,
               "data-subject": slot.subject,
-              "data-time": time,
+              "data-time": timeRange,
               "data-day": dayName,
+              "data-is-multislot": isMulti ? "true" : void 0,
+              "data-span": span,
               onClick: () => {
                 selectLectureForAttendance({
                   ...slot,
                   day: dayName,
-                  time: slot.timeSlot || time,
+                  time: timeRange,
+                  timeSlot: timeRange,
                   subjectId: slot.subjectId || slot.subject,
                   subjectName: slot.name || slot.subjectFullName || slot.subject,
                   sem: slot.semId || slot.sem,
@@ -14982,30 +15243,39 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
                   room: slot.room,
                   departmentId: slot.departmentId,
                   id: slot.id,
-                  rescheduledDate: slot.rescheduledDate
+                  rescheduledDate: slot.rescheduledDate,
+                  isMultiSlot: isMulti,
+                  span,
+                  allMergedSlots: slot.allMergedSlots
                 }, slot.rescheduledDate || getDateForDayName(dayName));
               },
               style: {
-                padding: "10px 12px",
+                padding: isMulti ? "12px 14px" : "10px 12px",
                 borderRadius: "10px",
                 border: `1px solid ${slot.isRescheduled ? "#f59e0b" : theme.border}`,
                 backgroundColor: slot.isRescheduled ? "#fffbeb" : theme.bg,
                 cursor: "pointer",
                 transition: "all 0.15s ease",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
-                position: "relative"
+                boxShadow: isMulti ? "0 3px 8px rgba(0,0,0,0.04)" : "0 2px 4px rgba(0,0,0,0.02)",
+                position: "relative",
+                minHeight: isMulti ? `${span * 78}px` : void 0,
+                height: isMulti ? "calc(100% - 6px)" : void 0,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                boxSizing: "border-box"
               },
-              title: "Click to mark attendance for this lecture"
+              title: isMulti ? `Click to mark attendance for this ${span}-period session (${timeRange})` : "Click to mark attendance for this lecture"
             },
-            /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: theme.text, fontSize: "13px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: {
-              fontSize: "10px",
-              fontWeight: "700",
-              color: theme.badgeText,
-              backgroundColor: theme.badgeBg,
-              padding: "1px 6px",
-              borderRadius: "4px"
-            } }, time.split(" - ")[0])),
-            slot.isRescheduled && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: {
+            /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", gap: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: theme.text, fontSize: "13px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: {
+              fontSize: isMulti ? "10.5px" : "10px",
+              fontWeight: "800",
+              color: isMulti ? "#1e40af" : theme.badgeText,
+              backgroundColor: isMulti ? "#dbeafe" : theme.badgeBg,
+              padding: "2px 7px",
+              borderRadius: "4px",
+              whiteSpace: "nowrap"
+            } }, isMulti ? timeRange : time.split(" - ")[0])), slot.isRescheduled && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: {
               fontSize: "9.5px",
               fontWeight: "800",
               backgroundColor: "#fef3c7",
@@ -15014,9 +15284,16 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
               borderRadius: "4px",
               border: "1px solid #fde68a",
               display: "inline-block"
-            } }, "\u23F1 Rescheduled (", slot.rescheduledDate || slot.day, ")")),
-            /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "700", marginBottom: "3px" } }, slot.sem, " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `(${slot.batch})` : ""),
-            /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", marginBottom: "6px" } }, "\u{1F4CD} ", slot.room || "Classroom"),
+            } }, "\u23F1 Rescheduled (", slot.rescheduledDate || slot.day, ")")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "700", marginBottom: "3px" } }, slot.sem, " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `\u2022 ${slot.batch}` : ""), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", marginBottom: isMulti ? "8px" : "6px" } }, "\u{1F4CD} ", slot.room || "Classroom"), isMulti && /* @__PURE__ */ React.createElement("div", { style: {
+              fontSize: "10px",
+              fontWeight: "800",
+              color: "#4338ca",
+              backgroundColor: "#e0e7ff",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              display: "inline-block",
+              marginBottom: "6px"
+            } }, "\u{1F52C} Multi-Slot Lab / Practical (", timeRange, ")")),
             /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", alignItems: "center", marginTop: "6px" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
               "button",
               {
@@ -15024,7 +15301,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
                 className: "btn-lecture-details",
                 onClick: (e) => {
                   e.stopPropagation();
-                  setSelectedLectureDetail({ slot, day: dayName, time });
+                  setSelectedLectureDetail({ slot, day: dayName, time: timeRange });
                 },
                 style: {
                   fontSize: "11px",
@@ -15059,7 +15336,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     if (recordedSession?.students) {
       presentCount2 = Object.values(recordedSession.students).filter((st) => st === "present").length;
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "640px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "90vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "800", backgroundColor: "#eff6ff", color: "#1e3a8a", padding: "2px 8px", borderRadius: "6px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "700", backgroundColor: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "6px" } }, day, " \u2022 ", time)), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, slot.name || slot.subject)), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "640px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "90vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "800", backgroundColor: "#eff6ff", color: "#1e3a8a", padding: "2px 8px", borderRadius: "6px" } }, slot.subject), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: "700", backgroundColor: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "6px" } }, day, " \u2022 ", time), slot.isMultiSlot && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "800", backgroundColor: "#e0e7ff", color: "#4338ca", padding: "2px 8px", borderRadius: "6px" } }, "\u{1F52C} Multi-Slot Session (", slot.span, " Periods)")), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 } }, slot.name || slot.subject)), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",

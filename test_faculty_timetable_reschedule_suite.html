@@ -114,8 +114,28 @@
         setCurrentUser(testFaculty);
         setActiveFacultyId(testFaculty.id);
 
-        // Initialize timetable entries if not already populated
-        getTimetableEntries();
+        // Seed test subjects, students, and timetable entries for test suite execution
+        const seedSubjects = [
+          { id: 'DBMS', code: 'DBMS', name: 'Database Management Systems', shortName: 'DBMS', department: 'AI & Data Science', semester: '3rd Sem' },
+          { id: 'DS', code: 'DS', name: 'Data Structures', shortName: 'DS', department: 'AI & Data Science', semester: '3rd Sem' },
+          { id: 'Python', code: 'Python', name: 'Python Programming', shortName: 'Python', department: 'AI & Data Science', semester: '3rd Sem' },
+          { id: 'Maths-III', code: 'Maths-III', name: 'Mathematics III', shortName: 'Maths-III', department: 'AI & Data Science', semester: '3rd Sem' }
+        ];
+        localStorage.setItem('adit_attendance_subjects', JSON.stringify(seedSubjects));
+
+        const seedStudents = [
+          { id: 'ST_001', rollNo: '01', name: 'Aarav Sharma', enrollmentNo: '210010116001', semester: '3rd Sem', division: 'Div 1', department: 'AI & Data Science', batch: 'ALL', status: 'active' },
+          { id: 'ST_002', rollNo: '02', name: 'Diya Patel', enrollmentNo: '210010116002', semester: '3rd Sem', division: 'Div 1', department: 'AI & Data Science', batch: 'ALL', status: 'active' }
+        ];
+        localStorage.setItem('adit_attendance_students', JSON.stringify(seedStudents));
+
+        const seedEntries = [
+          { id: 'tte_ps_mon_dbms', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'DBMS', subjectName: 'DBMS', subjectFullName: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', departmentId: 'AI & Data Science', room: 'Room 201', day: 'Monday', timeSlot: '10:00 - 10:50' },
+          { id: 'tte_ps_tue_ds', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'DS', subjectName: 'DS', subjectFullName: 'Data Structures', sem: '3rd Sem', div: 'Div 1', departmentId: 'AI & Data Science', room: 'Room 202', day: 'Tuesday', timeSlot: '10:00 - 10:50' },
+          { id: 'tte_ps_wed_py', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'Python', subjectName: 'Python', subjectFullName: 'Python Programming', sem: '3rd Sem', div: 'Div 1', departmentId: 'AI & Data Science', room: 'Room 203', day: 'Wednesday', timeSlot: '10:00 - 10:50' },
+          { id: 'tte_rp_mon_math', facultyId: 'FAC_RP', facultyName: 'Prof. Rahul Patel', subjectId: 'Maths-III', subjectName: 'Maths-III', subjectFullName: 'Mathematics III', sem: '3rd Sem', div: 'Div 2', departmentId: 'AI & Data Science', room: 'Room 201', day: 'Monday', timeSlot: '10:00 - 10:50' }
+        ];
+        localStorage.setItem('adit_timetable_entries', JSON.stringify(seedEntries));
 
         // =========================================================================
         // TEST A: Timetable Click Navigation & Auto-load Students

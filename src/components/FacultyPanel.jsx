@@ -101,10 +101,13 @@ import {
   notifyTimetableSync,
   getDateForDayName,
   normalizeTimeSlot,
-  doTimeSlotsOverlap
+  doTimeSlotsOverlap,
+  parseTimeRangeMinutes,
+  getSessionIdentity,
+  canMergeConsecutiveSlots
 } from '../services/timetableStorage';
 
-const SUBJECT_COLOR_THEMES = {
+var SUBJECT_COLOR_THEMES = {
   purple:  { bg: '#fbf7ff', border: '#ddd6fe', text: '#5b21b6', badgeBg: '#ede9fe', badgeText: '#6d28d9' },
   green:   { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534', badgeBg: '#dcfce7', badgeText: '#15803d' },
   emerald: { bg: '#ecfdf5', border: '#a7f3d0', text: '#065f46', badgeBg: '#d1fae5', badgeText: '#047857' },
@@ -115,10 +118,14 @@ const SUBJECT_COLOR_THEMES = {
   slate:   { bg: '#f8fafc', border: '#cbd5e1', text: '#334155', badgeBg: '#f1f5f9', badgeText: '#475569' },
   blue:    { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', badgeBg: '#dbeafe', badgeText: '#1d4ed8' }
 };
+if (typeof window !== 'undefined') {
+  window.SUBJECT_COLOR_THEMES = SUBJECT_COLOR_THEMES;
+}
 
-export const getCardStyleForSubject = (subjectNameOrCode) => {
-  const colorName = getSubjectColor(subjectNameOrCode);
-  return SUBJECT_COLOR_THEMES[colorName] || SUBJECT_COLOR_THEMES.blue;
+export function getCardStyleForSubject(subjectNameOrCode) {
+  const colorName = (typeof getSubjectColor === 'function' ? getSubjectColor(subjectNameOrCode) : 'blue') || 'blue';
+  const themes = (typeof SUBJECT_COLOR_THEMES !== 'undefined' ? SUBJECT_COLOR_THEMES : (typeof window !== 'undefined' ? window.SUBJECT_COLOR_THEMES : null)) || {};
+  return themes[colorName] || themes.blue || { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', badgeBg: '#dbeafe', badgeText: '#1d4ed8' };
 };
 
 export default function FacultyPanel({ currentUser, showToast, onExit }) {
@@ -444,7 +451,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
 
     // 2. Resolve Timings
     const timeSlotStr = lec.time || lec.timeSlot || '09:00 - 09:55';
-    const times = timeSlotStr.split('-');
+    const times = timeSlotStr.split(/[-–—]/);
     let sTime = times[0]?.trim() || '09:00';
     let eTime = times[1]?.trim() || '09:55';
     if (sTime.length === 4 && sTime[1] === ':') sTime = '0' + sTime;
@@ -1917,9 +1924,58 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
 
                 {(() => {
                   const daySlots = facultyTimetableGrid[selectedTimetableDay] || {};
-                  const activeSlots = Object.keys(daySlots).filter(t => daySlots[t] && daySlots[t].subject);
+                  const isLunchTime = (t) => t.toUpperCase().includes('LUNCH') || t.startsWith('12:40') || normalizeTimeSlot(t) === '12:40 - 1:25';
 
-                  if (activeSlots.length === 0) {
+                  // Sort active slots chronologically
+                  const rawActiveKeys = Object.keys(daySlots).filter(t => daySlots[t] && daySlots[t].subject);
+                  rawActiveKeys.sort((a, b) => {
+                    const ma = parseTimeRangeMinutes(a)?.startMin ?? 0;
+                    const mb = parseTimeRangeMinutes(b)?.startMin ?? 0;
+                    return ma - mb;
+                  });
+
+                  // Group consecutive slots belonging to the same scheduled session
+                  const groupedDaySlots = [];
+                  for (let i = 0; i < rawActiveKeys.length; i++) {
+                    const t = rawActiveKeys[i];
+                    const slot = daySlots[t];
+                    const mergedList = [slot];
+                    
+                    const slotParts = (slot.timeSlot || t).split(/[-–—]/);
+                    const firstStart = slotParts[0]?.trim() || '09:00';
+                    let lastEnd = slotParts[1]?.trim() || '09:55';
+
+                    let j = i + 1;
+                    while (j < rawActiveKeys.length) {
+                      const nextT = rawActiveKeys[j];
+                      if (isLunchTime(nextT)) break;
+                      const nextSlot = daySlots[nextT];
+                      if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                        mergedList.push(nextSlot);
+                        const nextParts = (nextSlot.timeSlot || nextT).split(/[-–—]/);
+                        lastEnd = nextParts[1]?.trim() || lastEnd;
+                        j++;
+                      } else {
+                        break;
+                      }
+                    }
+
+                    const span = mergedList.length;
+                    const timeRange = span > 1 ? `${firstStart}–${lastEnd}` : (slot.timeSlot || t);
+                    const mergedDaySlot = {
+                      ...slot,
+                      time: timeRange,
+                      timeSlot: timeRange,
+                      span,
+                      isMultiSlot: span > 1,
+                      allMergedSlots: mergedList
+                    };
+
+                    groupedDaySlots.push({ timeRange, slot: mergedDaySlot, span, isMulti: span > 1 });
+                    i = j - 1;
+                  }
+
+                  if (groupedDaySlots.length === 0) {
                     return (
                       <div style={{
                         padding: '40px 20px',
@@ -1941,22 +1997,25 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
 
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-                      {activeSlots.map(time => {
-                        const slot = daySlots[time];
+                      {groupedDaySlots.map(({ timeRange, slot, span, isMulti }) => {
                         return (
                           <div
-                            key={time}
+                            key={timeRange + slot.id}
                             className="timetable-day-card"
                             onClick={() => selectLectureForAttendance({
                               ...slot,
-                              time: slot.timeSlot || time,
+                              time: timeRange,
+                              timeSlot: timeRange,
                               day: selectedTimetableDay,
                               subjectId: slot.subjectId || slot.subject,
                               subjectName: slot.name || slot.subject,
                               sem: slot.sem,
                               div: slot.div,
                               batch: slot.batch || 'ALL',
-                              room: slot.room
+                              room: slot.room,
+                              isMultiSlot: isMulti,
+                              span: span,
+                              allMergedSlots: slot.allMergedSlots
                             }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay))}
                             style={{
                               padding: '18px',
@@ -1969,19 +2028,19 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                               justifyContent: 'space-between',
                               cursor: 'pointer'
                             }}
-                            title="Click to take attendance"
+                            title={isMulti ? `Click to take attendance for this ${span}-period session (${timeRange})` : "Click to take attendance"}
                           >
                             <div>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <span style={{
                                   fontSize: '12px',
-                                  fontWeight: '700',
-                                  color: '#1e3a8a',
-                                  backgroundColor: '#eff6ff',
+                                  fontWeight: '800',
+                                  color: isMulti ? '#1e40af' : '#1e3a8a',
+                                  backgroundColor: isMulti ? '#dbeafe' : '#eff6ff',
                                   padding: '3px 8px',
                                   borderRadius: '6px'
                                 }}>
-                                  {time}
+                                  {timeRange}
                                 </span>
                                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                                   {slot.isRescheduled && (
@@ -1997,6 +2056,18 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                       Rescheduled
                                     </span>
                                   )}
+                                  {isMulti && (
+                                    <span style={{
+                                      fontSize: '10.5px',
+                                      fontWeight: '800',
+                                      backgroundColor: '#e0e7ff',
+                                      color: '#4338ca',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px'
+                                    }}>
+                                      🔬 {span} Periods / Lab
+                                    </span>
+                                  )}
                                   <span style={{
                                     fontSize: '11px',
                                     fontWeight: '700',
@@ -2005,7 +2076,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                     padding: '2px 8px',
                                     borderRadius: '4px'
                                   }}>
-                                    {slot.type || 'Lecture'}
+                                    {slot.type || (isMulti ? 'Practical Lab' : 'Lecture')}
                                   </span>
                                 </div>
                               </div>
@@ -2026,14 +2097,18 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                   e.stopPropagation();
                                   selectLectureForAttendance({
                                     ...slot,
-                                    time: slot.timeSlot || time,
+                                    time: timeRange,
+                                    timeSlot: timeRange,
                                     day: selectedTimetableDay,
                                     subjectId: slot.subjectId || slot.subject,
                                     subjectName: slot.name || slot.subject,
                                     sem: slot.sem,
                                     div: slot.div,
                                     batch: slot.batch || 'ALL',
-                                    room: slot.room
+                                    room: slot.room,
+                                    isMultiSlot: isMulti,
+                                    span: span,
+                                    allMergedSlots: slot.allMergedSlots
                                   }, slot.rescheduledDate || getDateForDayName(selectedTimetableDay));
                                 }}
                                 style={{
@@ -2121,19 +2196,160 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                     </thead>
                     <tbody>
                       {(() => {
+                        const isLunchTime = (t) => t.toUpperCase().includes('LUNCH') || t.startsWith('12:40') || normalizeTimeSlot(t) === '12:40 - 1:25';
+
                         const allSlotsToRender = [];
                         TIME_SLOTS.forEach(s => allSlotsToRender.push(s));
                         TIMETABLE_DAYS.forEach(day => {
                           const dayObj = facultyTimetableGrid[day] || {};
                           Object.keys(dayObj).forEach(s => {
                             if (!allSlotsToRender.some(ex => normalizeTimeSlot(ex) === normalizeTimeSlot(s))) {
-                              allSlotsToRender.push(s);
+                              // If slot covers multiple existing TIME_SLOTS (e.g. 10:00 - 11:45), don't insert a redundant row
+                              const sRng = parseTimeRangeMinutes(s);
+                              const isSpanningExisting = sRng && allSlotsToRender.filter(ex => {
+                                const exRng = parseTimeRangeMinutes(ex);
+                                return exRng && exRng.startMin >= sRng.startMin && exRng.endMin <= sRng.endMin;
+                              }).length >= 2;
+                              if (!isSpanningExisting) {
+                                allSlotsToRender.push(s);
+                              }
                             }
                           });
                         });
 
-                        return allSlotsToRender.map(time => {
-                          const isLunch = time.includes('12:40') || time.includes('LUNCH');
+                        allSlotsToRender.sort((a, b) => {
+                          const ma = parseTimeRangeMinutes(a)?.startMin ?? 0;
+                          const mb = parseTimeRangeMinutes(b)?.startMin ?? 0;
+                          return ma - mb;
+                        });
+
+                        // Helper to find slot in facultyTimetableGrid for a given day and row time
+                        const getSlotForRow = (dayName, timeStr) => {
+                          const dayObj = facultyTimetableGrid[dayName] || {};
+                          const normT = normalizeTimeSlot(timeStr);
+                          let slot = dayObj[timeStr];
+                          if (!slot) {
+                            for (const k of Object.keys(dayObj)) {
+                              if (normalizeTimeSlot(k) === normT) {
+                                slot = dayObj[k];
+                                break;
+                              }
+                            }
+                          }
+                          if (!slot) {
+                            const rowRng = parseTimeRangeMinutes(timeStr);
+                            if (rowRng) {
+                              for (const k of Object.keys(dayObj)) {
+                                const entry = dayObj[k];
+                                if (entry && entry.subject) {
+                                  const entryRng = parseTimeRangeMinutes(entry.timeSlot || k);
+                                  if (entryRng && Math.abs(entryRng.startMin - rowRng.startMin) <= 5) {
+                                    slot = entry;
+                                    break;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          return slot;
+                        };
+
+                        // Pre-calculate merged cells map for each day
+                        const dayCellMap = {};
+                        TIMETABLE_DAYS.forEach(dayName => {
+                          dayCellMap[dayName] = new Array(allSlotsToRender.length);
+                        });
+
+                        TIMETABLE_DAYS.forEach(dayName => {
+                          for (let rIdx = 0; rIdx < allSlotsToRender.length; rIdx++) {
+                            if (dayCellMap[dayName][rIdx]) continue; // already marked
+
+                            const time = allSlotsToRender[rIdx];
+                            if (isLunchTime(time)) {
+                              dayCellMap[dayName][rIdx] = { type: 'lunch' };
+                              continue;
+                            }
+
+                            const slot = getSlotForRow(dayName, time);
+                            if (!slot || !slot.subject) {
+                              dayCellMap[dayName][rIdx] = { type: 'empty' };
+                              continue;
+                            }
+
+                            // Determine span
+                            let span = 1;
+                            const mergedSlotsList = [slot];
+                            const slotRng = parseTimeRangeMinutes(slot.timeSlot || time);
+
+                            let checkIdx = rIdx + 1;
+                            while (checkIdx < allSlotsToRender.length) {
+                              const nextTime = allSlotsToRender[checkIdx];
+                              if (isLunchTime(nextTime)) break; // Never merge across lunch break
+
+                              const nextSlot = getSlotForRow(dayName, nextTime);
+
+                              // 1. Check if next slot is consecutive and belongs to same session
+                              if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                                span++;
+                                mergedSlotsList.push(nextSlot);
+                                dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                                checkIdx++;
+                                continue;
+                              }
+
+                              // 2. Check if current slot has a multi-period duration spanning over nextTime
+                              if (slotRng) {
+                                const nextRng = parseTimeRangeMinutes(nextTime);
+                                if (nextRng && nextRng.startMin < slotRng.endMin) {
+                                  span++;
+                                  dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                                  checkIdx++;
+                                  continue;
+                                }
+                              }
+
+                              break;
+                            }
+
+                            // Formulate combined time range string
+                            let timeRange = slot.timeSlot || time;
+                            if (span > 1) {
+                              const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || '';
+                              const lastSlot = mergedSlotsList[mergedSlotsList.length - 1];
+                              let lastEnd = '';
+                              if (lastSlot && lastSlot.timeSlot) {
+                                const p = lastSlot.timeSlot.split(/[-–—]/);
+                                lastEnd = (p[1] || p[0]).trim();
+                              } else if (slotRng && slot.timeSlot && slot.timeSlot.includes('-')) {
+                                lastEnd = slot.timeSlot.split(/[-–—]/)[1]?.trim() || '';
+                              } else {
+                                const lastRowTime = allSlotsToRender[rIdx + span - 1];
+                                const p = lastRowTime.split(/[-–—]/);
+                                lastEnd = (p[1] || p[0]).trim();
+                              }
+                              timeRange = `${firstStart}–${lastEnd}`;
+                            }
+
+                            const mergedSlot = {
+                              ...slot,
+                              timeSlot: timeRange,
+                              time: timeRange,
+                              span,
+                              isMultiSlot: span > 1,
+                              allMergedSlots: mergedSlotsList
+                            };
+
+                            dayCellMap[dayName][rIdx] = {
+                              type: 'card',
+                              slot: mergedSlot,
+                              span,
+                              timeRange
+                            };
+                          }
+                        });
+
+                        return allSlotsToRender.map((time, rIdx) => {
+                          const isLunch = isLunchTime(time);
                           if (isLunch) {
                             return (
                               <tr key={time} style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -2153,18 +2369,14 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                 {time}
                               </td>
                               {TIMETABLE_DAYS.map(dayName => {
-                                const normT = normalizeTimeSlot(time);
-                                let slot = facultyTimetableGrid[dayName]?.[time];
-                                if (!slot && facultyTimetableGrid[dayName]) {
-                                  for (const k of Object.keys(facultyTimetableGrid[dayName])) {
-                                    if (normalizeTimeSlot(k) === normT) {
-                                      slot = facultyTimetableGrid[dayName][k];
-                                      break;
-                                    }
-                                  }
+                                const cellInfo = dayCellMap[dayName]?.[rIdx];
+
+                                // If covered by an earlier rowSpan, omit the td completely to preserve table column layout!
+                                if (!cellInfo || cellInfo.type === 'skip') {
+                                  return null;
                                 }
 
-                                if (!slot || !slot.subject) {
+                                if (cellInfo.type === 'empty') {
                                   return (
                                     <td key={dayName} style={{ textAlign: 'center', color: '#cbd5e1', padding: '14px 8px', borderRight: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
                                       <span style={{ fontSize: '16px', color: '#94a3b8' }}>–</span>
@@ -2172,28 +2384,36 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                   );
                                 }
 
+                                const { slot, span, timeRange } = cellInfo;
+                                const isMulti = span > 1;
                                 const theme = getCardStyleForSubject(slot.subject);
+
                                 return (
                                   <td 
                                     key={dayName}
+                                    rowSpan={span > 1 ? span : undefined}
                                     style={{
                                       padding: '8px',
                                       borderRight: '1px solid #e2e8f0',
                                       verticalAlign: 'top',
-                                      backgroundColor: '#ffffff'
+                                      backgroundColor: '#ffffff',
+                                      height: isMulti ? '100%' : undefined
                                     }}
                                   >
                                     <div
                                       className="timetable-lecture-card"
                                       data-entry-id={slot.id}
                                       data-subject={slot.subject}
-                                      data-time={time}
+                                      data-time={timeRange}
                                       data-day={dayName}
+                                      data-is-multislot={isMulti ? 'true' : undefined}
+                                      data-span={span}
                                       onClick={() => {
                                         selectLectureForAttendance({
                                           ...slot,
                                           day: dayName,
-                                          time: slot.timeSlot || time,
+                                          time: timeRange,
+                                          timeSlot: timeRange,
                                           subjectId: slot.subjectId || slot.subject,
                                           subjectName: slot.name || slot.subjectFullName || slot.subject,
                                           sem: slot.semId || slot.sem,
@@ -2202,59 +2422,86 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                           room: slot.room,
                                           departmentId: slot.departmentId,
                                           id: slot.id,
-                                          rescheduledDate: slot.rescheduledDate
+                                          rescheduledDate: slot.rescheduledDate,
+                                          isMultiSlot: isMulti,
+                                          span: span,
+                                          allMergedSlots: slot.allMergedSlots
                                         }, slot.rescheduledDate || getDateForDayName(dayName));
                                       }}
                                       style={{
-                                        padding: '10px 12px',
+                                        padding: isMulti ? '12px 14px' : '10px 12px',
                                         borderRadius: '10px',
                                         border: `1px solid ${slot.isRescheduled ? '#f59e0b' : theme.border}`,
                                         backgroundColor: slot.isRescheduled ? '#fffbeb' : theme.bg,
                                         cursor: 'pointer',
                                         transition: 'all 0.15s ease',
-                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                                        position: 'relative'
+                                        boxShadow: isMulti ? '0 3px 8px rgba(0,0,0,0.04)' : '0 2px 4px rgba(0,0,0,0.02)',
+                                        position: 'relative',
+                                        minHeight: isMulti ? `${span * 78}px` : undefined,
+                                        height: isMulti ? 'calc(100% - 6px)' : undefined,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        boxSizing: 'border-box'
                                       }}
-                                      title="Click to mark attendance for this lecture"
+                                      title={isMulti ? `Click to mark attendance for this ${span}-period session (${timeRange})` : "Click to mark attendance for this lecture"}
                                     >
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                        <span style={{ fontWeight: '800', color: theme.text, fontSize: '13px' }}>
-                                          {slot.subject}
-                                        </span>
-                                        <span style={{
-                                          fontSize: '10px',
-                                          fontWeight: '700',
-                                          color: theme.badgeText,
-                                          backgroundColor: theme.badgeBg,
-                                          padding: '1px 6px',
-                                          borderRadius: '4px'
-                                        }}>
-                                          {time.split(' - ')[0]}
-                                        </span>
-                                      </div>
-
-                                      {slot.isRescheduled && (
-                                        <div style={{ marginBottom: '4px' }}>
+                                      <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '6px' }}>
+                                          <span style={{ fontWeight: '800', color: theme.text, fontSize: '13px' }}>
+                                            {slot.subject}
+                                          </span>
                                           <span style={{
-                                            fontSize: '9.5px',
+                                            fontSize: isMulti ? '10.5px' : '10px',
                                             fontWeight: '800',
-                                            backgroundColor: '#fef3c7',
-                                            color: '#b45309',
-                                            padding: '1px 6px',
+                                            color: isMulti ? '#1e40af' : theme.badgeText,
+                                            backgroundColor: isMulti ? '#dbeafe' : theme.badgeBg,
+                                            padding: '2px 7px',
                                             borderRadius: '4px',
-                                            border: '1px solid #fde68a',
-                                            display: 'inline-block'
+                                            whiteSpace: 'nowrap'
                                           }}>
-                                            ⏱ Rescheduled ({slot.rescheduledDate || slot.day})
+                                            {isMulti ? timeRange : time.split(' - ')[0]}
                                           </span>
                                         </div>
-                                      )}
 
-                                      <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
-                                        {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `(${slot.batch})` : ''}
-                                      </div>
-                                      <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>
-                                        📍 {slot.room || 'Classroom'}
+                                        {slot.isRescheduled && (
+                                          <div style={{ marginBottom: '4px' }}>
+                                            <span style={{
+                                              fontSize: '9.5px',
+                                              fontWeight: '800',
+                                              backgroundColor: '#fef3c7',
+                                              color: '#b45309',
+                                              padding: '1px 6px',
+                                              borderRadius: '4px',
+                                              border: '1px solid #fde68a',
+                                              display: 'inline-block'
+                                            }}>
+                                              ⏱ Rescheduled ({slot.rescheduledDate || slot.day})
+                                            </span>
+                                          </div>
+                                        )}
+
+                                        <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
+                                          {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `• ${slot.batch}` : ''}
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: isMulti ? '8px' : '6px' }}>
+                                          📍 {slot.room || 'Classroom'}
+                                        </div>
+
+                                        {isMulti && (
+                                          <div style={{
+                                            fontSize: '10px',
+                                            fontWeight: '800',
+                                            color: '#4338ca',
+                                            backgroundColor: '#e0e7ff',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            display: 'inline-block',
+                                            marginBottom: '6px'
+                                          }}>
+                                            🔬 Multi-Slot Lab / Practical ({timeRange})
+                                          </div>
+                                        )}
                                       </div>
 
                                       {/* Card Actions: Detail Modal */}
@@ -2264,7 +2511,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                           className="btn-lecture-details"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            setSelectedLectureDetail({ slot, day: dayName, time });
+                                            setSelectedLectureDetail({ slot, day: dayName, time: timeRange });
                                           }}
                                           style={{
                                             fontSize: '11px',
@@ -2328,6 +2575,11 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                           <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '6px' }}>
                             {day} • {time}
                           </span>
+                          {slot.isMultiSlot && (
+                            <span style={{ fontSize: '11px', fontWeight: '800', backgroundColor: '#e0e7ff', color: '#4338ca', padding: '2px 8px', borderRadius: '6px' }}>
+                              🔬 Multi-Slot Session ({slot.span} Periods)
+                            </span>
+                          )}
                         </div>
                         <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
                           {slot.name || slot.subject}

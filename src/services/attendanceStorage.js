@@ -1267,6 +1267,29 @@ export const getFacultyAuthorizedAssignments = (facultyOrUser = null) => {
         });
       }
     } catch (e) {}
+
+    // 3.5 Centralized Timetable Assignments (adit_timetable_entries)
+    try {
+      const rawTT = localStorage.getItem('adit_timetable_entries');
+      if (rawTT) {
+        const entries = JSON.parse(rawTT);
+        entries.forEach(e => {
+          const matchTT = e.facultyId === facId || 
+            (e.facultyName && e.facultyName.trim().toLowerCase() === facName);
+          if (matchTT) {
+            addAssignment(
+              e.departmentId || e.department || user.dept,
+              e.semId || e.sem,
+              e.divId || e.div,
+              e.batch || 'ALL',
+              e.subjectId || e.subject,
+              e.subjectFullName || e.subjectName || e.subject,
+              e.subjectId || e.subject
+            );
+          }
+        });
+      }
+    } catch (e) {}
   }
 
   // 4. Directly Assigned Subjects from Subject Master
