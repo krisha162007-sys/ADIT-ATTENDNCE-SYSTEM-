@@ -72,9 +72,8 @@ export const getTimetableEntries = () => {
       console.error(e);
     }
   }
-  const seed = getSeedEntries();
-  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(seed));
-  return seed;
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
+  return [];
 };
 
 export const saveTimetableEntry = (entry) => {
@@ -493,161 +492,16 @@ export const calculateTimetableSummary = (timetableGrid) => {
 };
 
 export const resetFacultyTimetablesToDefault = () => {
-  const seed = getSeedEntries();
-  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(seed));
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE, JSON.stringify({}));
+  localStorage.setItem(TT_STORAGE_KEYS.UPLOADED_FILE_INFO, 'null');
   notifyTimetableSync();
 };
 
 export const resetAllTimetablesToDefault = resetFacultyTimetablesToDefault;
 
 // Seed Master Map
-export const DEFAULT_FACULTY_TIMETABLES = {
-  'FAC_PS': {
-    Monday: {
-      '9:00 - 9:55': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-      '10:55 - 11:45': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 2', room: 'Room 204', color: 'green', type: 'Lecture' },
-    },
-    Tuesday: {
-      '9:00 - 9:55': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'green', type: 'Lecture' },
-      '11:50 - 12:40': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-      '2:20 - 3:10': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 2', room: 'Room 203', color: 'coral', type: 'Lab' },
-    },
-    Wednesday: {
-      '10:00 - 10:50': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lecture' },
-      '1:25 - 2:15': { subject: 'Seminar', name: 'Technical Seminar', sem: '3rd Sem', div: 'Div 1', room: 'Room 301', color: 'blue', type: 'Seminar' },
-    },
-    Thursday: {
-      '9:00 - 9:55': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 2', room: 'Room 205', color: 'purple', type: 'Lecture' },
-      '10:55 - 11:45': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'green', type: 'Lecture' },
-      '3:15 - 4:05': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lab' },
-    },
-    Friday: {
-      '10:00 - 10:50': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC_RP': {
-    Monday: {
-      '10:00 - 10:50': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'amber', type: 'Lecture' },
-      '11:50 - 12:40': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 2', room: 'Room 202', color: 'amber', type: 'Lecture' },
-    },
-    Tuesday: {
-      '10:00 - 10:50': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'amber', type: 'Lecture' },
-    },
-    Wednesday: {
-      '9:00 - 9:55': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 2', room: 'Room 202', color: 'amber', type: 'Lecture' },
-      '11:50 - 12:40': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'amber', type: 'Lecture' },
-    },
-    Thursday: {
-      '1:25 - 2:15': { subject: 'Tutorial', name: 'Maths Tutorial', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'amber', type: 'Tutorial' },
-    },
-    Friday: {
-      '9:00 - 9:55': { subject: 'Maths-III', name: 'Mathematics - III', sem: '3rd Sem', div: 'Div 2', room: 'Room 202', color: 'amber', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC_AK': {
-    Monday: {
-      '1:25 - 2:15': { subject: 'OS', name: 'Operating Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'indigo', type: 'Lecture' },
-    },
-    Tuesday: {
-      '10:55 - 11:45': { subject: 'OS', name: 'Operating Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'indigo', type: 'Lecture' },
-      '2:20 - 3:10': { subject: 'OS Lab', name: 'OS Lab', sem: '3rd Sem', div: 'Div 1', room: 'OS Lab 1', color: 'indigo', type: 'Lab' },
-    },
-    Wednesday: {
-      '2:20 - 3:10': { subject: 'OS', name: 'Operating Systems', sem: '3rd Sem', div: 'Div 2', room: 'Room 204', color: 'indigo', type: 'Lecture' },
-    },
-    Thursday: {
-      '11:50 - 12:40': { subject: 'OS', name: 'Operating Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'indigo', type: 'Lecture' },
-    },
-    Friday: {
-      '10:55 - 11:45': { subject: 'OS', name: 'Operating Systems', sem: '3rd Sem', div: 'Div 2', room: 'Room 204', color: 'indigo', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC_SM': {
-    Monday: {
-      '11:50 - 12:40': { subject: 'CN', name: 'Computer Networks', sem: '3rd Sem', div: 'Div 1', room: 'Room 204', color: 'cyan', type: 'Lecture' },
-    },
-    Tuesday: {
-      '1:25 - 2:15': { subject: 'CN', name: 'Computer Networks', sem: '3rd Sem', div: 'Div 1', room: 'Room 204', color: 'cyan', type: 'Lecture' },
-    },
-    Wednesday: {
-      '10:55 - 11:45': { subject: 'CN', name: 'Computer Networks', sem: '3rd Sem', div: 'Div 2', room: 'Room 205', color: 'cyan', type: 'Lecture' },
-      '3:15 - 4:05': { subject: 'CN Lab', name: 'CN Lab', sem: '3rd Sem', div: 'Div 1', room: 'Network Lab', color: 'cyan', type: 'Lab' },
-    },
-    Thursday: {
-      '2:20 - 3:10': { subject: 'CN', name: 'Computer Networks', sem: '3rd Sem', div: 'Div 1', room: 'Room 204', color: 'cyan', type: 'Lecture' },
-    },
-    Friday: {
-      '11:50 - 12:40': { subject: 'CN', name: 'Computer Networks', sem: '3rd Sem', div: 'Div 2', room: 'Room 205', color: 'cyan', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC_DT': {
-    Monday: {
-      '2:20 - 3:10': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lecture' },
-      '3:15 - 4:05': { subject: 'Python Lab', name: 'Python Lab', sem: '3rd Sem', div: 'Div 1', room: 'Comp Lab 2', color: 'coral', type: 'Lab' },
-    },
-    Tuesday: {
-      '3:15 - 4:05': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 2', room: 'Room 203', color: 'coral', type: 'Lecture' },
-    },
-    Wednesday: {
-      '9:00 - 9:55': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lecture' },
-    },
-    Thursday: {
-      '1:25 - 2:15': { subject: 'Python Lab', name: 'Python Lab', sem: '3rd Sem', div: 'Div 2', room: 'Comp Lab 2', color: 'coral', type: 'Lab' },
-    },
-    Friday: {
-      '1:25 - 2:15': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC01': {
-    Monday: {
-      '9:00 - 9:55': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 3', room: 'Room 301', color: 'green', type: 'Lecture' },
-      '10:55 - 11:45': { subject: 'DS Lab', name: 'DS Lab', sem: '3rd Sem', div: 'Div 3', room: 'DS Lab 1', color: 'green', type: 'Lab' },
-    },
-    Tuesday: {
-      '9:00 - 9:55': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 3', room: 'Room 301', color: 'green', type: 'Lecture' },
-    },
-    Wednesday: {
-      '10:00 - 10:50': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 3', room: 'Room 301', color: 'green', type: 'Lecture' },
-    },
-    Thursday: {
-      '9:00 - 9:55': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 3', room: 'Room 301', color: 'green', type: 'Lecture' },
-      '1:25 - 2:15': { subject: 'DS Lab', name: 'DS Lab', sem: '3rd Sem', div: 'Div 3', room: 'DS Lab 1', color: 'green', type: 'Lab' },
-    },
-    Friday: {
-      '10:00 - 10:50': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 3', room: 'Room 301', color: 'green', type: 'Lecture' },
-    },
-    Saturday: {}
-  },
-  'FAC02': {
-    Monday: {
-      '9:00 - 9:55': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-      '10:55 - 11:45': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 2', room: 'Room 204', color: 'green', type: 'Lecture' },
-    },
-    Tuesday: {
-      '9:00 - 9:55': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'green', type: 'Lecture' },
-      '11:50 - 12:40': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-      '2:20 - 3:10': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 2', room: 'Room 203', color: 'coral', type: 'Lab' },
-    },
-    Wednesday: {
-      '10:00 - 10:50': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lecture' },
-      '1:25 - 2:15': { subject: 'Seminar', name: 'Technical Seminar', sem: '3rd Sem', div: 'Div 1', room: 'Room 301', color: 'blue', type: 'Seminar' },
-    },
-    Thursday: {
-      '9:00 - 9:55': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 2', room: 'Room 205', color: 'purple', type: 'Lecture' },
-      '10:55 - 11:45': { subject: 'DS', name: 'Data Structures', sem: '3rd Sem', div: 'Div 1', room: 'Room 202', color: 'green', type: 'Lecture' },
-      '3:15 - 4:05': { subject: 'Python', name: 'Python Programming', sem: '3rd Sem', div: 'Div 1', room: 'Room 203', color: 'coral', type: 'Lab' },
-    },
-    Friday: {
-      '10:00 - 10:50': { subject: 'DBMS', name: 'Database Management Systems', sem: '3rd Sem', div: 'Div 1', room: 'Room 201', color: 'purple', type: 'Lecture' },
-    },
-    Saturday: {}
-  }
-};
+export const DEFAULT_FACULTY_TIMETABLES = {};
 
 const FACULTY_NAMES = {
   'FAC_PS': 'Prof. Priya Shah',
@@ -660,33 +514,7 @@ const FACULTY_NAMES = {
   'FAC_DJP': 'Dr. Dinesh Prajapati'
 };
 
-const getSeedEntries = () => {
-  const entries = [];
-  Object.entries(DEFAULT_FACULTY_TIMETABLES).forEach(([facId, days]) => {
-    Object.entries(days).forEach(([day, slots]) => {
-      Object.entries(slots).forEach(([timeSlot, slot]) => {
-        entries.push({
-          id: generateId(),
-          facultyId: facId,
-          facultyName: FACULTY_NAMES[facId] || 'Faculty',
-          subjectId: slot.subject, // using short name as id for seed
-          subjectName: slot.subject,
-          subjectFullName: slot.name,
-          semId: slot.sem,
-          divId: slot.div,
-          sem: slot.sem,
-          div: slot.div,
-          room: slot.room,
-          color: slot.color,
-          type: slot.type,
-          day,
-          timeSlot
-        });
-      });
-    });
-  });
-  return entries;
-};
+const getSeedEntries = () => [];
 
 
 // Download Class Timetable Template stub

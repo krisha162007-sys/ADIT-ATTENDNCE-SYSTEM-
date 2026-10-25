@@ -210,13 +210,13 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
     }
   };
 
-  // Reset all academic data to defaults
+  // Wipe all academic data clean
   const handleResetDefaults = () => {
-    if (window.confirm('Reset all academic departments, faculty, subjects and timetables back to default sample records?')) {
+    if (window.confirm('Are you sure you want to wipe ALL academic data (departments, faculty, subjects, classes, students, and timetables) clean to start with a blank database?')) {
       resetToDefault();
       resetFacultyTimetablesToDefault();
       refreshState();
-      if (showToast) showToast('Academic data and timetables reset to defaults!');
+      if (showToast) showToast('All academic data wiped clean! You have a fresh clean slate.');
     }
   };
 
@@ -422,7 +422,20 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                {departments.map((d) => {
+                {departments.length === 0 ? (
+                  <div style={{ gridColumn: '1 / -1', padding: '36px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                    <Building2 size={36} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
+                    <p style={{ margin: 0, fontWeight: '700', color: '#475569', fontSize: '15px' }}>No Departments Created Yet</p>
+                    <p style={{ margin: '4px 0 16px', color: '#64748b', fontSize: '13px' }}>Click below to create your institution's departments.</p>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setShowDeptModal(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Plus size={14} /> Add Department
+                    </button>
+                  </div>
+                ) : departments.map((d) => {
                   const facCount = faculties.filter(f => f.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
                   const subjCount = subjects.filter(s => s.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
 
@@ -518,9 +531,13 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
                 onChange={(e) => setActiveDept(e.target.value)}
                 style={{ maxWidth: '280px', fontWeight: '700' }}
               >
-                {departments.map((d) => (
-                  <option key={d.id || d.name} value={d.name}>{d.name}</option>
-                ))}
+                {departments.length === 0 ? (
+                  <option value="">No Departments (Add Department First)</option>
+                ) : (
+                  departments.map((d) => (
+                    <option key={d.id || d.name} value={d.name}>{d.name}</option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -687,10 +704,10 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
             <div className="card" style={{ padding: '24px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#e11d48', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <RotateCcw size={18} />
-                Reset System Database
+                Wipe All Academic Data (Clean Slate)
               </h3>
               <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
-                Restore all faculties, timetables, subjects, and departments to default sample data.
+                Wipe all departments, faculties, classes, students, subjects, and timetables completely clean so you can enter real institutional data from scratch.
               </p>
 
               <div style={{ marginTop: '16px' }}>
@@ -700,7 +717,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
                   onClick={handleResetDefaults}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <RotateCcw size={14} /> Reset Academic Database to Defaults
+                  <RotateCcw size={14} /> Wipe All Data & Start Clean Slate
                 </button>
               </div>
             </div>

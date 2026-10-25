@@ -70,6 +70,11 @@
     window.useContext    = React.useContext;
     window.useReducer    = React.useReducer;
     window.useLayoutEffect = React.useLayoutEffect;
+
+    window.onerror = function(msg, url, line, col, err) {
+      console.error('BUNDLE RUNTIME ERROR:', msg, url, line, col, err);
+      window.__bundleError = msg + ' at line ' + line;
+    };
   </script>
 
   <!-- Pre-compiled application bundle -->
@@ -103,11 +108,28 @@
 
     async function runTestSuite() {
       try {
+        if (window.__bundleError) {
+          log("BUNDLE ERROR DETECTED: " + window.__bundleError, false);
+        }
         log("Starting Comprehensive 10-Scenario Test Suite Execution...", true);
 
         // Clear and initialize clean storage
         localStorage.clear();
         if (window.initializeStorage) window.initializeStorage();
+
+        // Seed test academic context
+        localStorage.setItem('adit_attendance_subjects', JSON.stringify([
+          { id: 'SUB_AI_DS', name: 'Data Structures', shortName: 'DS', sem: '3rd Sem', dept: 'AI & Data Science', faculty: 'Prof. Priya Shah', facultyId: 'FAC_PS' }
+        ]));
+        localStorage.setItem('adit_timetable_entries', JSON.stringify([
+          { id: 'tt_1', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'SUB_AI_DS', subjectName: 'Data Structures', semId: '3rd Sem', divId: 'Div 1', sem: '3rd Sem', div: 'Div 1', timeSlot: '09:00 - 09:55', day: 'Monday' },
+          { id: 'tt_2', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'SUB_AI_DS', subjectName: 'Data Structures', semId: '3rd Sem', divId: 'Div 2', sem: '3rd Sem', div: 'Div 2', timeSlot: '09:55 - 10:50', day: 'Monday' }
+        ]));
+        localStorage.setItem('adit_attendance_students', JSON.stringify([
+          { id: 'S_AI_01', name: 'Aarav Patel', enrollmentNo: '24AD001', sem: '3rd Sem', semester: '3rd Sem', division: 'Div 1', class: 'Div 1', dept: 'AI & Data Science', department: 'AI & Data Science' },
+          { id: 'S_AI_02', name: 'Student B', enrollmentNo: '24AD002', sem: '3rd Sem', semester: '3rd Sem', division: 'Div 1', class: 'Div 1', dept: 'AI & Data Science', department: 'AI & Data Science' },
+          { id: 'S_AI_03', name: 'Student C', enrollmentNo: '24AD003', sem: '3rd Sem', semester: '3rd Sem', division: 'Div 1', class: 'Div 1', dept: 'AI & Data Science', department: 'AI & Data Science' }
+        ]));
 
         const facultyUser = {
           id: 'FAC_PS',

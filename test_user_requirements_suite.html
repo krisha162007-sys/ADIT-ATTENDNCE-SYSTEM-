@@ -92,6 +92,12 @@
         };
 
         // Authenticate test faculty & ensure timetable entries are populated
+        localStorage.setItem('adit_timetable_entries', JSON.stringify([
+          { id: 'tt_ps_1', facultyId: 'FAC_PS', facultyName: 'Prof. Priya Shah', subjectId: 'SUB_AI_DS', subjectName: 'Data Structures', semId: '3rd Sem', divId: 'Div 1', sem: '3rd Sem', div: 'Div 1', timeSlot: '9:00 - 9:55', day: 'Monday', room: 'Room 201', type: 'Lecture' }
+        ]));
+        localStorage.setItem('adit_attendance_classes', JSON.stringify([
+          { id: 'CLASS_TEST_1', departmentName: 'AI & Data Science', departmentId: 'DEP_AI', semester: '3rd Sem', division: 'Div 1', academicYear: '2026-27', status: 'active' }
+        ]));
         setCurrentUser(testFaculty);
         setActiveFacultyId(testFaculty.id);
         getTimetableEntries();

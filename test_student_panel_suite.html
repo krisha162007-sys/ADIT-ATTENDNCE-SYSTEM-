@@ -153,6 +153,14 @@
         }
         localStorage.setItem('adit_attendance_students', JSON.stringify(studentsList));
 
+        // Seed subject and faculty for student test
+        localStorage.setItem('adit_attendance_faculties', JSON.stringify([
+          { id: 'FAC01', name: 'Prof. R. K. Patel', email: 'rkpatel@adit.ac.in', dept: 'Computer Engineering' }
+        ]));
+        localStorage.setItem('adit_attendance_subjects', JSON.stringify([
+          { id: 'SUB_DS', code: '102040304', name: 'DATA STRUCTURES', shortName: 'DS', sem: '3rd Sem', dept: 'Computer Engineering', faculty: 'Prof. R. K. Patel', facultyName: 'Prof. R. K. Patel', credits: 4 }
+        ]));
+
         // -------------------------------------------------------------
         // TEST 2: Shared Login - Auto-Detects Student Role via Enrollment No
         // -------------------------------------------------------------
@@ -523,7 +531,7 @@
 
         log('ALL 13 STUDENT PANEL TEST SPECIFICATIONS PASSED PERFECTLY!', true);
       } catch (err) {
-        log(`EXECUTION EXCEPTION: ${err.message}`, false);
+        log(`EXECUTION EXCEPTION: ${err.message} :: ${err.stack}`, false);
       } finally {
         await sendResults();
       }

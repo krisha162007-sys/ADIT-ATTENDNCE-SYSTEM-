@@ -33,128 +33,7 @@ const normalizeDiv = (divStr) => {
   if (!m) return s;
   return `Div ${m[1]}`;
 };
-const DEFAULT_CLASSES = [
-  {
-    id: "CLASS_DEP_CP_3_3_2026-27",
-    departmentId: "DEP_CP",
-    departmentName: "Computer Engineering",
-    semester: "3rd Sem",
-    division: "Div 3",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_CP_3_1_2026-27",
-    departmentId: "DEP_CP",
-    departmentName: "Computer Engineering",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_CP_3_2_2026-27",
-    departmentId: "DEP_CP",
-    departmentName: "Computer Engineering",
-    semester: "3rd Sem",
-    division: "Div 2",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_AI_3_1_2026-27",
-    departmentId: "DEP_AI",
-    departmentName: "AI & Data Science",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_AI_3_2_2026-27",
-    departmentId: "DEP_AI",
-    departmentName: "AI & Data Science",
-    semester: "3rd Sem",
-    division: "Div 2",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_AI_5_1_2026-27",
-    departmentId: "DEP_AI",
-    departmentName: "AI & Data Science",
-    semester: "5th Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_CP_5_1_2026-27",
-    departmentId: "DEP_CP",
-    departmentName: "Computer Engineering",
-    semester: "5th Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_IT_1_1_2026-27",
-    departmentId: "DEP_IT",
-    departmentName: "Information Technology",
-    semester: "1st Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_IT_3_1_2026-27",
-    departmentId: "DEP_IT",
-    departmentName: "Information Technology",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_EC_3_1_2026-27",
-    departmentId: "DEP_EC",
-    departmentName: "Electronics & Communication",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_ME_3_1_2026-27",
-    departmentId: "DEP_ME",
-    departmentName: "Mechanical Engineering",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  },
-  {
-    id: "CLASS_DEP_CL_3_1_2026-27",
-    departmentId: "DEP_CL",
-    departmentName: "Civil Engineering",
-    semester: "3rd Sem",
-    division: "Div 1",
-    academicYear: "2026-27",
-    createdAt: "2026-07-01T00:00:00.000Z",
-    status: "active"
-  }
-];
+const DEFAULT_CLASSES = [];
 const SEMESTERS = [
   { id: "1st Sem", num: 1, term: "Odd", year: "1st Year" },
   { id: "2nd Sem", num: 2, term: "Even", year: "1st Year" },
@@ -165,188 +44,9 @@ const SEMESTERS = [
   { id: "7th Sem", num: 7, term: "Odd", year: "4th Year" },
   { id: "8th Sem", num: 8, term: "Even", year: "4th Year" }
 ];
-const DEFAULT_DEPARTMENTS = [
-  {
-    id: "DEP_AI",
-    code: "AI&DS",
-    name: "AI & Data Science",
-    fullName: "Department of Artificial Intelligence & Data Science",
-    icon: "Brain",
-    hod: "Prof. Priya Shah",
-    hodEmail: "priya.shah@adit.ac.in",
-    hodPhone: "+91 98250 11111",
-    cabin: "Academic Block B, Room 201-A",
-    established: "2021",
-    totalStudents: 180,
-    classrooms: ["Room 201", "Room 202", "Room 203", "Room 204", "Room 205", "Seminar Hall 301"],
-    labs: [
-      { name: "AI & Deep Learning Lab", code: "AI-LAB", room: "Lab 301", pcs: 35, inCharge: "Prof. Dev Trivedi" },
-      { name: "Data Engineering & Analytics Lab", code: "DE-LAB", room: "Lab 302", pcs: 35, inCharge: "Prof. R. Jain" },
-      { name: "Database & Systems Lab", code: "DBS-LAB", room: "Lab 201", pcs: 30, inCharge: "Prof. Priya Shah" },
-      { name: "Network & Cloud Lab", code: "NET-LAB", room: "Lab 202", pcs: 30, inCharge: "Prof. Sneha Mehta" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Prof. Priya Shah", cr: "Aarav Patel", studentCount: 60 },
-      { id: "2", name: "Div 2", counselor: "Prof. Rahul Patel", cr: "Ananya Sharma", studentCount: 60 },
-      { id: "3", name: "Div 3", counselor: "Prof. A. Kumar", cr: "Devansh Verma", studentCount: 60 }
-    ]
-  },
-  {
-    id: "DEP_CP",
-    code: "CP",
-    name: "Computer Engineering",
-    fullName: "Department of Computer Engineering",
-    icon: "Laptop",
-    hod: "Dr. S. M. Mehta",
-    hodEmail: "smmehta@adit.ac.in",
-    hodPhone: "+91 98250 23456",
-    cabin: "Computer Center, Room 102",
-    established: "2000",
-    totalStudents: 210,
-    classrooms: ["Classroom 301", "Classroom 302", "Classroom 303", "Classroom 304"],
-    labs: [
-      { name: "Advanced Computing Lab", code: "ACL", room: "CC-Lab 1", pcs: 40, inCharge: "Prof. R. K. Patel" },
-      { name: "Database Lab", code: "DBL", room: "Database Lab 2", pcs: 35, inCharge: "Dr. S. M. Mehta" },
-      { name: "Hardware & Microprocessor Lab", code: "HML", room: "Lab 103", pcs: 25, inCharge: "Prof. A. N. Shah" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Dr. S. M. Mehta", cr: "Harshil Soni", studentCount: 70 },
-      { id: "2", name: "Div 2", counselor: "Prof. A. N. Shah", cr: "Jiya Shah", studentCount: 70 },
-      { id: "3", name: "Div 3", counselor: "Prof. R. K. Patel", cr: "Karan Mistry", studentCount: 70 }
-    ]
-  },
-  {
-    id: "DEP_IT",
-    code: "IT",
-    name: "Information Technology",
-    fullName: "Department of Information Technology",
-    icon: "Network",
-    hod: "Dr. H. K. Trivedi",
-    hodEmail: "hktrivedi@adit.ac.in",
-    hodPhone: "+91 98250 56789",
-    cabin: "IT Complex Room 204",
-    established: "2001",
-    totalStudents: 140,
-    classrooms: ["IT-101", "IT-102", "IT-103"],
-    labs: [
-      { name: "Web Technology Lab", code: "WTL", room: "IT-Lab 1", pcs: 35, inCharge: "Prof. M. B. Joshi" },
-      { name: "Software Engineering Lab", code: "SEL", room: "IT-Lab 2", pcs: 35, inCharge: "Dr. H. K. Trivedi" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Dr. H. K. Trivedi", cr: "Meet Makwana", studentCount: 70 },
-      { id: "2", name: "Div 2", counselor: "Prof. M. B. Joshi", cr: "Bhumika Parmar", studentCount: 70 }
-    ]
-  },
-  {
-    id: "DEP_EC",
-    code: "EC",
-    name: "Electronics & Communication",
-    fullName: "Department of Electronics & Communication Engineering",
-    icon: "Cpu",
-    hod: "Dr. V. M. Patel",
-    hodEmail: "vmpatel@adit.ac.in",
-    hodPhone: "+91 98250 78901",
-    cabin: "EC Block Room 101",
-    established: "2000",
-    totalStudents: 120,
-    classrooms: ["EC-201", "EC-202"],
-    labs: [
-      { name: "VLSI & Embedded Lab", code: "VLSI", room: "EC-Lab 1", pcs: 30, inCharge: "Dr. V. M. Patel" },
-      { name: "Communication Lab", code: "COML", room: "EC-Lab 2", pcs: 25, inCharge: "Prof. T. S. Joshi" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Dr. V. M. Patel", cr: "Chirag Panchal", studentCount: 60 },
-      { id: "2", name: "Div 2", counselor: "Prof. T. S. Joshi", cr: "Diya Patel", studentCount: 60 }
-    ]
-  },
-  {
-    id: "DEP_ME",
-    code: "ME",
-    name: "Mechanical Engineering",
-    fullName: "Department of Mechanical Engineering",
-    icon: "Cog",
-    hod: "Dr. P. J. Shah",
-    hodEmail: "pjshah@adit.ac.in",
-    hodPhone: "+91 98250 89012",
-    cabin: "Workshop Admin 101",
-    established: "2000",
-    totalStudents: 120,
-    classrooms: ["ME-101", "ME-102"],
-    labs: [
-      { name: "CAD/CAM Lab", code: "CAD", room: "ME-Lab 1", pcs: 30, inCharge: "Dr. P. J. Shah" },
-      { name: "Thermal Engineering Lab", code: "THL", room: "Workshop 2", pcs: 10, inCharge: "Prof. K. R. Dave" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Dr. P. J. Shah", cr: "Parth Solanki", studentCount: 60 },
-      { id: "2", name: "Div 2", counselor: "Prof. K. R. Dave", cr: "Varun Chawla", studentCount: 60 }
-    ]
-  },
-  {
-    id: "DEP_CL",
-    code: "CL",
-    name: "Civil Engineering",
-    fullName: "Department of Civil Engineering",
-    icon: "Building",
-    hod: "Dr. R. B. Dave",
-    hodEmail: "rbdave@adit.ac.in",
-    hodPhone: "+91 98250 90123",
-    cabin: "Civil Block Room 101",
-    established: "2003",
-    totalStudents: 100,
-    classrooms: ["CL-101", "CL-102"],
-    labs: [
-      { name: "Structural & Concrete Lab", code: "SCL", room: "Civil Lab 1", pcs: 15, inCharge: "Dr. R. B. Dave" },
-      { name: "Surveying Lab", code: "SRV", room: "Field Station", pcs: 10, inCharge: "Prof. M. K. Vyas" }
-    ],
-    divisions: [
-      { id: "1", name: "Div 1", counselor: "Dr. R. B. Dave", cr: "Yash Vaghela", studentCount: 50 },
-      { id: "2", name: "Div 2", counselor: "Prof. M. K. Vyas", cr: "Tanya Kothari", studentCount: 50 }
-    ]
-  }
-];
-const DEFAULT_FACULTIES = [
-  // AI & Data Science
-  { id: "FAC_PS", name: "Prof. Priya Shah", dept: "AI & Data Science", designation: "Associate Professor", email: "priya.shah@adit.ac.in", phone: "9825011111", subjects: "DBMS, DS" },
-  { id: "FAC_RP", name: "Prof. Rahul Patel", dept: "AI & Data Science", designation: "Assistant Professor", email: "rahul.patel@adit.ac.in", phone: "9825022222", subjects: "Mathematics" },
-  { id: "FAC_AK", name: "Prof. A. Kumar", dept: "AI & Data Science", designation: "Assistant Professor", email: "a.kumar@adit.ac.in", phone: "9825033333", subjects: "Operating Systems" },
-  { id: "FAC_SM", name: "Prof. Sneha Mehta", dept: "AI & Data Science", designation: "Associate Professor", email: "sneha.mehta@adit.ac.in", phone: "9825044444", subjects: "Computer Networks" },
-  { id: "FAC_DT", name: "Prof. Dev Trivedi", dept: "AI & Data Science", designation: "Assistant Professor", email: "dev.trivedi@adit.ac.in", phone: "9825055555", subjects: "Python Programming" },
-  { id: "FAC_NM", name: "Prof. Neha Modi", dept: "AI & Data Science", designation: "Assistant Professor", email: "neha.modi@adit.ac.in", phone: "9825066666", subjects: "Humanities" },
-  { id: "FAC_RJ", name: "Prof. R. Jain", dept: "AI & Data Science", designation: "Assistant Professor", email: "r.jain@adit.ac.in", phone: "9825077777", subjects: "Data Analytics" },
-  { id: "FAC_DJP", name: "Dr. Dinesh Prajapati", dept: "AI & Data Science", designation: "Associate Professor", email: "dinesh.prajapati@adit.ac.in", phone: "9825088888", subjects: "SNA, DWDM, NLP, BDA" },
-  // Computer Engineering
-  { id: "FAC01", name: "Prof. R. K. Patel", dept: "Computer Engineering", designation: "Associate Professor", email: "rkpatel@adit.ac.in", phone: "9825012345", subjects: "Data Structures" },
-  { id: "FAC02", name: "Dr. S. M. Mehta", dept: "Computer Engineering", designation: "Professor & HOD", email: "smmehta@adit.ac.in", phone: "9825023456", subjects: "DBMS" },
-  { id: "FAC03", name: "Prof. A. N. Shah", dept: "Computer Engineering", designation: "Assistant Professor", email: "anshah@adit.ac.in", phone: "9825034567", subjects: "Digital Logic" },
-  { id: "FAC04", name: "Prof. P. V. Desai", dept: "Computer Engineering", designation: "Assistant Professor", email: "pvdesai@adit.ac.in", phone: "9825045678", subjects: "Discrete Mathematics" },
-  // Information Technology
-  { id: "FAC05", name: "Dr. H. K. Trivedi", dept: "Information Technology", designation: "Associate Professor", email: "hktrivedi@adit.ac.in", phone: "9825056789", subjects: "Object Oriented Programming" },
-  { id: "FAC06", name: "Prof. M. B. Joshi", dept: "Information Technology", designation: "Assistant Professor", email: "mbjoshi@adit.ac.in", phone: "9825067890", subjects: "Web Technologies" }
-];
-const DEFAULT_ALLOCATIONS = {
-  "SUB_DS": {
-    subjectId: "SUB_DS",
-    sem: "3rd Sem",
-    dept: "Computer Engineering",
-    divisionCount: 3,
-    // 1, 2, or 3 divisions
-    divisions: [
-      { id: "1", name: "Div 1", facultyId: "FAC02", facultyName: "Dr. S. M. Mehta" },
-      { id: "2", name: "Div 2", facultyId: "FAC03", facultyName: "Prof. A. N. Shah" },
-      { id: "3", name: "Div 3", facultyId: "FAC01", facultyName: "Prof. R. K. Patel" }
-    ]
-  },
-  "SUB01": {
-    subjectId: "SUB01",
-    sem: "3rd Sem",
-    dept: "Computer Engineering",
-    divisionCount: 2,
-    divisions: [
-      { id: "1", name: "Div 1", facultyId: "FAC02", facultyName: "Dr. S. M. Mehta" },
-      { id: "2", name: "Div 2", facultyId: "FAC04", facultyName: "Prof. P. V. Desai" }
-    ]
-  }
-};
+const DEFAULT_DEPARTMENTS = [];
+const DEFAULT_FACULTIES = [];
+const DEFAULT_ALLOCATIONS = {};
 const DEFAULT_ELECTIVE_GROUPS = [];
 const DEFAULT_ELECTIVE_ASSIGNMENTS = [];
 const DEFAULT_SECURITY = {
@@ -376,121 +76,8 @@ const setFacultyName = (name) => {
   localStorage.setItem("adit_faculty_name", name);
   return name;
 };
-const DEFAULT_STUDENTS = [
-  // Computer Engineering • Sem 3 • Div 3 (2026-27)
-  { id: "S127", rollNo: "1", name: "Aarav Patel", enrollmentNo: "12502040501127", email: "aarav.patel@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S128", rollNo: "2", name: "Ananya Sharma", enrollmentNo: "12502040501128", email: "ananya.sharma@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S129", rollNo: "3", name: "Devansh Verma", enrollmentNo: "12502040501129", email: "devansh.verma@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S130", rollNo: "4", name: "Diyansh Joshi", enrollmentNo: "12502040501130", email: "diyansh.joshi@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S131", rollNo: "5", name: "Isha Mehta", enrollmentNo: "12502040501131", email: "isha.mehta@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S132", rollNo: "6", name: "Kabir Shah", enrollmentNo: "12502040501132", email: "kabir.shah@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S133", rollNo: "7", name: "Khushi Trivedi", enrollmentNo: "12502040501133", email: "khushi.trivedi@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S134", rollNo: "8", name: "Manav Desai", enrollmentNo: "12502040501134", email: "manav.desai@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S135", rollNo: "9", name: "Neha Bhatt", enrollmentNo: "12502040501135", email: "neha.bhatt@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S136", rollNo: "10", name: "Parth Solanki", enrollmentNo: "12502040501136", email: "parth.solanki@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S137", rollNo: "11", name: "Riya Rathod", enrollmentNo: "12502040501137", email: "riya.rathod@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S138", rollNo: "12", name: "Siddharth Dave", enrollmentNo: "12502040501138", email: "siddharth.dave@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S139", rollNo: "13", name: "Tanya Kothari", enrollmentNo: "12502040501139", email: "tanya.kothari@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S140", rollNo: "14", name: "Varun Chawla", enrollmentNo: "12502040501140", email: "varun.chawla@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S142", rollNo: "15", name: "Yash Vaghela", enrollmentNo: "12502040501142", email: "yash.vaghela@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S143", rollNo: "16", name: "Aayush Prajapati", enrollmentNo: "12502040501143", email: "aayush.p@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S144", rollNo: "17", name: "Bhumika Parmar", enrollmentNo: "12502040501144", email: "bhumika.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S145", rollNo: "18", name: "Chirag Panchal", enrollmentNo: "12502040501145", email: "chirag.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S146", rollNo: "19", name: "Diya Patel", enrollmentNo: "12502040501146", email: "diya.patel@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S147", rollNo: "20", name: "Harshil Soni", enrollmentNo: "12502040501147", email: "harshil.soni@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S148", rollNo: "21", name: "Jiya Shah", enrollmentNo: "12502040501148", email: "jiya.shah@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S149", rollNo: "22", name: "Karan Mistry", enrollmentNo: "12502040501149", email: "karan.mistry@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S150", rollNo: "23", name: "Meet Makwana", enrollmentNo: "12502040501150", email: "meet.makwana@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_3_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer", class: "3", division: "Div 3", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // AI & Data Science • Sem 3 • Div 1 (2026-27) - Matching User Prompt Specification
-  { id: "S_AI_01", rollNo: "1", name: "Student A", enrollmentNo: "24AD001", email: "student.a@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_02", rollNo: "2", name: "Student B", enrollmentNo: "24AD002", email: "student.b@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_03", rollNo: "3", name: "Student C", enrollmentNo: "24AD003", email: "student.c@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_04", rollNo: "4", name: "Dhwani Shah", enrollmentNo: "24AD004", email: "dhwani.shah@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_05", rollNo: "5", name: "Kavya Patel", enrollmentNo: "24AD005", email: "kavya.patel@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_06", rollNo: "6", name: "Neel Mistry", enrollmentNo: "24AD006", email: "neel.mistry@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // AI & Data Science • Sem 3 • Div 2 (2026-27)
-  { id: "S_AI_07", rollNo: "1", name: "Rohan Varma", enrollmentNo: "24AD007", email: "rohan.v@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_08", rollNo: "2", name: "Sneha Dave", enrollmentNo: "24AD008", email: "sneha.d@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_09", rollNo: "3", name: "Tanmay Bhatt", enrollmentNo: "24AD009", email: "tanmay.b@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_10", rollNo: "4", name: "Urvi Solanki", enrollmentNo: "24AD010", email: "urvi.s@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_11", rollNo: "5", name: "Vivek Joshi", enrollmentNo: "24AD011", email: "vivek.j@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_AI_12", rollNo: "6", name: "Yashvi Prajapati", enrollmentNo: "24AD012", email: "yashvi.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_3_2_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Information Technology • Sem 1 • Div 1 (2026-27) - Matching 1IT1 Timetable
-  { id: "S_IT_01", rollNo: "1", name: "Omkar Trivedi", enrollmentNo: "24IT001", email: "omkar.t@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" },
-  { id: "S_IT_02", rollNo: "2", name: "Prachi Joshi", enrollmentNo: "24IT002", email: "prachi.j@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_IT_1_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "1st Sem", semester: "1st Sem", academicYear: "2026-27" },
-  // Computer Engineering • Sem 3 • Div 1 (2026-27)
-  { id: "S_CP_101", rollNo: "1", name: "Dev Patel", enrollmentNo: "12502040501001", email: "dev.p@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_102", rollNo: "2", name: "Krishna Sharma", enrollmentNo: "12502040501002", email: "krishna.s@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_103", rollNo: "3", name: "Meet Pandya", enrollmentNo: "12502040501003", email: "meet.p@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_104", rollNo: "4", name: "Pooja Dave", enrollmentNo: "12502040501004", email: "pooja.d@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_105", rollNo: "5", name: "Raj Makwana", enrollmentNo: "12502040501005", email: "raj.m@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_106", rollNo: "6", name: "Shivani Trivedi", enrollmentNo: "12502040501006", email: "shivani.t@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Computer Engineering • Sem 3 • Div 2 (2026-27)
-  { id: "S_CP_201", rollNo: "1", name: "Aniket Vaghela", enrollmentNo: "12502040501021", email: "aniket.v@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_202", rollNo: "2", name: "Bhavya Soni", enrollmentNo: "12502040501022", email: "bhavya.s@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_203", rollNo: "3", name: "Dhruv Parmar", enrollmentNo: "12502040501023", email: "dhruv.p@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_204", rollNo: "4", name: "Heena Shah", enrollmentNo: "12502040501024", email: "heena.s@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_205", rollNo: "5", name: "Kishan Mistry", enrollmentNo: "12502040501025", email: "kishan.m@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CP_206", rollNo: "6", name: "Nidhi Bhatt", enrollmentNo: "12502040501026", email: "nidhi.b@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_3_2_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "2", division: "Div 2", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Information Technology • Sem 3 • Div 1 (2026-27)
-  { id: "S_IT_301", rollNo: "1", name: "Akash Panchal", enrollmentNo: "12502040701001", email: "akash.p@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_IT_302", rollNo: "2", name: "Binita Rana", enrollmentNo: "12502040701002", email: "binita.r@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_IT_303", rollNo: "3", name: "Chirag Desai", enrollmentNo: "12502040701003", email: "chirag.d@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_IT_304", rollNo: "4", name: "Dolly Dave", enrollmentNo: "12502040701004", email: "dolly.d@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_IT_305", rollNo: "5", name: "Jay Patel", enrollmentNo: "12502040701005", email: "jay.p@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_IT_306", rollNo: "6", name: "Mayur Joshi", enrollmentNo: "12502040701006", email: "mayur.j@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_IT_3_1_2026-27", departmentId: "DEP_IT", department: "Information Technology", dept: "Information Technology", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Electronics & Communication • Sem 3 • Div 1 (2026-27)
-  { id: "S_EC_301", rollNo: "1", name: "Aashna Shah", enrollmentNo: "12502041101001", email: "aashna.s@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_EC_3_1_2026-27", departmentId: "DEP_EC", department: "Electronics & Communication", dept: "Electronics & Communication", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_EC_302", rollNo: "2", name: "Hardik Chauhan", enrollmentNo: "12502041101002", email: "hardik.c@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_EC_3_1_2026-27", departmentId: "DEP_EC", department: "Electronics & Communication", dept: "Electronics & Communication", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_EC_303", rollNo: "3", name: "Kavita Verma", enrollmentNo: "12502041101003", email: "kavita.v@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_EC_3_1_2026-27", departmentId: "DEP_EC", department: "Electronics & Communication", dept: "Electronics & Communication", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Mechanical Engineering • Sem 3 • Div 1 (2026-27)
-  { id: "S_ME_301", rollNo: "1", name: "Gaurav Rathore", enrollmentNo: "12502041901001", email: "gaurav.r@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_ME_3_1_2026-27", departmentId: "DEP_ME", department: "Mechanical Engineering", dept: "Mechanical Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_ME_302", rollNo: "2", name: "Kinjal Patel", enrollmentNo: "12502041901002", email: "kinjal.p@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_ME_3_1_2026-27", departmentId: "DEP_ME", department: "Mechanical Engineering", dept: "Mechanical Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // Civil Engineering • Sem 3 • Div 1 (2026-27)
-  { id: "S_CL_301", rollNo: "1", name: "Deepak Yadav", enrollmentNo: "12502040601001", email: "deepak.y@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CL_3_1_2026-27", departmentId: "DEP_CL", department: "Civil Engineering", dept: "Civil Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  { id: "S_CL_302", rollNo: "2", name: "Mansi Shah", enrollmentNo: "12502040601002", email: "mansi.s@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CL_3_1_2026-27", departmentId: "DEP_CL", department: "Civil Engineering", dept: "Civil Engineering", class: "1", division: "Div 1", sem: "3rd Sem", semester: "3rd Sem", academicYear: "2026-27" },
-  // AI & Data Science • Sem 5 • Div 1 (2026-27)
-  { id: "S_SEM5_AI_01", rollNo: "1", name: "Aarav Shah", enrollmentNo: "24AD501", email: "aarav.s5@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_AI_02", rollNo: "2", name: "Divya Patel", enrollmentNo: "24AD502", email: "divya.p5@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_AI_03", rollNo: "3", name: "Ishan Dave", enrollmentNo: "24AD503", email: "ishan.d5@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_AI_04", rollNo: "4", name: "Meera Joshi", enrollmentNo: "24AD504", email: "meera.j5@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_AI_05", rollNo: "5", name: "Rohan Trivedi", enrollmentNo: "24AD505", email: "rohan.t5@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_AI_06", rollNo: "6", name: "Tanvi Mehta", enrollmentNo: "24AD506", email: "tanvi.m5@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_AI_5_1_2026-27", departmentId: "DEP_AI", department: "AI & Data Science", dept: "AI & Data Science", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  // Computer Engineering • Sem 5 • Div 1 (2026-27)
-  { id: "S_SEM5_CP_01", rollNo: "1", name: "Aditya Verma", enrollmentNo: "24CP501", email: "aditya.v5@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_CP_02", rollNo: "2", name: "Aniket Sharma", enrollmentNo: "24CP502", email: "aniket.s5@adit.ac.in", batch: "Batch A", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_CP_03", rollNo: "3", name: "Harsh Patel", enrollmentNo: "24CP503", email: "harsh.p5@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_CP_04", rollNo: "4", name: "Kruti Shah", enrollmentNo: "24CP504", email: "kruti.s5@adit.ac.in", batch: "Batch B", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_CP_05", rollNo: "5", name: "Pranav Desai", enrollmentNo: "24CP505", email: "pranav.d5@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" },
-  { id: "S_SEM5_CP_06", rollNo: "6", name: "Riddhi Patel", enrollmentNo: "24CP506", email: "riddhi.p5@adit.ac.in", batch: "Batch C", classId: "CLASS_DEP_CP_5_1_2026-27", departmentId: "DEP_CP", department: "Computer Engineering", dept: "Computer Engineering", class: "1", division: "Div 1", sem: "5th Sem", semester: "5th Sem", academicYear: "2026-27" }
-];
-const DEFAULT_SUBJECTS = [
-  // AI & Data Science
-  { id: "SUB_AI_DBMS", code: "3130703", name: "Database Management Systems", shortName: "DBMS", faculty: "Prof. Priya Shah", credits: 4, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_DS", code: "3130702", name: "Data Structures", shortName: "DS", faculty: "Prof. Priya Shah", credits: 4, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_PY", code: "3130704", name: "Python Programming", shortName: "Python", faculty: "Prof. Dev Trivedi", credits: 3, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_MATH", code: "3130006", name: "Mathematics - III", shortName: "Mathematics", faculty: "Prof. Rahul Patel", credits: 4, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_OS", code: "3130705", name: "Operating Systems", shortName: "Operating Systems", faculty: "Prof. A. Kumar", credits: 4, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_CN", code: "3130706", name: "Computer Networks", shortName: "Computer Networks", faculty: "Prof. Sneha Mehta", credits: 4, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_SEM", code: "3130709", name: "Technical Seminar", shortName: "Seminar", faculty: "Prof. Priya Shah", credits: 2, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_DA", code: "3130708", name: "Data Analytics", shortName: "Data Analytics", faculty: "Prof. R. Jain", credits: 3, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  { id: "SUB_AI_HUM", code: "3130008", name: "Humanities & Social Sciences", shortName: "Humanities", faculty: "Prof. Neha Modi", credits: 2, sem: "3rd Sem", dept: "AI & Data Science", departmentId: "DEP_AI", class: "1", academicYear: "2026-27" },
-  // Computer Engineering
-  { id: "SUB_DS", code: "102040304", name: "DATA STRUCTURES", shortName: "DS", faculty: "Prof. R. K. Patel", credits: 4, sem: "3rd Sem", dept: "Computer Engineering", departmentId: "DEP_CP", class: "3", academicYear: "2026-27", term: "Odd" },
-  { id: "SUB01", code: "102040301", name: "Database Management Systems", shortName: "DBMS", faculty: "Dr. S. M. Mehta", credits: 4, sem: "3rd Sem", dept: "Computer Engineering", departmentId: "DEP_CP", class: "3", academicYear: "2026-27", term: "Odd" },
-  { id: "SUB02", code: "102040302", name: "Digital Logic & Computer Design", shortName: "Digital Logic", faculty: "Prof. A. N. Shah", credits: 4, sem: "3rd Sem", dept: "Computer Engineering", departmentId: "DEP_CP", class: "3", academicYear: "2026-27", term: "Odd" },
-  { id: "SUB03", code: "102040303", name: "Discrete Mathematics", shortName: "Discrete Math", faculty: "Prof. P. V. Desai", credits: 3, sem: "3rd Sem", dept: "Computer Engineering", departmentId: "DEP_CP", class: "3", academicYear: "2026-27", term: "Odd" },
-  { id: "SUB04", code: "102040305", name: "Object Oriented Programming", shortName: "OOP", faculty: "Dr. H. K. Trivedi", credits: 4, sem: "3rd Sem", dept: "Computer Engineering", departmentId: "DEP_CP", class: "3", academicYear: "2026-27", term: "Odd" },
-  // Information Technology Subjects
-  { id: "SUB_IT_01", code: "3131601", name: "Database & Web Systems", shortName: "DWS", faculty: "Prof. R. M. Patel", credits: 4, sem: "3rd Sem", dept: "Information Technology", departmentId: "DEP_IT", class: "1", academicYear: "2026-27" },
-  { id: "SUB_IT_02", code: "3110005", name: "Basic Electrical Engineering", shortName: "BEE", faculty: "Prof. S. Joshi", credits: 4, sem: "1st Sem", dept: "Information Technology", departmentId: "DEP_IT", class: "1", academicYear: "2026-27" },
-  // Electronics & Communication Subjects
-  { id: "SUB_EC_01", code: "3131001", name: "Electronic Devices & Circuits", shortName: "EDC", faculty: "Dr. V. K. Solanki", credits: 4, sem: "3rd Sem", dept: "Electronics & Communication", departmentId: "DEP_EC", class: "1", academicYear: "2026-27" },
-  // Mechanical Engineering Subjects
-  { id: "SUB_ME_01", code: "3131901", name: "Thermodynamics & Heat Transfer", shortName: "Thermodynamics", faculty: "Prof. K. N. Barot", credits: 4, sem: "3rd Sem", dept: "Mechanical Engineering", departmentId: "DEP_ME", class: "1", academicYear: "2026-27" },
-  // Civil Engineering Subjects
-  { id: "SUB_CL_01", code: "3130601", name: "Structural Analysis & Surveying", shortName: "Surveying", faculty: "Prof. M. R. Vyas", credits: 4, sem: "3rd Sem", dept: "Civil Engineering", departmentId: "DEP_CL", class: "1", academicYear: "2026-27" }
-];
+const DEFAULT_STUDENTS = [];
+const DEFAULT_SUBJECTS = [];
 const generateDSSessions = () => {
   const dates = [
     { date: "2026-07-06", topic: "Course Overview & Introduction to Data Structures" },
@@ -649,135 +236,57 @@ const initializeStorage = () => {
   if (!storedCollege || storedCollege.includes("G H Patel") || storedCollege.includes("GCET") || storedCollege.includes("GH Patel")) {
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
   }
-  const currentSubjs = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
-  const currentStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-  if (!currentSubjs || !currentSubjs.includes("102040304") || !currentStudents || !currentStudents.includes("12502040501127")) {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
-    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
+  const CLEAN_SLATE_KEY = "adit_clean_slate_real_data_v2";
+  if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
+    localStorage.setItem("adit_timetable_entries", JSON.stringify([]));
+    localStorage.setItem("adit_attendance_timetable", JSON.stringify({}));
+    localStorage.setItem("adit_timetable_file_info", "null");
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
-    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEFAULT_DEPARTMENTS));
-    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
-    return;
+    localStorage.setItem(CLEAN_SLATE_KEY, "true");
   }
-  try {
-    const parsedStudents = JSON.parse(currentStudents || "[]");
-    let stChanged = false;
-    DEFAULT_STUDENTS.forEach((defSt) => {
-      if (!parsedStudents.some((s) => s.id === defSt.id || s.enrollmentNo === defSt.enrollmentNo)) {
-        parsedStudents.push(defSt);
-        stChanged = true;
-      }
-    });
-    if (stChanged) {
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(parsedStudents));
-    }
-  } catch (e) {
+  if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
   }
-  const currentSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-  if (!currentSessions) {
+  if (localStorage.getItem(STORAGE_KEYS.CLASSES) === null) {
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+  }
+  if (localStorage.getItem(STORAGE_KEYS.SUBJECTS) === null) {
+    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+  }
+  if (localStorage.getItem(STORAGE_KEYS.FACULTIES) === null) {
+    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+  }
+  if (localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) === null) {
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+  }
+  if (localStorage.getItem(STORAGE_KEYS.ALLOCATIONS) === null) {
+    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
+  }
+  if (localStorage.getItem(STORAGE_KEYS.SESSIONS) === null) {
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   }
-  const currentExceptions = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
-  if (!currentExceptions) {
+  if (localStorage.getItem(STORAGE_KEYS.EXCEPTIONS) === null) {
     localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   }
-  const existingClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
-  if (!existingClasses) {
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
-  } else {
-    try {
-      const parsedClasses = JSON.parse(existingClasses);
-      let clsChanged = false;
-      DEFAULT_CLASSES.forEach((defCls) => {
-        if (!parsedClasses.some((c) => c.id === defCls.id)) {
-          parsedClasses.push(defCls);
-          clsChanged = true;
-        }
-      });
-      if (clsChanged) {
-        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(parsedClasses));
-      }
-    } catch (e) {
-    }
+  if (localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS) === null) {
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
   }
-  try {
-    const rawGroups = localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS);
-    if (rawGroups && (rawGroups.includes("ELEC_GRP_SEM5_2026-27") || rawGroups.includes("Semester 5 Professional Electives"))) {
-      localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, "[]");
-    }
-    const rawAsgns = localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS);
-    if (rawAsgns && (rawAsgns.includes("ELEC_GRP_SEM5_2026-27") || rawAsgns.includes("ASGN_S5_01"))) {
-      localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, "[]");
-    }
-    const rawClasses = localStorage.getItem(STORAGE_KEYS.CLASSES);
-    if (rawClasses && (rawClasses.includes("ELEC_CLS_CS_A") || rawClasses.includes("ELEC_CLS_CC_B") || rawClasses.includes("ELEC_CLS_IOT_C"))) {
-      const clsList = JSON.parse(rawClasses);
-      const cleaned = clsList.filter((c) => c.id !== "ELEC_CLS_CS_A" && c.id !== "ELEC_CLS_CC_B" && c.id !== "ELEC_CLS_IOT_C");
-      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cleaned));
-    }
-  } catch (e) {
+  if (localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS) === null) {
+    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
   }
-  if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) {
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, "[]");
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) {
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, "[]");
-  }
-  try {
-    const rawExceptions = localStorage.getItem(STORAGE_KEYS.EXCEPTIONS);
-    if (rawExceptions) {
-      const parsedExceptions = JSON.parse(rawExceptions);
-      const cleaned = parsedExceptions.filter((e) => {
-        if (e.id === "EXC_SPORT_001" && (e.studentId === "S_AI_02" || e.enrollmentNo === "125020405002")) return false;
-        if (e.id === "EXC_HACK_002" && (e.studentId === "S_AI_03" || e.enrollmentNo === "125020405003")) return false;
-        return true;
-      });
-      if (cleaned.length !== parsedExceptions.length) {
-        localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(cleaned));
-      }
-    }
-  } catch (e) {
-  }
-  const existingFaculties = localStorage.getItem(STORAGE_KEYS.FACULTIES);
-  if (!existingFaculties || !existingFaculties.includes("FAC_PS")) {
-    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
-  } else if (!existingFaculties.includes("FAC_DJP")) {
-    try {
-      const facs = JSON.parse(existingFaculties);
-      if (!facs.some((f) => f.id === "FAC_DJP" || f.name && f.name.includes("Dinesh"))) {
-        facs.push({
-          id: "FAC_DJP",
-          name: "Dr. Dinesh Prajapati",
-          dept: "AI & Data Science",
-          designation: "Associate Professor",
-          email: "dinesh.prajapati@adit.ac.in",
-          phone: "9825088888",
-          subjects: "SNA, DWDM, NLP, BDA"
-        });
-        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
-      }
-    } catch (e) {
-    }
-  }
-  const existingDepts = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
-  if (!existingDepts || !existingDepts.includes("cabin") || !existingDepts.includes("AI & Data Science")) {
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(DEFAULT_DEPARTMENTS));
-  }
-  const existingSubjs = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
-  if (!existingSubjs || !existingSubjs.includes("SUB_AI_DBMS")) {
-    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) {
-    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify(DEFAULT_ALLOCATIONS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) {
+  if (localStorage.getItem(STORAGE_KEYS.SECURITY) === null) {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
 };
@@ -996,7 +505,7 @@ const findClassByCriteria = (department, semester, division, academicYear = DEFA
     const dStr = String(department).trim().toLowerCase();
     const depts = getDepartments();
     const found = depts.find(
-      (d) => d.id.toLowerCase() === dStr || d.name.toLowerCase() === dStr || d.code.toLowerCase() === dStr || d.name.toLowerCase().includes(dStr) || dStr.includes(d.name.toLowerCase())
+      (d) => d.id && d.id.toLowerCase() === dStr || d.name && d.name.toLowerCase() === dStr || d.code && d.code.toLowerCase() === dStr || d.name && d.name.toLowerCase().includes(dStr) || d.name && dStr.includes(d.name.toLowerCase())
     );
     if (found) {
       targetDeptId = found.id;
@@ -1007,9 +516,10 @@ const findClassByCriteria = (department, semester, division, academicYear = DEFA
   }
   return classes.find((c) => {
     const semMatch = normalizeSem(c.semester) === normSem;
-    const divMatch = normalizeDiv(c.division) === normDiv;
+    const divMatch = normalizeDiv(c.division || c.name) === normDiv;
     const yearMatch = !c.academicYear || c.academicYear === normYear;
-    const deptMatch = !department || targetDeptId && c.departmentId === targetDeptId || targetDeptName && c.departmentName.toLowerCase().includes(targetDeptName.toLowerCase()) || c.departmentName.toLowerCase().includes(String(department).toLowerCase());
+    const cDeptName = c.departmentName || c.department || "";
+    const deptMatch = !department || targetDeptId && c.departmentId === targetDeptId || targetDeptName && cDeptName && cDeptName.toLowerCase().includes(targetDeptName.toLowerCase()) || cDeptName && cDeptName.toLowerCase().includes(String(department).toLowerCase());
     return semMatch && divMatch && yearMatch && deptMatch;
   }) || null;
 };
@@ -2440,29 +1950,43 @@ const deleteSession = (sessionId, userContext = null) => {
   return filtered;
 };
 const resetToDefault = () => {
-  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
-  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
-  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
+  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
-  localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify(DEFAULT_ELECTIVE_GROUPS));
-  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify(DEFAULT_ELECTIVE_ASSIGNMENTS));
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
+  localStorage.setItem("adit_timetable_entries", JSON.stringify([]));
+  localStorage.setItem("adit_attendance_timetable", JSON.stringify({}));
+  localStorage.setItem("adit_timetable_file_info", "null");
   if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+    window.dispatchEvent(new CustomEvent("adit-timetable-synced"));
+    window.dispatchEvent(new CustomEvent("adit-departments-updated"));
     window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
     window.dispatchEvent(new CustomEvent("adit-exceptions-updated"));
   }
   return {
-    classes: DEFAULT_CLASSES,
-    students: DEFAULT_STUDENTS,
-    subjects: DEFAULT_SUBJECTS,
+    departments: [],
+    faculties: [],
+    classes: [],
+    students: [],
+    subjects: [],
+    allocations: {},
     sessions: [],
     exceptions: [],
-    electiveGroups: DEFAULT_ELECTIVE_GROUPS,
-    electiveAssignments: DEFAULT_ELECTIVE_ASSIGNMENTS
+    electiveGroups: [],
+    electiveAssignments: []
   };
 };
+const clearAllSystemData = resetToDefault;
 const clearAllAttendanceData = () => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
@@ -4378,9 +3902,8 @@ const getTimetableEntries = () => {
       console.error(e);
     }
   }
-  const seed = getSeedEntries();
-  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(seed));
-  return seed;
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
+  return [];
 };
 const saveTimetableEntry = (entry) => {
   const entries = getTimetableEntries();
@@ -4728,158 +4251,13 @@ const calculateTimetableSummary = (timetableGrid) => {
   };
 };
 const resetFacultyTimetablesToDefault = () => {
-  const seed = getSeedEntries();
-  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(seed));
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE, JSON.stringify({}));
+  localStorage.setItem(TT_STORAGE_KEYS.UPLOADED_FILE_INFO, "null");
   notifyTimetableSync();
 };
 const resetAllTimetablesToDefault = resetFacultyTimetablesToDefault;
-const DEFAULT_FACULTY_TIMETABLES = {
-  "FAC_PS": {
-    Monday: {
-      "9:00 - 9:55": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" },
-      "10:55 - 11:45": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 2", room: "Room 204", color: "green", type: "Lecture" }
-    },
-    Tuesday: {
-      "9:00 - 9:55": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "green", type: "Lecture" },
-      "11:50 - 12:40": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" },
-      "2:20 - 3:10": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 2", room: "Room 203", color: "coral", type: "Lab" }
-    },
-    Wednesday: {
-      "10:00 - 10:50": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lecture" },
-      "1:25 - 2:15": { subject: "Seminar", name: "Technical Seminar", sem: "3rd Sem", div: "Div 1", room: "Room 301", color: "blue", type: "Seminar" }
-    },
-    Thursday: {
-      "9:00 - 9:55": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 2", room: "Room 205", color: "purple", type: "Lecture" },
-      "10:55 - 11:45": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "green", type: "Lecture" },
-      "3:15 - 4:05": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lab" }
-    },
-    Friday: {
-      "10:00 - 10:50": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC_RP": {
-    Monday: {
-      "10:00 - 10:50": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "amber", type: "Lecture" },
-      "11:50 - 12:40": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 2", room: "Room 202", color: "amber", type: "Lecture" }
-    },
-    Tuesday: {
-      "10:00 - 10:50": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "amber", type: "Lecture" }
-    },
-    Wednesday: {
-      "9:00 - 9:55": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 2", room: "Room 202", color: "amber", type: "Lecture" },
-      "11:50 - 12:40": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "amber", type: "Lecture" }
-    },
-    Thursday: {
-      "1:25 - 2:15": { subject: "Tutorial", name: "Maths Tutorial", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "amber", type: "Tutorial" }
-    },
-    Friday: {
-      "9:00 - 9:55": { subject: "Maths-III", name: "Mathematics - III", sem: "3rd Sem", div: "Div 2", room: "Room 202", color: "amber", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC_AK": {
-    Monday: {
-      "1:25 - 2:15": { subject: "OS", name: "Operating Systems", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "indigo", type: "Lecture" }
-    },
-    Tuesday: {
-      "10:55 - 11:45": { subject: "OS", name: "Operating Systems", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "indigo", type: "Lecture" },
-      "2:20 - 3:10": { subject: "OS Lab", name: "OS Lab", sem: "3rd Sem", div: "Div 1", room: "OS Lab 1", color: "indigo", type: "Lab" }
-    },
-    Wednesday: {
-      "2:20 - 3:10": { subject: "OS", name: "Operating Systems", sem: "3rd Sem", div: "Div 2", room: "Room 204", color: "indigo", type: "Lecture" }
-    },
-    Thursday: {
-      "11:50 - 12:40": { subject: "OS", name: "Operating Systems", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "indigo", type: "Lecture" }
-    },
-    Friday: {
-      "10:55 - 11:45": { subject: "OS", name: "Operating Systems", sem: "3rd Sem", div: "Div 2", room: "Room 204", color: "indigo", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC_SM": {
-    Monday: {
-      "11:50 - 12:40": { subject: "CN", name: "Computer Networks", sem: "3rd Sem", div: "Div 1", room: "Room 204", color: "cyan", type: "Lecture" }
-    },
-    Tuesday: {
-      "1:25 - 2:15": { subject: "CN", name: "Computer Networks", sem: "3rd Sem", div: "Div 1", room: "Room 204", color: "cyan", type: "Lecture" }
-    },
-    Wednesday: {
-      "10:55 - 11:45": { subject: "CN", name: "Computer Networks", sem: "3rd Sem", div: "Div 2", room: "Room 205", color: "cyan", type: "Lecture" },
-      "3:15 - 4:05": { subject: "CN Lab", name: "CN Lab", sem: "3rd Sem", div: "Div 1", room: "Network Lab", color: "cyan", type: "Lab" }
-    },
-    Thursday: {
-      "2:20 - 3:10": { subject: "CN", name: "Computer Networks", sem: "3rd Sem", div: "Div 1", room: "Room 204", color: "cyan", type: "Lecture" }
-    },
-    Friday: {
-      "11:50 - 12:40": { subject: "CN", name: "Computer Networks", sem: "3rd Sem", div: "Div 2", room: "Room 205", color: "cyan", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC_DT": {
-    Monday: {
-      "2:20 - 3:10": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lecture" },
-      "3:15 - 4:05": { subject: "Python Lab", name: "Python Lab", sem: "3rd Sem", div: "Div 1", room: "Comp Lab 2", color: "coral", type: "Lab" }
-    },
-    Tuesday: {
-      "3:15 - 4:05": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 2", room: "Room 203", color: "coral", type: "Lecture" }
-    },
-    Wednesday: {
-      "9:00 - 9:55": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lecture" }
-    },
-    Thursday: {
-      "1:25 - 2:15": { subject: "Python Lab", name: "Python Lab", sem: "3rd Sem", div: "Div 2", room: "Comp Lab 2", color: "coral", type: "Lab" }
-    },
-    Friday: {
-      "1:25 - 2:15": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC01": {
-    Monday: {
-      "9:00 - 9:55": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 3", room: "Room 301", color: "green", type: "Lecture" },
-      "10:55 - 11:45": { subject: "DS Lab", name: "DS Lab", sem: "3rd Sem", div: "Div 3", room: "DS Lab 1", color: "green", type: "Lab" }
-    },
-    Tuesday: {
-      "9:00 - 9:55": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 3", room: "Room 301", color: "green", type: "Lecture" }
-    },
-    Wednesday: {
-      "10:00 - 10:50": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 3", room: "Room 301", color: "green", type: "Lecture" }
-    },
-    Thursday: {
-      "9:00 - 9:55": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 3", room: "Room 301", color: "green", type: "Lecture" },
-      "1:25 - 2:15": { subject: "DS Lab", name: "DS Lab", sem: "3rd Sem", div: "Div 3", room: "DS Lab 1", color: "green", type: "Lab" }
-    },
-    Friday: {
-      "10:00 - 10:50": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 3", room: "Room 301", color: "green", type: "Lecture" }
-    },
-    Saturday: {}
-  },
-  "FAC02": {
-    Monday: {
-      "9:00 - 9:55": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" },
-      "10:55 - 11:45": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 2", room: "Room 204", color: "green", type: "Lecture" }
-    },
-    Tuesday: {
-      "9:00 - 9:55": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "green", type: "Lecture" },
-      "11:50 - 12:40": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" },
-      "2:20 - 3:10": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 2", room: "Room 203", color: "coral", type: "Lab" }
-    },
-    Wednesday: {
-      "10:00 - 10:50": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lecture" },
-      "1:25 - 2:15": { subject: "Seminar", name: "Technical Seminar", sem: "3rd Sem", div: "Div 1", room: "Room 301", color: "blue", type: "Seminar" }
-    },
-    Thursday: {
-      "9:00 - 9:55": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 2", room: "Room 205", color: "purple", type: "Lecture" },
-      "10:55 - 11:45": { subject: "DS", name: "Data Structures", sem: "3rd Sem", div: "Div 1", room: "Room 202", color: "green", type: "Lecture" },
-      "3:15 - 4:05": { subject: "Python", name: "Python Programming", sem: "3rd Sem", div: "Div 1", room: "Room 203", color: "coral", type: "Lab" }
-    },
-    Friday: {
-      "10:00 - 10:50": { subject: "DBMS", name: "Database Management Systems", sem: "3rd Sem", div: "Div 1", room: "Room 201", color: "purple", type: "Lecture" }
-    },
-    Saturday: {}
-  }
-};
+const DEFAULT_FACULTY_TIMETABLES = {};
 const FACULTY_NAMES = {
   "FAC_PS": "Prof. Priya Shah",
   "FAC_RP": "Prof. Rahul Patel",
@@ -4890,34 +4268,7 @@ const FACULTY_NAMES = {
   "FAC02": "Dr. S. M. Mehta",
   "FAC_DJP": "Dr. Dinesh Prajapati"
 };
-const getSeedEntries = () => {
-  const entries = [];
-  Object.entries(DEFAULT_FACULTY_TIMETABLES).forEach(([facId, days]) => {
-    Object.entries(days).forEach(([day, slots]) => {
-      Object.entries(slots).forEach(([timeSlot, slot]) => {
-        entries.push({
-          id: generateId(),
-          facultyId: facId,
-          facultyName: FACULTY_NAMES[facId] || "Faculty",
-          subjectId: slot.subject,
-          // using short name as id for seed
-          subjectName: slot.subject,
-          subjectFullName: slot.name,
-          semId: slot.sem,
-          divId: slot.div,
-          sem: slot.sem,
-          div: slot.div,
-          room: slot.room,
-          color: slot.color,
-          type: slot.type,
-          day,
-          timeSlot
-        });
-      });
-    });
-  });
-  return entries;
-};
+const getSeedEntries = () => [];
 const downloadClassTimetableTemplate = (deptName = "Department", semName = "3rd Semester", divName = "Div 1") => {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const headerRow = ["time", ...days];
@@ -13834,11 +13185,11 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     }
   };
   const handleResetDefaults = () => {
-    if (window.confirm("Reset all academic departments, faculty, subjects and timetables back to default sample records?")) {
+    if (window.confirm("Are you sure you want to wipe ALL academic data (departments, faculty, subjects, classes, students, and timetables) clean to start with a blank database?")) {
       resetToDefault();
       resetFacultyTimetablesToDefault();
       refreshState();
-      if (showToast) showToast("Academic data and timetables reset to defaults!");
+      if (showToast) showToast("All academic data wiped clean! You have a fresh clean slate.");
     }
   };
   const filteredSubjects = useMemo(() => {
@@ -13918,7 +13269,16 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     },
     /* @__PURE__ */ React.createElement("span", null, "Open Faculty Roster"),
     /* @__PURE__ */ React.createElement(ArrowRight, { size: 14 })
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" } }, departments.map((d) => {
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" } }, departments.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1 / -1", padding: "36px", textAlign: "center", backgroundColor: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" } }, /* @__PURE__ */ React.createElement(Building2, { size: 36, style: { color: "#94a3b8", margin: "0 auto 12px" } }), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontWeight: "700", color: "#475569", fontSize: "15px" } }, "No Departments Created Yet"), /* @__PURE__ */ React.createElement("p", { style: { margin: "4px 0 16px", color: "#64748b", fontSize: "13px" } }, "Click below to create your institution's departments."), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      className: "btn btn-primary btn-sm",
+      onClick: () => setShowDeptModal(true),
+      style: { display: "inline-flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(Plus, { size: 14 }),
+    " Add Department"
+  )) : departments.map((d) => {
     const facCount = faculties.filter((f) => f.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
     const subjCount = subjects.filter((s) => s.dept?.toLowerCase().includes(d.name.toLowerCase().slice(0, 4))).length;
     return /* @__PURE__ */ React.createElement(
@@ -13982,7 +13342,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onChange: (e) => setActiveDept(e.target.value),
       style: { maxWidth: "280px", fontWeight: "700" }
     },
-    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
+    departments.length === 0 ? /* @__PURE__ */ React.createElement("option", { value: "" }, "No Departments (Add Department First)") : departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
   )), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "0", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Subject Code"), /* @__PURE__ */ React.createElement("th", null, "Subject Name"), /* @__PURE__ */ React.createElement("th", null, "Short Name"), /* @__PURE__ */ React.createElement("th", null, "Department"), /* @__PURE__ */ React.createElement("th", null, "Credits"), /* @__PURE__ */ React.createElement("th", null, "Faculty In-Charge"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "right" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredSubjects.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 7, style: { textAlign: "center", padding: "30px", color: "#94a3b8" } }, "No subjects configured for ", activeDept, '. Click "Add Subject" to create one.')) : filteredSubjects.map((s) => /* @__PURE__ */ React.createElement("tr", { key: s.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "#1e3a8a" } }, s.code), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "700" } }, s.name, subjectEntryCounts[s.id] > 0 && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { marginLeft: "8px", backgroundColor: "#ecfdf5", color: "#059669", fontSize: "10px" } }, subjectEntryCounts[s.id], " slots")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb" } }, s.shortName || s.name.slice(0, 8))), /* @__PURE__ */ React.createElement("td", null, s.dept), /* @__PURE__ */ React.createElement("td", null, s.credits || 4), /* @__PURE__ */ React.createElement("td", null, s.faculty || "Unassigned"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -14033,7 +13393,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     },
     /* @__PURE__ */ React.createElement(Trash2, { size: 14 }),
     " Clear All Attendance Records & Exceptions"
-  ))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), "Reset System Database"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Restore all faculties, timetables, subjects, and departments to default sample data."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#e11d48", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), "Wipe All Academic Data (Clean Slate)"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Wipe all departments, faculties, classes, students, subjects, and timetables completely clean so you can enter real institutional data from scratch."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -14042,7 +13402,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       style: { display: "flex", alignItems: "center", gap: "6px" }
     },
     /* @__PURE__ */ React.createElement(RotateCcw, { size: 14 }),
-    " Reset Academic Database to Defaults"
+    " Wipe All Data & Start Clean Slate"
   ))))), showDeptModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "440px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a" } }, "Add Academic Department"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowDeptModal(false) }, "\xD7")), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveDepartment }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Department Code *"), /* @__PURE__ */ React.createElement(
     "input",
     {
