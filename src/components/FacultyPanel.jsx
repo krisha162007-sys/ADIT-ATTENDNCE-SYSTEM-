@@ -132,7 +132,7 @@ export function getCardStyleForSubject(subjectNameOrCode) {
   return themes[colorName] || themes.blue || { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', badgeBg: '#dbeafe', badgeText: '#1d4ed8' };
 };
 
-export default function FacultyPanel({ currentUser, showToast, onExit }) {
+export default function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onExit, initialTab = 'dashboard' }) {
   // -------------------------------------------------------------
   // 1. ACTIVE FACULTY IDENTITY
   // -------------------------------------------------------------
@@ -140,6 +140,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   
   // Resolve current logged-in faculty
   const currentFaculty = useMemo(() => {
+    if (propFaculty) return propFaculty;
     const activeId = currentUser?.facultyId || getActiveFacultyId();
     return facultiesList.find(f => f.id === activeId) || 
            facultiesList[0] || {
@@ -151,10 +152,10 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
              phone: '9825011111',
              subjects: 'DBMS, DS'
            };
-  }, [facultiesList, currentUser]);
+  }, [facultiesList, currentUser, propFaculty]);
 
   // Main active tab in Faculty Panel: 'dashboard', 'timetable', 'take', 'register', 'exceptions', 'history', 'profile'
-  const [facultyTab, setFacultyTab] = useState('dashboard');
+  const [facultyTab, setFacultyTab] = useState(initialTab || 'dashboard');
 
   // Timetable & master synchronization ticks for real-time live sync from Admin Panel
   const [timetableSyncTick, setTimetableSyncTick] = useState(0);
@@ -2438,7 +2439,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                             }
 
                             // Formulate combined time range string
-                            let timeRange = slot.timeSlot || time;
+                            let timeRange = slot.combinedTimeSlot || slot.timeSlot || time;
                             if (span > 1) {
                               const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || '';
                               const lastSlot = mergedSlotsList[mergedSlotsList.length - 1];
@@ -2607,11 +2608,19 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                                           </div>
                                         )}
 
-                                        <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
-                                          {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `• ${slot.batch}` : ''}
-                                        </div>
-                                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: isMulti ? '8px' : '6px' }}>
+                                        {(() => {
+                                          const deptDisplay = slot.department || slot.departmentName || (slot.departmentId === 'DEP_AI' ? 'AI & Data Science' : slot.departmentId === 'DEP_IT' ? 'Information Technology' : slot.departmentId === 'DEP_CP' ? 'Computer Engineering' : (slot.departmentId && !slot.departmentId.startsWith('DEP_') ? slot.departmentId : '')) || currentFaculty?.dept;
+                                          return (
+                                            <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
+                                              {slot.sem}{deptDisplay ? ` • ${deptDisplay}` : ''} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `• ${slot.batch}` : ''}
+                                            </div>
+                                          );
+                                        })()}
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '3px' }}>
                                           📍 {slot.room || 'Classroom'}
+                                        </div>
+                                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#1e293b', marginBottom: isMulti ? '6px' : '4px' }}>
+                                          ⏰ {timeRange}
                                         </div>
 
                                         {isMulti && (

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Faculty Timetable Excel Upload & 2-Slot Lab Card Test Suite</title>
+  <script>
+    window.bundleErrors = [];
+    window.onerror = function(msg, src, line, col, err) {
+      window.bundleErrors.push({ msg, src, line, col, err: err ? err.stack : null });
+      console.error('BUNDLE_ERROR:', msg, 'line:', line);
+    };
+  </script>
+  <link rel="stylesheet" href="/src/index.css">
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        if (!_nat[pascalName]) {
+          window[pascalName] = IconComponent;
+        }
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=9999"></script>
+</head>
+<body style="font-family: sans-serif; padding: 20px; background-color: #f1f5f9;">
+  <h2>Faculty Timetable Excel Upload & 2-Slot Lab Card Suite</h2>
+  <div id="test-status" style="font-weight: bold; margin-bottom: 12px; color: #2563eb;">Running tests...</div>
+  <div id="test-results-list" style="margin-bottom: 20px;"></div>
+  <div id="react-test-container" style="background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 500px;"></div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      const results = [];
+      const statusEl = document.getElementById('test-status');
+      const listEl = document.getElementById('test-results-list');
+      const container = document.getElementById('react-test-container');
+
+      function assert(desc, condition, details = '') {
+        const pass = Boolean(condition);
+        results.push({ desc, pass, details });
+        const item = document.createElement('div');
+        item.style.padding = '4px 8px';
+        item.style.marginBottom = '4px';
+        item.style.borderRadius = '4px';
+        item.style.fontSize = '13px';
+        if (pass) {
+          item.style.backgroundColor = '#dcfce7';
+          item.style.color = '#166534';
+          item.textContent = `✅ [PASS] ${desc}`;
+        } else {
+          item.style.backgroundColor = '#fee2e2';
+          item.style.color = '#991b1b';
+          item.textContent = `❌ [FAIL] ${desc} ${details ? '(' + details + ')' : ''}`;
+        }
+        listEl.appendChild(item);
+      }
+
+      try {
+        if (window.bundleErrors && window.bundleErrors.length > 0) {
+          throw new Error('Bundle error: ' + JSON.stringify(window.bundleErrors[0]));
+        }
+
+        // =====================================================================
+        // Test Group 1: Helper Validation & Time Slot Covering
+        // =====================================================================
+        assert('getCoveredConsecutiveSlots helper exists', typeof window.getCoveredConsecutiveSlots === 'function');
+        assert('mergeConsecutiveLabSessionsInParsedResult exists', typeof window.mergeConsecutiveLabSessionsInParsedResult === 'function');
+        assert('reconcileConsecutiveLabEntries exists', typeof window.reconcileConsecutiveLabEntries === 'function');
+
+        const cov1 = window.getCoveredConsecutiveSlots('10:55 - 12:40');
+        assert('getCoveredConsecutiveSlots identifies 10:55 - 12:40', 
+          cov1.length === 2 && cov1[0] === '10:55 - 11:45' && cov1[1] === '11:50 - 12:40',
+          JSON.stringify(cov1)
+        );
+
+        const covAMPM = window.getCoveredConsecutiveSlots('10:55 AM–12:40 PM');
+        assert('getCoveredConsecutiveSlots identifies 10:55 AM–12:40 PM', 
+          covAMPM.length === 2 && covAMPM[0] === '10:55 - 11:45' && covAMPM[1] === '11:50 - 12:40',
+          JSON.stringify(covAMPM)
+        );
+
+        const covLunch = window.getCoveredConsecutiveSlots('11:50 - 2:15');
+        assert('getCoveredConsecutiveSlots rejects range crossing lunch recess', covLunch.length === 0, JSON.stringify(covLunch));
+
+        // =====================================================================
+        // Test Group 2: Validation Rules in canMergeConsecutiveSlots
+        // =====================================================================
+        const baseLab1 = {
+          day: 'Monday',
+          timeSlot: '10:55 - 11:45',
+          subject: 'Programming Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 210',
+          departmentId: 'DEP_AI',
+          facultyId: 'FAC_PS',
+          type: 'Lab'
+        };
+
+        const baseLab2 = {
+          day: 'Monday',
+          timeSlot: '11:50 - 12:40',
+          subject: 'Programming Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'ALL',
+          room: 'Room 210',
+          departmentId: 'DEP_AI',
+          facultyId: 'FAC_PS',
+          type: 'Lab'
+        };
+
+        assert('canMergeConsecutiveSlots accepts matching lab slots', window.canMergeConsecutiveSlots(baseLab1, baseLab2));
+
+        // Example B: Different semesters must NOT merge
+        const diffSem = { ...baseLab2, sem: '3rd Sem' };
+        assert('canMergeConsecutiveSlots rejects different semesters', !window.canMergeConsecutiveSlots(baseLab1, diffSem));
+
+        // Example C: Different divisions must NOT merge
+        const diffDiv = { ...baseLab2, div: 'Div 2' };
+        assert('canMergeConsecutiveSlots rejects different divisions', !window.canMergeConsecutiveSlots(baseLab1, diffDiv));
+
+        // Example D: Different batches must NOT merge
+        const diffBatchA = { ...baseLab1, batch: 'Batch A' };
+        const diffBatchB = { ...baseLab2, batch: 'Batch B' };
+        assert('canMergeConsecutiveSlots rejects different batches', !window.canMergeConsecutiveSlots(diffBatchA, diffBatchB));
+
+        // Different classrooms must NOT merge
+        const diffRoom = { ...baseLab2, room: 'Room 211' };
+        assert('canMergeConsecutiveSlots rejects different classrooms', !window.canMergeConsecutiveSlots(baseLab1, diffRoom));
+
+        // Different departments must NOT merge
+        const diffDept = { ...baseLab2, departmentId: 'DEP_IT' };
+        assert('canMergeConsecutiveSlots rejects different departments', !window.canMergeConsecutiveSlots(baseLab1, diffDept));
+
+        // Slots crossing lunch must NOT merge
+        const lunchSlot = { ...baseLab2, timeSlot: '12:40 - 1:25' };
+        assert('canMergeConsecutiveSlots rejects lunch slot', !window.canMergeConsecutiveSlots(baseLab1, lunchSlot));
+
+        // =====================================================================
+        // Test Group 3: Excel Timetable Upload with Two Consecutive Rows
+        // =====================================================================
+        // Clean storage
+        window.clearAllEntries();
+        localStorage.removeItem('adit_timetable_entries');
+
+        // Create workbook with two consecutive rows for Programming Lab on Monday
+        const wb = XLSX.utils.book_new();
+        const wsData = [
+          ['Faculty ID', 'Faculty Name', 'Day', 'Start Time', 'End Time', 'Subject', 'Semester', 'Division', 'Batch', 'Room', 'Type'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Monday', '10:55', '11:45', 'Programming Lab', '1st Sem', 'Div 1', 'ALL', 'Room 210', 'Lab'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Monday', '11:50', '12:40', 'Programming Lab', '1st Sem', 'Div 1', 'ALL', 'Room 210', 'Lab'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Tuesday', '10:00', '10:50', 'Data Structures', '3rd Sem', 'Div 1', 'ALL', 'Room 201', 'Lecture']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+        const wbBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+
+        const parseResult = await window.parseExcelTimetableForFaculty(wbBuffer, 'FAC_PS', '1st Sem', 'Div 1', 'DEP_AI');
+        console.log('parseResult errors:', parseResult.errorRows);
+        console.log('parseResult valid:', parseResult.validLectures);
+
+        assert('Excel parser detected lectures', parseResult && parseResult.validLectures && parseResult.validLectures.length > 0, JSON.stringify(parseResult.errorRows));
+        
+        // Exactly ONE preview card for the 2-hour lab in previewLectures
+        const progLabPreviews = parseResult.previewLectures.filter(l => l.day === 'Monday' && l.subject.includes('Programming Lab'));
+        assert('previewLectures contains exactly 1 preview entry for the 2-period Lab', progLabPreviews.length === 1, `found ${progLabPreviews.length}`);
+        assert('previewLectures entry displays combined time 10:55 - 12:40', progLabPreviews[0]?.time.includes('10:55') && progLabPreviews[0]?.time.includes('12:40'), progLabPreviews[0]?.time);
+        assert('previewLectures entry has span: 2', progLabPreviews[0]?.span === 2);
+
+        // Commit uploaded timetable
+        const committedCount = window.commitUploadedTimetable('faculty', 'FAC_PS', parseResult);
+        assert('commitUploadedTimetable successfully saved entries', committedCount > 0, `committed ${committedCount}`);
+
+        // Check entries in database (localStorage)
+        const dbEntries = window.getTimetableEntries();
+        const mondayLabEntries = dbEntries.filter(e => e.day === 'Monday' && e.subjectName.includes('Programming Lab') && e.facultyId === 'FAC_PS');
+        assert('Database stores both constituent slots linked for the Lab', mondayLabEntries.length === 2, `found ${mondayLabEntries.length}`);
+
+        const slot1 = mondayLabEntries.find(e => e.timeSlot === '10:55 - 11:45');
+        
+        const slot2 = mondayLabEntries.find(e => e.timeSlot === '11:50 - 12:40');
+        assert('Slot 1 exists at 10:55 - 11:45', Boolean(slot1));
+        assert('Slot 2 exists at 11:50 - 12:40', Boolean(slot2));
+        assert('Both slots share the same sessionId', slot1?.sessionId && slot1.sessionId === slot2?.sessionId, `ID1: ${slot1?.sessionId}, ID2: ${slot2?.sessionId}`);
+        assert('Slot 1 has span: 2', slot1?.span === 2);
+        assert('Slot 1 has combinedTimeSlot covering both periods', slot1?.combinedTimeSlot.includes('10:55') && slot1?.combinedTimeSlot.includes('12:40'), slot1?.combinedTimeSlot);
+        assert('Slot 2 is marked as continuation', slot2?.isContinuation === true);
+
+        // Verify Tuesday regular lecture preserved as single period
+        const tuesLecture = dbEntries.find(e => e.day === 'Tuesday');
+        assert('Ordinary single-period lecture preserved as 1 slot', tuesLecture && tuesLecture.span === 1, `span: ${tuesLecture?.span}`);
+
+        // =====================================================================
+        // Test Group 4: Faculty Panel Weekly Timetable Grid Display
+        // =====================================================================
+        // Mount FacultyPanel with currentFaculty = Prof. Priya Shah (FAC_PS)
+        const currentFaculty = {
+          id: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          email: 'priya.shah@adit.ac.in',
+          dept: 'AI & Data Science',
+          deptId: 'DEP_AI',
+          designation: 'Assistant Professor',
+          role: 'faculty'
+        };
+
+        const facultyElement = React.createElement(window.FacultyPanel, {
+          currentFaculty: currentFaculty,
+          initialTab: 'timetable',
+          onLogout: () => {},
+          showToast: () => {}
+        });
+
+        ReactDOM.render(facultyElement, container);
+        await new Promise(r => setTimeout(r, 600));
+
+        // Locate weekly timetable table
+        const weeklyTable = container.querySelector('table');
+        assert('Weekly timetable table rendered in DOM', Boolean(weeklyTable));
+
+        if (weeklyTable) {
+          const rows = Array.from(weeklyTable.querySelectorAll('tbody tr'));
+          // Find row index for 10:55 - 11:45 (official label: 10:55 to 11:45am)
+          const row1055Idx = rows.findIndex(r => r.textContent.includes('10:55'));
+          assert('Row 10:55 located in timetable', row1055Idx !== -1, `row idx: ${row1055Idx}`);
+
+          const row1055 = rows[row1055Idx];
+          const row1055Tds = Array.from(row1055.querySelectorAll('td'));
+
+          // In this row, Monday cell should be the 2nd td (index 1)
+          const mondayTd = row1055Tds[1];
+          assert('Monday cell exists in 10:55 row', Boolean(mondayTd));
+
+          // 1. Must span both rows (rowSpan = 2)
+          const hasRowSpan2 = mondayTd && (mondayTd.rowSpan === 2 || mondayTd.getAttribute('rowspan') === '2');
+          assert('One continuous Lab card spanning both rows (rowSpan = 2)', hasRowSpan2, `found rowSpan=${mondayTd?.rowSpan}`);
+
+          // 2. Display Lab subject
+          assert('Card displays Lab subject "Programming Lab"', mondayTd && mondayTd.textContent.includes('Programming Lab'));
+
+          // 3. Display semester and division
+          assert('Card displays semester "1st Sem" or "Semester 1"', mondayTd && (mondayTd.textContent.includes('1st Sem') || mondayTd.textContent.includes('Semester 1')));
+          assert('Card displays division "Div 1"', mondayTd && mondayTd.textContent.includes('Div 1'));
+
+          // 4. Display classroom number
+          assert('Card displays classroom number "Room 210"', mondayTd && mondayTd.textContent.includes('Room 210'));
+
+          // 5. Display complete start and end times
+          assert('Card displays complete time range "10:55" and "12:40"', 
+            mondayTd && mondayTd.textContent.includes('10:55') && mondayTd.textContent.includes('12:40'),
+            mondayTd?.textContent
+          );
+
+          // 6. Next row (11:50 - 12:40) must omit Monday td due to rowSpan=2
+          const row1150Idx = rows.findIndex(r => r.textContent.includes('11:50'));
+          assert('Row 11:50 located in timetable', row1150Idx !== -1, `row idx: ${row1150Idx}`);
+          if (row1150Idx !== -1) {
+            const row1150Tds = Array.from(rows[row1150Idx].querySelectorAll('td'));
+            // Standard row has 7 tds (time label + 6 days). When Monday is spanned, it has 6 tds!
+            assert('Row 11:50 omits Monday td due to rowSpan=2 (maintains 6 cells)', row1150Tds.length === 6, `found ${row1150Tds.length} cells`);
+          }
+
+          // 7. Verify NO duplicate Programming Lab cards on Monday
+          const allMondayProgLabCards = container.querySelectorAll('.timetable-lecture-card[data-subject="Programming Lab"][data-day="Monday"]');
+          assert('Exactly ONE card displayed for the entire laboratory session (no duplicate card)', allMondayProgLabCards.length === 1, `found ${allMondayProgLabCards.length}`);
+
+          // =====================================================================
+          // Test Group 5: Take Attendance Integration on Card Click
+          // =====================================================================
+          const labCard = mondayTd.querySelector('.timetable-lecture-card');
+          assert('Programming Lab lecture card found', Boolean(labCard));
+
+          if (labCard) {
+            labCard.click();
+            await new Promise(r => setTimeout(r, 400));
+
+            // Verify active tab switched to 'take' attendance
+            const takeView = container.querySelector('.attendance-sheet-container') || container.querySelector('form') || document.body.textContent.includes('Take Attendance');
+            assert('Clicking card navigates to Take Attendance view', Boolean(takeView));
+
+            // Check timing inputs
+            const timeInputs = Array.from(container.querySelectorAll('input[type="time"], input[type="text"]'));
+            const startTimeInput = timeInputs.find(i => i.value && i.value.includes('10:55'));
+            const endTimeInput = timeInputs.find(i => i.value && i.value.includes('12:40'));
+            assert('Take Attendance start time set to 10:55', Boolean(startTimeInput), `inputs: ${timeInputs.map(i=>i.value).join(', ')}`);
+            assert('Take Attendance end time set to 12:40 (entire lab duration)', Boolean(endTimeInput), `inputs: ${timeInputs.map(i=>i.value).join(', ')}`);
+          }
+        }
+
+        // =====================================================================
+        // Test Group 6: Excel with 1 Row Covering Both Periods (e.g. 10:55 AM–12:40 PM)
+        // =====================================================================
+        const wb2 = XLSX.utils.book_new();
+        const wsData2 = [
+          ['Faculty ID', 'Faculty Name', 'Day', 'Start Time', 'End Time', 'Subject', 'Semester', 'Division', 'Batch', 'Room', 'Type'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Wednesday', '10:55 AM', '12:40 PM', 'Computer Networks Lab', '1st Sem', 'Div 1', 'ALL', 'Room 210', 'Lab']
+        ];
+        const ws2 = XLSX.utils.aoa_to_sheet(wsData2);
+        XLSX.utils.book_append_sheet(wb2, ws2, 'Timetable');
+        const wbBuffer2 = XLSX.write(wb2, { type: 'array', bookType: 'xlsx' });
+
+        const parseResult2 = await window.parseExcelTimetableForFaculty(wbBuffer2, 'FAC_PS', '1st Sem', 'Div 1', 'DEP_AI');
+        window.commitUploadedTimetable('faculty', 'FAC_PS', parseResult2);
+
+        const wedEntries = window.getTimetableEntries().filter(e => e.day === 'Wednesday' && e.subjectName.includes('Computer Networks'));
+        assert('1-row Excel duration covering both periods creates linked entries', wedEntries.length === 2, `found ${wedEntries.length}`);
+        assert('Both Wednesday entries share sessionId', wedEntries[0]?.sessionId && wedEntries[0].sessionId === wedEntries[1]?.sessionId);
+
+        // =====================================================================
+        // Test Group 7: Persistence After Refresh Simulation
+        // =====================================================================
+        const persistedRaw = localStorage.getItem('adit_timetable_entries');
+        assert('Timetable data persisted in localStorage', Boolean(persistedRaw) && persistedRaw.includes('Computer Networks Lab'));
+        const parsedDb = JSON.parse(persistedRaw);
+        const wedLabDb = parsedDb.filter(e => e.day === 'Wednesday' && e.subjectName.includes('Computer Networks'));
+        assert('Persisted entries retain shared sessionId after reload', wedLabDb.length === 2 && wedLabDb[0].sessionId === wedLabDb[1].sessionId);
+        assert('Persisted entries retain span: 2', wedLabDb[0]?.span === 2);
+
+        // =====================================================================
+        // Post Test Results
+        // =====================================================================
+        const allPassed = results.every(r => r.pass);
+        const summary = `Total Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        statusEl.textContent = allPassed ? 'All Tests Passed! ✅' : 'Some Tests Failed! ❌';
+        statusEl.style.color = allPassed ? '#166534' : '#991b1b';
+        console.log(summary);
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed, summary })
+        });
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.style.color = '#991b1b';
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: err.message, stack: err.stack, allPassed: false })
+        });
+      }
+    });
+  </script>
+</body>
+</html>
