@@ -3889,14 +3889,63 @@ const OFFICIAL_TEMPLATE_TIME_SLOTS = [
   "3:15 to 4:05pm",
   "4:10 to 5:00pm"
 ];
+const isLunchTime = (slot) => {
+  if (!slot) return false;
+  const s = String(slot).toLowerCase().trim();
+  return s.startsWith("12:40") || s.includes("break") || s.includes("lunch") || s.includes("recess");
+};
+const isLabSession = (slot) => {
+  if (!slot) return false;
+  const type = String(slot.type || "").trim().toLowerCase();
+  if (type === "lab" || type === "laboratory" || type === "practical") return true;
+  const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || "").toLowerCase();
+  if (/\b(lab|laboratory|practical|pr|pract)\b/i.test(subj)) return true;
+  const room = String(slot.room || "").toLowerCase();
+  if (/\b(lab|laboratory)\b/i.test(room)) return true;
+  return false;
+};
+const getNextConsecutiveTimeSlot = (timeSlot) => {
+  if (!timeSlot) return null;
+  const norm = normalizeTimeSlot(timeSlot);
+  let idx = TIME_SLOTS.findIndex((s) => s === timeSlot || normalizeTimeSlot(s) === norm);
+  if (idx === -1) {
+    const start = timeSlot.split(/[-–—]/)[0]?.trim();
+    if (start) {
+      idx = TIME_SLOTS.findIndex((s) => s.startsWith(start) || normalizeTimeSlot(s).startsWith(start));
+    }
+  }
+  if (idx === -1) return null;
+  const nextIdx = idx + 1;
+  if (nextIdx >= TIME_SLOTS.length) return null;
+  const nextSlot = TIME_SLOTS[nextIdx];
+  if (nextSlot === "12:40 - 1:25" || isLunchTime(nextSlot)) {
+    return null;
+  }
+  return nextSlot;
+};
+const getCombinedTimeSlot = (slot1, slot2) => {
+  if (!slot1) return slot2 || "";
+  if (!slot2) return slot1 || "";
+  const s1Start = slot1.split(/[-–—]/)[0]?.trim() || slot1;
+  const s2Parts = slot2.split(/[-–—]/);
+  const s2End = (s2Parts[1] || s2Parts[0]).trim();
+  return `${s1Start} - ${s2End}`;
+};
 const formatOfficialTimeSlot = (slotStr) => {
   if (!slotStr) return "";
   const s = String(slotStr).trim();
+  if (s.toLowerCase().includes("break") || s.toLowerCase().includes("lunch")) return "12:40 to 1:25pm (Break)";
+  if (/^9:0[05].*?10:50/i.test(s)) return "9:05 to 10:50am";
+  if (/^10:00.*?11:45/i.test(s)) return "10:00 to 11:45am";
+  if (/^10:55.*?12:40/i.test(s)) return "10:55 to 12:40pm";
+  if (/^1:25.*?3:10/i.test(s)) return "1:25 to 3:10pm";
+  if (/^2:20.*?4:05/i.test(s)) return "2:20 to 4:05pm";
+  if (/^3:15.*?5:00/i.test(s)) return "3:15 to 5:00pm";
   if (s.startsWith("9:00") || s.startsWith("9:05")) return "9:05 to 9:55am";
   if (s.startsWith("10:00")) return "10:00 to 10:50am";
   if (s.startsWith("10:55")) return "10:55 to 11:45am";
   if (s.startsWith("11:50")) return "11:50 to 12:40pm";
-  if (s.startsWith("12:40") || s.toLowerCase().includes("break") || s.toLowerCase().includes("lunch")) return "12:40 to 1:25pm (Break)";
+  if (s.startsWith("12:40")) return "12:40 to 1:25pm (Break)";
   if (s.startsWith("1:25")) return "1:25 to 2:15pm";
   if (s.startsWith("2:20")) return "2:20 to 3:10pm";
   if (s.startsWith("3:15")) return "3:15 to 4:05pm";
@@ -4210,7 +4259,12 @@ const canMergeConsecutiveSlots = (slotA, slotB) => {
   if (!slotA || !slotB) return false;
   const idA = getSessionIdentity(slotA);
   const idB = getSessionIdentity(slotB);
-  if (!idA || !idB || String(idA).trim() !== String(idB).trim()) {
+  const hasSharedSessionId = idA && idB && String(idA).trim() === String(idB).trim();
+  const bothAreLab = isLabSession(slotA) && isLabSession(slotB);
+  if (!hasSharedSessionId && !bothAreLab) {
+    return false;
+  }
+  if (idA && idB && String(idA).trim() !== String(idB).trim()) {
     return false;
   }
   const subA = (slotA.subject || slotA.subjectId || slotA.subjectName || "").trim().toLowerCase();
@@ -4550,9 +4604,40 @@ const getClassTimetable = (sem, div, deptId = null) => {
 };
 const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) => {
   const entries = getTimetableEntries();
-  const filtered = entries.filter((e) => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
-  const newEntry = {
-    id: generateId(),
+  const isLab = slotData.type === "Lab" || isLabSession(slotData);
+  let nextSlot = null;
+  let combinedTime = timeSlot;
+  if (isLab) {
+    nextSlot = getNextConsecutiveTimeSlot(timeSlot);
+    if (!nextSlot) {
+      throw new Error(`Cannot schedule a 2-hour laboratory session at ${timeSlot}. The session crosses the lunch recess or exceeds timetable hours.`);
+    }
+    combinedTime = getCombinedTimeSlot(timeSlot, nextSlot);
+    const normSem = normalizeSem(slotData.sem || "3rd Sem");
+    const normDiv = normalizeDiv(slotData.div || "Div 1");
+    const existingAtNext = entries.find((e) => {
+      if (e.day !== day || e.timeSlot !== nextSlot) return false;
+      if (slotData.sessionId && e.sessionId === slotData.sessionId) return false;
+      if (e.facultyId === facultyId) return true;
+      if (normalizeSem(e.semId || e.sem) === normSem && normalizeDiv(e.divId || e.div) === normDiv) return true;
+      if (slotData.room && e.room && e.room !== "TBD" && e.room.toLowerCase() === slotData.room.toLowerCase()) return true;
+      return false;
+    });
+    if (existingAtNext) {
+      const reason = existingAtNext.facultyId === facultyId ? `Faculty is already teaching ${existingAtNext.subjectName} in ${existingAtNext.room}` : `Class ${normSem} ${normDiv} already has ${existingAtNext.subjectName}`;
+      throw new Error(`Slot ${nextSlot} is already occupied: ${reason}. Cannot allocate 2-hour laboratory session.`);
+    }
+  }
+  const existingSlot = entries.find((e) => e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot);
+  const targetSessionId = slotData.sessionId || existingSlot?.sessionId;
+  let filtered = entries.filter((e) => {
+    if (targetSessionId && e.sessionId === targetSessionId) return false;
+    if (e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot) return false;
+    if (isLab && nextSlot && e.facultyId === facultyId && e.day === day && e.timeSlot === nextSlot) return false;
+    return true;
+  });
+  const sessionId = targetSessionId || "sess_lab_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+  const baseEntry = {
     facultyId,
     facultyName: slotData.facultyName || "Faculty",
     subjectId: slotData.subject,
@@ -4563,20 +4648,56 @@ const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) =>
     sem: normalizeSem(slotData.sem || "3rd Sem"),
     div: normalizeDiv(slotData.div || "Div 1"),
     departmentId: deptId,
-    room: slotData.room || "Room 201",
+    room: slotData.room || (isLab ? "Lab 1" : "Room 201"),
     color: slotData.color,
-    type: slotData.type || "Lecture",
-    day,
-    timeSlot
+    type: isLab ? "Lab" : slotData.type || "Lecture",
+    batch: slotData.batch || "All",
+    day
   };
-  filtered.push(newEntry);
+  if (isLab && nextSlot) {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      sessionId,
+      span: 2,
+      duration: "2 Hours",
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true
+    });
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot: nextSlot,
+      sessionId,
+      span: 2,
+      duration: "2 Hours",
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true,
+      isContinuation: true
+    });
+  } else {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      span: 1,
+      isMultiSlot: false
+    });
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
 };
 const clearFacultySlot = (facultyId, day, timeSlot) => {
   const entries = getTimetableEntries();
-  const filtered = entries.filter((e) => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
+  const target = entries.find((e) => e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot);
+  let filtered;
+  if (target && target.sessionId) {
+    filtered = entries.filter((e) => e.sessionId !== target.sessionId);
+  } else {
+    filtered = entries.filter((e) => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
@@ -4585,9 +4706,46 @@ const updateClassSlot = (sem, div, day, timeSlot, slotData, deptId = null) => {
   const entries = getTimetableEntries();
   const normSem = normalizeSem(sem);
   const normDiv = normalizeDiv(div);
-  const filtered = entries.filter((e) => !(normalizeSem(e.semId || e.sem) === normSem && normalizeDiv(e.divId || e.div) === normDiv && e.day === day && e.timeSlot === timeSlot));
-  const newEntry = {
-    id: generateId(),
+  const isLab = slotData.type === "Lab" || isLabSession(slotData);
+  let nextSlot = null;
+  let combinedTime = timeSlot;
+  if (isLab) {
+    nextSlot = getNextConsecutiveTimeSlot(timeSlot);
+    if (!nextSlot) {
+      throw new Error(`Cannot schedule a 2-hour laboratory session at ${timeSlot}. The session crosses the lunch recess or exceeds timetable hours.`);
+    }
+    combinedTime = getCombinedTimeSlot(timeSlot, nextSlot);
+    const existingAtNext = entries.find((e) => {
+      if (e.day !== day || e.timeSlot !== nextSlot) return false;
+      if (slotData.sessionId && e.sessionId === slotData.sessionId) return false;
+      const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+      const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+      if (matchSem && matchDiv) return true;
+      if (slotData.facultyId && e.facultyId === slotData.facultyId) return true;
+      if (slotData.room && e.room && e.room !== "TBD" && e.room.toLowerCase() === slotData.room.toLowerCase()) return true;
+      return false;
+    });
+    if (existingAtNext) {
+      const reason = normalizeSem(existingAtNext.semId || existingAtNext.sem) === normSem && normalizeDiv(existingAtNext.divId || existingAtNext.div) === normDiv ? `Class already has ${existingAtNext.subjectName} scheduled` : `Faculty ${existingAtNext.facultyName} is teaching ${existingAtNext.subjectName}`;
+      throw new Error(`Slot ${nextSlot} is already occupied: ${reason}. Cannot allocate 2-hour laboratory session.`);
+    }
+  }
+  const existingSlot = entries.find((e) => {
+    const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+    const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+    return matchSem && matchDiv && e.day === day && e.timeSlot === timeSlot;
+  });
+  const targetSessionId = slotData.sessionId || existingSlot?.sessionId;
+  let filtered = entries.filter((e) => {
+    if (targetSessionId && e.sessionId === targetSessionId) return false;
+    const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+    const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+    if (matchSem && matchDiv && e.day === day && e.timeSlot === timeSlot) return false;
+    if (isLab && nextSlot && matchSem && matchDiv && e.day === day && e.timeSlot === nextSlot) return false;
+    return true;
+  });
+  const sessionId = targetSessionId || "sess_lab_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+  const baseEntry = {
     facultyId: slotData.facultyId,
     facultyName: slotData.facultyName || "Faculty",
     subjectId: slotData.subject,
@@ -4598,13 +4756,43 @@ const updateClassSlot = (sem, div, day, timeSlot, slotData, deptId = null) => {
     sem: normSem,
     div: normDiv,
     departmentId: deptId,
-    room: slotData.room || "Room 201",
+    room: slotData.room || (isLab ? "Lab 1" : "Room 201"),
     color: slotData.color,
-    type: slotData.type || "Lecture",
-    day,
-    timeSlot
+    type: isLab ? "Lab" : slotData.type || "Lecture",
+    batch: slotData.batch || "All",
+    day
   };
-  filtered.push(newEntry);
+  if (isLab && nextSlot) {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      sessionId,
+      span: 2,
+      duration: "2 Hours",
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true
+    });
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot: nextSlot,
+      sessionId,
+      span: 2,
+      duration: "2 Hours",
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true,
+      isContinuation: true
+    });
+  } else {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      span: 1,
+      isMultiSlot: false
+    });
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return convertEntriesToGrid(getEntriesByClass(deptId, sem, div));
@@ -4613,12 +4801,22 @@ const clearClassSlot = (sem, div, day, timeSlot, deptId = null) => {
   const entries = getTimetableEntries();
   const normSem = normalizeSem(sem);
   const normDiv = normalizeDiv(div);
-  const filtered = entries.filter((e) => {
+  const target = entries.find((e) => {
     const semMatch = normalizeSem(e.semId || e.sem) === normSem;
     const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
-    const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
-    return !(semMatch && divMatch && deptMatch && e.day === day && e.timeSlot === timeSlot);
+    return semMatch && divMatch && e.day === day && e.timeSlot === timeSlot;
   });
+  let filtered;
+  if (target && target.sessionId) {
+    filtered = entries.filter((e) => e.sessionId !== target.sessionId);
+  } else {
+    filtered = entries.filter((e) => {
+      const semMatch = normalizeSem(e.semId || e.sem) === normSem;
+      const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
+      const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
+      return !(semMatch && divMatch && deptMatch && e.day === day && e.timeSlot === timeSlot);
+    });
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return convertEntriesToGrid(getEntriesByClass(deptId, sem, div));
@@ -4674,11 +4872,18 @@ const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
         divId: div,
         sem,
         div,
+        batch: slot.batch || "All",
         room: slot.room || "Room 201",
         color: slot.color || getSubjectColor(slot.subject),
         type: slot.type || "Lecture",
         day,
-        timeSlot
+        timeSlot,
+        sessionId: slot.sessionId || (slot.span > 1 ? slot.sessionId : null),
+        span: slot.span || 1,
+        duration: slot.duration,
+        combinedTimeSlot: slot.combinedTimeSlot,
+        isContinuation: slot.isContinuation || false,
+        isMultiSlot: slot.span > 1
       });
     });
   });
@@ -4740,11 +4945,18 @@ const applyUploadedClassTimetable = (sem, div, newTimetable, deptNameOrId = null
         divId: normDiv,
         sem: normSem,
         div: normDiv,
+        batch: slot.batch || "All",
         room: slot.room || "Room 201",
         color: slot.color || getSubjectColor(slot.subject),
         type: slot.type || "Lecture",
         day,
-        timeSlot
+        timeSlot,
+        sessionId: slot.sessionId || (slot.span > 1 ? slot.sessionId : null),
+        span: slot.span || 1,
+        duration: slot.duration,
+        combinedTimeSlot: slot.combinedTimeSlot,
+        isContinuation: slot.isContinuation || false,
+        isMultiSlot: slot.span > 1
       });
     });
   });
@@ -5385,6 +5597,7 @@ const normalizeTimetable = (rawTimetable, defaultSem = "3rd Sem", defaultDiv = "
   if (rawTimetable && typeof rawTimetable === "object") {
     TIMETABLE_DAYS.forEach((day) => {
       const daySlots = rawTimetable[day] || {};
+      const normalizedDaySlots = {};
       Object.entries(daySlots).forEach(([timeSlot, slot]) => {
         if (!slot || !slot.subject) return;
         const subjShort = String(slot.subject).trim();
@@ -5392,35 +5605,107 @@ const normalizeTimetable = (rawTimetable, defaultSem = "3rd Sem", defaultDiv = "
         const sem = normalizeSem(slot.sem || defaultSem);
         const div = normalizeDiv(slot.div || defaultDiv);
         const deptId = slot.departmentId || defaultDeptId;
-        const room = slot.room || "Room 201";
-        const type = slot.type || "Lecture";
+        const room = slot.room || (isLabSession(slot) ? "Lab 1" : "Room 201");
+        const type = slot.type || (isLabSession(slot) ? "Lab" : "Lecture");
         const name = slot.name || slot.subjectFullName || subjShort;
         const color = slot.color || getSubjectColor(subjShort);
         const facName = slot.facultyName || facultyName || "";
-        const normalizedSlot = {
+        const batch = slot.batch || "All";
+        normalizedDaySlots[timeSlot] = {
           subject: subjShort,
           name,
           sem,
           div,
+          batch,
           departmentId: deptId,
           room,
           type,
           color,
-          facultyName: facName
+          facultyName: facName,
+          day,
+          timeSlot,
+          span: 1
         };
-        timetable[day][timeSlot] = normalizedSlot;
-        subjectsSet.add(subjShort);
+      });
+      const sortedSlots = TIME_SLOTS.filter((s) => s !== "12:40 - 1:25" && !isLunchTime(s));
+      const processedTimes = /* @__PURE__ */ new Set();
+      sortedSlots.forEach((timeSlot, idx) => {
+        if (processedTimes.has(timeSlot)) return;
+        const slot = normalizedDaySlots[timeSlot];
+        if (!slot) return;
+        subjectsSet.add(slot.subject);
+        const isLab = slot.type === "Lab" || isLabSession(slot);
+        const nextTime = idx + 1 < sortedSlots.length ? sortedSlots[idx + 1] : null;
+        const nextSlot = nextTime ? normalizedDaySlots[nextTime] : null;
+        const isConsecutive = nextTime && getNextConsecutiveTimeSlot(timeSlot) === nextTime;
+        if (isLab && nextSlot && isConsecutive) {
+          const nextIsLab = nextSlot.type === "Lab" || isLabSession(nextSlot);
+          const sameSubject = (slot.subject || "").toLowerCase() === (nextSlot.subject || "").toLowerCase();
+          const sameSem = normalizeSem(slot.sem) === normalizeSem(nextSlot.sem);
+          const sameDiv = normalizeDiv(slot.div) === normalizeDiv(nextSlot.div);
+          const sameBatch = (slot.batch || "ALL").toUpperCase() === (nextSlot.batch || "ALL").toUpperCase();
+          const sameFaculty = !slot.facultyName || !nextSlot.facultyName || slot.facultyName.toLowerCase() === nextSlot.facultyName.toLowerCase();
+          if (nextIsLab && sameSubject && sameSem && sameDiv && sameBatch && sameFaculty) {
+            const sessionId = slot.sessionId || nextSlot.sessionId || "sess_lab_up_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+            const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
+            const mergedSlot1 = {
+              ...slot,
+              type: "Lab",
+              span: 2,
+              duration: "2 Hours",
+              combinedTimeSlot: combinedTime,
+              sessionId,
+              isMultiSlot: true
+            };
+            const mergedSlot2 = {
+              ...nextSlot,
+              type: "Lab",
+              span: 2,
+              duration: "2 Hours",
+              combinedTimeSlot: combinedTime,
+              sessionId,
+              isMultiSlot: true,
+              isContinuation: true
+            };
+            timetable[day][timeSlot] = mergedSlot1;
+            timetable[day][nextTime] = mergedSlot2;
+            previewLectures.push({
+              day,
+              time: combinedTime,
+              subject: slot.subject,
+              name: slot.name,
+              room: slot.room,
+              sem: slot.sem,
+              div: slot.div,
+              batch: slot.batch,
+              departmentId: slot.departmentId,
+              facultyName: slot.facultyName,
+              span: 2,
+              type: "Lab",
+              duration: "2 Hours",
+              sessionId
+            });
+            processedTimes.add(timeSlot);
+            processedTimes.add(nextTime);
+            return;
+          }
+        }
+        timetable[day][timeSlot] = slot;
         previewLectures.push({
           day,
           time: timeSlot,
-          subject: subjShort,
-          name,
-          room,
-          sem,
-          div,
-          departmentId: deptId,
-          facultyName: facName
+          subject: slot.subject,
+          name: slot.name,
+          room: slot.room,
+          sem: slot.sem,
+          div: slot.div,
+          batch: slot.batch,
+          departmentId: slot.departmentId,
+          facultyName: slot.facultyName,
+          span: 1,
+          type: slot.type
         });
+        processedTimes.add(timeSlot);
       });
     });
   }
@@ -6379,6 +6664,10 @@ const downloadFacultyTimetableCsv = (facultyName = "Faculty", deptName = "Depart
   URL.revokeObjectURL(url);
 };
 if (typeof window !== "undefined") {
+  window.isLunchTime = isLunchTime;
+  window.isLabSession = isLabSession;
+  window.getNextConsecutiveTimeSlot = getNextConsecutiveTimeSlot;
+  window.getCombinedTimeSlot = getCombinedTimeSlot;
   window.formatOfficialTimeSlot = formatOfficialTimeSlot;
   window.calculateFacultyTeachingMetrics = calculateFacultyTeachingMetrics;
   window.downloadFacultyTimetableTemplate = downloadFacultyTimetableTemplate;
@@ -6395,6 +6684,13 @@ if (typeof window !== "undefined") {
   window.getTimetableEntries = getTimetableEntries;
   window.getFacultyTimetable = getFacultyTimetable;
   window.notifyTimetableSync = notifyTimetableSync;
+  window.clearAllEntries = clearAllEntries;
+  window.updateFacultySlot = updateFacultySlot;
+  window.clearFacultySlot = clearFacultySlot;
+  window.updateClassSlot = updateClassSlot;
+  window.clearClassSlot = clearClassSlot;
+  window.normalizeTimetable = normalizeTimetable;
+  window.getClassTimetable = getClassTimetable;
 }
 function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockToggle }) {
   const facultyName = getFacultyName();
@@ -8444,6 +8740,10 @@ function SlotEditModal({
   const [color, setColor] = useState(existingSlot?.color || getSubjectColor(_existingSubject || "DBMS"));
   const [selectedFacultyId, setSelectedFacultyId] = useState(existingSlot?.facultyId || "");
   const [conflicts, setConflicts] = useState([]);
+  const isLab = type === "Lab" || isLabSession({ type, subject, room });
+  const nextSlot = isLab ? getNextConsecutiveTimeSlot(timeSlot) : null;
+  const isInvalidLabSlot = isLab && !nextSlot;
+  const combinedTime = isLab && nextSlot ? getCombinedTimeSlot(timeSlot, nextSlot) : timeSlot;
   const handleSubjectSelect = (e) => {
     const selectedSubjId = e.target.value;
     const subjObj = availableSubjects.find((s) => s.id === selectedSubjId || s.shortName === selectedSubjId || s.name === selectedSubjId);
@@ -8452,16 +8752,28 @@ function SlotEditModal({
       setSubject(short);
       setFullName(subjObj.name);
       setColor(getSubjectColor(short));
+      if (isLabSession(subjObj)) {
+        setType("Lab");
+        if (!room || room === "Room 201") setRoom("Lab 1");
+      }
     } else {
       setSubject(selectedSubjId);
       setFullName(selectedSubjId);
       setColor(getSubjectColor(selectedSubjId));
+      if (isLabSession({ subject: selectedSubjId })) {
+        setType("Lab");
+        if (!room || room === "Room 201") setRoom("Lab 1");
+      }
     }
   };
   const handleSave = (e, ignoreConflicts = false) => {
     e.preventDefault();
     if (!subject.trim()) {
       alert("Please specify a subject");
+      return;
+    }
+    if (isInvalidLabSlot) {
+      alert(`Cannot schedule a 2-hour laboratory session at ${timeSlot} because it crosses the lunch recess (12:40 - 1:25) or exceeds timetable hours. Please select an earlier start time.`);
       return;
     }
     const facObj = availableFaculties.find((f) => f.id === selectedFacultyId);
@@ -8472,11 +8784,16 @@ function SlotEditModal({
       sem,
       div,
       batch,
-      room: room.trim() || "Room 201",
-      type,
+      room: room.trim() || (isLab ? "Lab 1" : "Room 201"),
+      type: isLab ? "Lab" : type,
       color: color || getSubjectColor(subject),
       facultyId: selectedFacultyId || existingSlot?.facultyId,
-      facultyName
+      facultyName,
+      span: isLab ? 2 : 1,
+      duration: isLab ? "2 Hours" : "1 Hour",
+      combinedTimeSlot: isLab ? combinedTime : timeSlot,
+      sessionId: existingSlot?.sessionId,
+      isLab
     };
     if (!ignoreConflicts) {
       const entryData = {
@@ -8487,6 +8804,19 @@ function SlotEditModal({
         timeSlot
       };
       const foundConflicts = checkConflicts(entryData, existingSlot?.id);
+      if (isLab && nextSlot) {
+        const entryData2 = {
+          ...slotData,
+          semId: sem,
+          divId: div,
+          day,
+          timeSlot: nextSlot
+        };
+        const foundConflicts2 = checkConflicts(entryData2, existingSlot?.id);
+        foundConflicts2.forEach((c) => {
+          if (!foundConflicts.includes(c)) foundConflicts.push(c);
+        });
+      }
       if (foundConflicts.length > 0) {
         setConflicts(foundConflicts);
         return;
@@ -8495,13 +8825,17 @@ function SlotEditModal({
     onSave(day, timeSlot, slotData);
   };
   const handleClear = () => {
-    if (window.confirm(`Clear this lecture slot on ${day} (${timeSlot})?`)) {
-      onClear(day, timeSlot);
+    const isMultiSession = existingSlot?.span > 1 || existingSlot?.sessionId || existingSlot?.type === "Lab";
+    const confirmMsg = isMultiSession ? `Clear this 2-hour laboratory session on ${day} (${existingSlot?.combinedTimeSlot || timeSlot})?
+
+Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${timeSlot})?`;
+    if (window.confirm(confirmMsg)) {
+      onClear(day, timeSlot, existingSlot?.sessionId);
       if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
       onClose();
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(Clock, { size: 20 }), existingSlot ? "Edit Timetable Slot" : "Add Timetable Lecture"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "var(--text-muted)" } }, "Department: ", departmentName, " \u2022 ", semesterName)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSave }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 14, style: { color: "var(--blue-primary)" } }), "Day"), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "490px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(Clock, { size: 20 }), existingSlot ? "Edit Timetable Slot" : "Add Timetable Lecture"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "var(--text-muted)" } }, "Department: ", departmentName, " \u2022 ", semesterName)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSave }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 14, style: { color: "var(--blue-primary)" } }), "Day"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -8517,7 +8851,7 @@ function SlotEditModal({
       onChange: (e) => setTimeSlot(e.target.value)
     },
     TIME_SLOTS.filter((s) => s !== "12:40 - 1:25").map((slot) => /* @__PURE__ */ React.createElement("option", { key: slot, value: slot }, slot))
-  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "var(--blue-primary)" } }), "Subject"), /* @__PURE__ */ React.createElement(
+  ))), isLab && nextSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(FlaskConical, { size: 20, style: { color: "#059669", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#065f46" } }, "2-Hour Laboratory Session (2 Consecutive Slots)"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#047857", marginTop: "2px" } }, "Allocates ", /* @__PURE__ */ React.createElement("b", null, timeSlot), " and ", /* @__PURE__ */ React.createElement("b", null, nextSlot), " (", combinedTime, ") \u2022 Merges into 1 continuous cell automatically"))), isInvalidLabSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 20, style: { color: "#dc2626", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#991b1b" } }, "Cannot Allocate 2-Hour Laboratory"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#b91c1c", marginTop: "2px" } }, timeSlot.startsWith("11:50") ? "Crosses lunch recess (12:40 - 1:25). Please select an earlier or post-lunch time slot." : "Exceeds timetable hours. Please select an earlier time slot."))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "var(--blue-primary)" } }), "Subject"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -8534,8 +8868,13 @@ function SlotEditModal({
       placeholder: "e.g. DBMS",
       value: subject,
       onChange: (e) => {
-        setSubject(e.target.value);
-        setColor(getSubjectColor(e.target.value));
+        const val = e.target.value;
+        setSubject(val);
+        setColor(getSubjectColor(val));
+        if (isLabSession({ subject: val })) {
+          setType("Lab");
+          if (!room || room === "Room 201") setRoom("Lab 1");
+        }
       },
       required: true
     }
@@ -8588,7 +8927,7 @@ function SlotEditModal({
     {
       type: "text",
       className: "form-control",
-      placeholder: "e.g. Room 201",
+      placeholder: isLab ? "e.g. Lab 1" : "e.g. Room 201",
       value: room,
       onChange: (e) => setRoom(e.target.value)
     }
@@ -8597,10 +8936,16 @@ function SlotEditModal({
     {
       className: "form-control",
       value: type,
-      onChange: (e) => setType(e.target.value)
+      onChange: (e) => {
+        const newType = e.target.value;
+        setType(newType);
+        if (newType === "Lab" && (!room || room === "Room 201")) {
+          setRoom("Lab 1");
+        }
+      }
     },
-    /* @__PURE__ */ React.createElement("option", { value: "Lecture" }, "Lecture"),
-    /* @__PURE__ */ React.createElement("option", { value: "Lab" }, "Laboratory"),
+    /* @__PURE__ */ React.createElement("option", { value: "Lecture" }, "Lecture (1 Slot)"),
+    /* @__PURE__ */ React.createElement("option", { value: "Lab" }, "Laboratory (2 Slots / 2 Hours)"),
     /* @__PURE__ */ React.createElement("option", { value: "Seminar" }, "Seminar"),
     /* @__PURE__ */ React.createElement("option", { value: "Tutorial" }, "Tutorial")
   )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Student Batch"), /* @__PURE__ */ React.createElement(
@@ -8651,7 +8996,7 @@ function SlotEditModal({
     },
     /* @__PURE__ */ React.createElement(Trash2, { size: 15 }),
     " Clear Slot"
-  ) : /* @__PURE__ */ React.createElement("div", null), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Slot"))))));
+  ) : /* @__PURE__ */ React.createElement("div", null), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary", disabled: isInvalidLabSlot }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Slot"))))));
 }
 function TimetableUploadModal({
   selectedFaculty: initialFaculty,
@@ -9099,20 +9444,27 @@ function FacultyTimetablePanel({
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return parts[0].slice(0, 2).toUpperCase();
   };
-  const handleCellClick = (day, timeSlot) => {
-    const existing = timetable[day]?.[timeSlot] || null;
+  const handleCellClick = (day, timeSlot, existingSlot = null) => {
+    const existing = existingSlot || timetable[day]?.[timeSlot] || null;
     setActiveSlotData({ day, timeSlot, existingSlot: existing });
     setShowSlotModal(true);
   };
   const handleSaveSlot = (day, timeSlot, slotData) => {
-    const updated = updateFacultySlot(currentFaculty.id, day, timeSlot, slotData);
-    setTimetable({ ...updated });
-    if (showToast) showToast(`Saved ${slotData.subject} for ${day} ${timeSlot}`);
-    setShowSlotModal(false);
+    try {
+      const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
+      const updated = updateFacultySlot(currentFaculty.id, day, timeSlot, slotData, activeDeptId);
+      setTimetable({ ...updated });
+      if (showToast) showToast(`Saved ${slotData.subject} for ${day} ${timeSlot}`);
+      setShowSlotModal(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
-  const handleClearSlot = (day, timeSlot) => {
+  const handleClearSlot = (day, timeSlot, sessionId = null) => {
     const updated = clearFacultySlot(currentFaculty.id, day, timeSlot);
     setTimetable({ ...updated });
+    if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
+    setShowSlotModal(false);
   };
   const handleExecuteCopy = () => {
     if (!copyTargetFacultyId) {
@@ -9127,7 +9479,7 @@ function FacultyTimetablePanel({
   const handlePrint = () => {
     window.print();
   };
-  const renderSlotCard = (slot) => {
+  const renderSlotCard = (slot, span = 1, timeRange = null) => {
     if (!slot || !slot.subject) return "-";
     const color = slot.color || getSubjectColor(slot.subject);
     const colorStyles = {
@@ -9145,6 +9497,8 @@ function FacultyTimetablePanel({
       indigo: { bg: "#e0e7ff", border: "#c7d2fe", text: "#312e81", subText: "#4338ca" }
     };
     const style = colorStyles[color] || colorStyles.blue;
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
+    const isLab = slot.type === "Lab" || isLabSession(slot);
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -9152,16 +9506,24 @@ function FacultyTimetablePanel({
           backgroundColor: style.bg,
           border: `1px solid ${style.border}`,
           borderRadius: "8px",
-          padding: "6px 8px",
+          padding: isMulti ? "10px 8px" : "6px 8px",
           textAlign: "center",
           transition: "transform 0.15s ease, box-shadow 0.15s ease",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+          boxShadow: isMulti ? "0 2px 4px rgba(0,0,0,0.05)" : "0 1px 2px rgba(0,0,0,0.03)",
+          height: isMulti ? "calc(100% - 4px)" : void 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: isMulti ? "center" : "flex-start",
+          boxSizing: "border-box"
         },
-        className: "timetable-cell-badge"
+        className: "timetable-cell-badge",
+        "data-is-multislot": isMulti ? "true" : void 0,
+        "data-span": span
       },
-      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", fontSize: "13px", color: style.text, lineHeight: 1.2 } }, slot.subject),
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: isMulti ? "13.5px" : "13px", color: style.text, lineHeight: 1.2 } }, slot.subject), isLab && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", fontWeight: "800", padding: "1px 4px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.9)", color: style.text } }, isMulti ? "LAB (2h)" : "LAB")),
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px" } }, slot.sem || "3rd Sem", " \u2022 ", slot.div || "Div 1", slot.batch && slot.batch !== "All" ? ` \u2022 ${slot.batch}` : ""),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, opacity: 0.85, marginTop: "1px" } }, slot.room || "Room 201")
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, opacity: 0.85, marginTop: "1px" } }, slot.room || (isLab ? "Lab 1" : "Room 201")),
+      timeRange && isMulti && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: style.subText, fontWeight: "700", marginTop: "3px", opacity: 0.9 } }, formatOfficialTimeSlot(timeRange))
     );
   };
   return /* @__PURE__ */ React.createElement("div", { className: "faculty-timetables-view" }, /* @__PURE__ */ React.createElement(
@@ -9709,57 +10071,149 @@ function FacultyTimetablePanel({
           " Print"
         ))
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((slotTime) => {
-        const isLunch = slotTime === "12:40 - 1:25";
-        if (isLunch) {
-          return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(slotTime)), /* @__PURE__ */ React.createElement(
-            "td",
-            {
-              colSpan: 6,
-              style: {
-                padding: "8px",
-                letterSpacing: "0.1em",
-                fontWeight: "800",
-                color: "#64748b",
-                textTransform: "uppercase",
-                fontSize: "11.5px",
-                backgroundColor: "#e2e8f0"
+      /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+        const dayCellMap = {};
+        TIMETABLE_DAYS.forEach((dayName) => {
+          dayCellMap[dayName] = new Array(TIME_SLOTS.length);
+        });
+        TIMETABLE_DAYS.forEach((dayName) => {
+          for (let rIdx = 0; rIdx < TIME_SLOTS.length; rIdx++) {
+            if (dayCellMap[dayName][rIdx]) continue;
+            const time = TIME_SLOTS[rIdx];
+            if (time === "12:40 - 1:25" || isLunchTime(time)) {
+              dayCellMap[dayName][rIdx] = { type: "lunch" };
+              continue;
+            }
+            const slot = timetable[dayName]?.[time];
+            if (!slot || !slot.subject) {
+              dayCellMap[dayName][rIdx] = { type: "empty" };
+              continue;
+            }
+            let span = 1;
+            const mergedSlotsList = [slot];
+            let checkIdx = rIdx + 1;
+            while (checkIdx < TIME_SLOTS.length) {
+              const nextTime = TIME_SLOTS[checkIdx];
+              if (nextTime === "12:40 - 1:25" || isLunchTime(nextTime)) break;
+              const nextSlot = timetable[dayName]?.[nextTime];
+              if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                span++;
+                mergedSlotsList.push(nextSlot);
+                dayCellMap[dayName][checkIdx] = { type: "skip" };
+                checkIdx++;
+                continue;
               }
-            },
-            "LUNCH BREAK"
-          ));
-        }
-        return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: {
-          padding: "10px 14px",
-          textAlign: "left",
-          fontWeight: "700",
-          color: "#475569",
-          whiteSpace: "nowrap",
-          backgroundColor: "#fcfdfe",
-          borderRight: "1px solid #f1f5f9"
-        } }, formatOfficialTimeSlot(slotTime)), TIMETABLE_DAYS.map((day) => {
-          const slot = timetable[day]?.[slotTime];
-          return /* @__PURE__ */ React.createElement(
-            "td",
-            {
-              key: day,
-              onClick: () => handleCellClick(day, slotTime),
-              style: {
-                padding: "6px",
-                borderRight: "1px solid #f1f5f9",
-                height: "62px",
-                verticalAlign: "middle",
-                cursor: "pointer",
-                transition: "background-color 0.15s ease",
-                width: "14.6%"
+              if (slot.span && slot.span > 1 && span < slot.span) {
+                span++;
+                if (nextSlot) mergedSlotsList.push(nextSlot);
+                dayCellMap[dayName][checkIdx] = { type: "skip" };
+                checkIdx++;
+                continue;
+              }
+              break;
+            }
+            let timeRange = slot.combinedTimeSlot || slot.timeSlot || time;
+            if (span > 1) {
+              const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || "";
+              const lastRowTime = TIME_SLOTS[rIdx + span - 1];
+              const lastEnd = (lastRowTime.split(/[-–—]/)[1] || lastRowTime).trim();
+              timeRange = `${firstStart} - ${lastEnd}`;
+            }
+            const mergedSlot = {
+              ...slot,
+              timeSlot: timeRange,
+              span,
+              isMultiSlot: span > 1,
+              allMergedSlots: mergedSlotsList
+            };
+            dayCellMap[dayName][rIdx] = {
+              type: "card",
+              slot: mergedSlot,
+              span,
+              timeRange
+            };
+          }
+        });
+        return TIME_SLOTS.map((slotTime, rIdx) => {
+          const isLunch = slotTime === "12:40 - 1:25" || isLunchTime(slotTime);
+          if (isLunch) {
+            return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(slotTime)), /* @__PURE__ */ React.createElement(
+              "td",
+              {
+                colSpan: 6,
+                style: {
+                  padding: "8px",
+                  letterSpacing: "0.1em",
+                  fontWeight: "800",
+                  color: "#64748b",
+                  textTransform: "uppercase",
+                  fontSize: "11.5px",
+                  backgroundColor: "#e2e8f0"
+                }
               },
-              className: "timetable-cell-interactive",
-              title: `Click to edit ${day} at ${slotTime}`
-            },
-            slot ? renderSlotCard(slot) : /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8", fontWeight: "500" } }, "-")
-          );
-        }));
-      }))))
+              "LUNCH BREAK"
+            ));
+          }
+          return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: {
+            padding: "10px 14px",
+            textAlign: "left",
+            fontWeight: "700",
+            color: "#475569",
+            whiteSpace: "nowrap",
+            backgroundColor: "#fcfdfe",
+            borderRight: "1px solid #f1f5f9"
+          } }, formatOfficialTimeSlot(slotTime)), TIMETABLE_DAYS.map((day) => {
+            const cellInfo = dayCellMap[day]?.[rIdx];
+            if (!cellInfo || cellInfo.type === "skip") {
+              return null;
+            }
+            if (cellInfo.type === "empty") {
+              return /* @__PURE__ */ React.createElement(
+                "td",
+                {
+                  key: day,
+                  onClick: () => handleCellClick(day, slotTime),
+                  style: {
+                    padding: "6px",
+                    borderRight: "1px solid #f1f5f9",
+                    height: "62px",
+                    verticalAlign: "middle",
+                    cursor: "pointer",
+                    transition: "background-color 0.15s ease",
+                    width: "14.6%"
+                  },
+                  className: "timetable-cell-interactive",
+                  title: `Click to edit ${day} at ${slotTime}`
+                },
+                /* @__PURE__ */ React.createElement("span", { style: { color: "#94a3b8", fontWeight: "500" } }, "-")
+              );
+            }
+            const { slot, span, timeRange } = cellInfo;
+            const isMulti = span > 1;
+            return /* @__PURE__ */ React.createElement(
+              "td",
+              {
+                key: day,
+                rowSpan: isMulti ? span : void 0,
+                onClick: () => handleCellClick(day, slotTime, slot),
+                style: {
+                  padding: "6px",
+                  borderRight: "1px solid #f1f5f9",
+                  height: isMulti ? `${span * 62}px` : "62px",
+                  verticalAlign: "middle",
+                  cursor: "pointer",
+                  transition: "background-color 0.15s ease",
+                  width: "14.6%",
+                  backgroundColor: "#ffffff"
+                },
+                className: "timetable-cell-interactive",
+                title: `Click to edit ${day} at ${slotTime}`
+              },
+              renderSlotCard(slot, span, timeRange)
+            );
+          }));
+        });
+      })())))
     ), /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -10052,15 +10506,24 @@ function ClassTimetablePanel({
   departments = [],
   faculties = [],
   subjects = [],
+  initialDept,
+  initialSem,
+  initialDiv,
+  selectedDept: propDept,
+  selectedSem: propSem,
+  selectedDiv: propDiv,
   onSwitchToFacultyTimetable,
   showToast
 }) {
-  const [selectedDept, setSelectedDept] = useState("AI & Data Science");
-  const [selectedSem, setSelectedSem] = useState("3rd Semester");
-  const [selectedDiv, setSelectedDiv] = useState("Div 1");
+  const [selectedDept, setSelectedDept] = useState(propDept || initialDept || departments[0]?.name || "AI & Data Science");
+  const [selectedSem, setSelectedSem] = useState(propSem || initialSem || "3rd Semester");
+  const [selectedDiv, setSelectedDiv] = useState(propDiv || initialDiv || "Div 1");
   const [timetable, setTimetable] = useState(() => {
-    const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
-    return getClassTimetable(selectedSem, selectedDiv, activeDeptId);
+    const sDept = propDept || initialDept || departments[0]?.name || "AI & Data Science";
+    const sSem = propSem || initialSem || "3rd Semester";
+    const sDiv = propDiv || initialDiv || "Div 1";
+    const activeDeptId = departments.find((d) => d.name === sDept)?.id || sDept;
+    return getClassTimetable(sSem, sDiv, activeDeptId);
   });
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showSlotModal, setShowSlotModal] = useState(false);
@@ -10088,26 +10551,30 @@ function ClassTimetablePanel({
   const summary = useMemo(() => {
     return calculateTimetableSummary(timetable);
   }, [timetable]);
-  const handleCellClick = (day, timeSlot) => {
-    const existing = timetable[day]?.[timeSlot] || null;
+  const handleCellClick = (day, timeSlot, existingSlot = null) => {
+    const existing = existingSlot || timetable[day]?.[timeSlot] || null;
     setActiveSlotData({ day, timeSlot, existingSlot: existing });
     setShowSlotModal(true);
   };
   const handleSaveSlot = (day, timeSlot, slotData) => {
-    const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
-    const updated = updateClassSlot(selectedSem, selectedDiv, day, timeSlot, slotData, activeDeptId);
-    setTimetable({ ...updated });
-    if (showToast) showToast(`Saved & synced ${slotData.subject} for ${day} ${timeSlot}!`);
-    setShowSlotModal(false);
+    try {
+      const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
+      const updated = updateClassSlot(selectedSem, selectedDiv, day, timeSlot, slotData, activeDeptId);
+      setTimetable({ ...updated });
+      if (showToast) showToast(`Saved & synced ${slotData.subject} for ${day} ${timeSlot}!`);
+      setShowSlotModal(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
-  const handleClearSlot = (day, timeSlot) => {
+  const handleClearSlot = (day, timeSlot, sessionId = null) => {
     const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
     const updated = clearClassSlot(selectedSem, selectedDiv, day, timeSlot, activeDeptId);
     setTimetable({ ...updated });
     if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
     setShowSlotModal(false);
   };
-  const renderSlotCard = (slot) => {
+  const renderSlotCard = (slot, span = 1, timeRange = null) => {
     if (!slot || !slot.subject) return null;
     const color = slot.color || getSubjectColor(slot.subject);
     const colorStyles = {
@@ -10120,6 +10587,8 @@ function ClassTimetablePanel({
       indigo: { bg: "#e0e7ff", border: "#c7d2fe", text: "#312e81", subText: "#4338ca" }
     };
     const style = colorStyles[color] || colorStyles.blue;
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
+    const isLab = slot.type === "Lab" || isLabSession(slot);
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -10127,30 +10596,38 @@ function ClassTimetablePanel({
           backgroundColor: style.bg,
           border: `1px solid ${style.border}`,
           borderRadius: "8px",
-          padding: "8px 10px",
+          padding: isMulti ? "10px 10px" : "8px 10px",
           textAlign: "left",
           transition: "transform 0.15s ease, box-shadow 0.15s ease",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-          position: "relative"
+          boxShadow: isMulti ? "0 2px 5px rgba(0,0,0,0.06)" : "0 1px 3px rgba(0,0,0,0.04)",
+          position: "relative",
+          height: isMulti ? "calc(100% - 6px)" : void 0,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: isMulti ? "space-between" : "flex-start",
+          boxSizing: "border-box"
         },
-        className: "timetable-cell-badge"
+        className: "timetable-cell-badge",
+        "data-is-multislot": isMulti ? "true" : void 0,
+        "data-span": span
       },
-      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: "13.5px", color: style.text, lineHeight: 1.2 } }, slot.subject), /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: isMulti ? "14px" : "13.5px", color: style.text, lineHeight: 1.2 } }, slot.subject), /* @__PURE__ */ React.createElement(
         "span",
         {
           style: {
-            fontSize: "10px",
-            fontWeight: "700",
+            fontSize: "9.5px",
+            fontWeight: "800",
             padding: "2px 5px",
             borderRadius: "4px",
-            backgroundColor: "rgba(255,255,255,0.8)",
-            color: style.text
+            backgroundColor: isMulti ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.8)",
+            color: style.text,
+            letterSpacing: "0.04em",
+            whiteSpace: "nowrap"
           }
         },
-        slot.type || "Lecture"
-      )),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: style.subText, fontWeight: "700", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 12 }), /* @__PURE__ */ React.createElement("span", null, slot.facultyName || "Faculty Assigned")),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, opacity: 0.85, marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(MapPin, { size: 11 }), /* @__PURE__ */ React.createElement("span", null, slot.room || "Room 201"))
+        isMulti && isLab ? "LAB (2 SLOTS)" : slot.type || "Lecture"
+      )), slot.name && slot.name !== slot.subject && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px", lineHeight: 1.2 } }, slot.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: style.subText, fontWeight: "700", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 12 }), /* @__PURE__ */ React.createElement("span", null, slot.facultyName || "Faculty Assigned"))),
+      /* @__PURE__ */ React.createElement("div", { style: { marginTop: "4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, opacity: 0.85, display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(MapPin, { size: 11 }), /* @__PURE__ */ React.createElement("span", null, slot.room || (isLab ? "Lab 1" : "Room 201"))), slot.batch && slot.batch !== "All" && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700", fontSize: "10px", backgroundColor: "rgba(255,255,255,0.7)", padding: "1px 4px", borderRadius: "3px" } }, slot.batch)), timeRange && isMulti && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, fontWeight: "700", marginTop: "4px", opacity: 0.9, display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 10 }), /* @__PURE__ */ React.createElement("span", null, timeRange)))
     );
   };
   return /* @__PURE__ */ React.createElement("div", { className: "class-timetables-view" }, /* @__PURE__ */ React.createElement(
@@ -10387,102 +10864,192 @@ function ClassTimetablePanel({
         },
         day
       )))),
-      /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((timeSlot) => {
-        if (timeSlot === "12:40 - 1:25") {
-          return /* @__PURE__ */ React.createElement(
-            "tr",
-            {
-              key: timeSlot,
-              style: {
-                backgroundColor: "#f1f5f9",
-                borderTop: "1px solid #e2e8f0",
-                borderBottom: "1px solid #e2e8f0"
-              }
-            },
-            /* @__PURE__ */ React.createElement(
-              "td",
-              {
-                style: {
-                  padding: "8px 16px",
-                  fontSize: "11.5px",
-                  fontWeight: "800",
-                  color: "#64748b",
-                  textAlign: "left",
-                  borderRight: "1px solid #e2e8f0"
-                }
-              },
-              timeSlot
-            ),
-            /* @__PURE__ */ React.createElement(
-              "td",
-              {
-                colSpan: TIMETABLE_DAYS.length,
-                style: {
-                  padding: "8px",
-                  textAlign: "center",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                  color: "#64748b",
-                  letterSpacing: "0.15em",
-                  textTransform: "uppercase"
-                }
-              },
-              "LUNCH BREAK (45 MINS)"
-            )
-          );
-        }
-        return /* @__PURE__ */ React.createElement("tr", { key: timeSlot, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement(
-          "td",
-          {
-            style: {
-              padding: "12px 16px",
-              fontSize: "12px",
-              fontWeight: "700",
-              color: "#475569",
-              textAlign: "left",
-              backgroundColor: "#fafbfc",
-              borderRight: "1px solid #e2e8f0",
-              whiteSpace: "nowrap"
+      /* @__PURE__ */ React.createElement("tbody", null, (() => {
+        const dayCellMap = {};
+        TIMETABLE_DAYS.forEach((dayName) => {
+          dayCellMap[dayName] = new Array(TIME_SLOTS.length);
+        });
+        TIMETABLE_DAYS.forEach((dayName) => {
+          for (let rIdx = 0; rIdx < TIME_SLOTS.length; rIdx++) {
+            if (dayCellMap[dayName][rIdx]) continue;
+            const time = TIME_SLOTS[rIdx];
+            if (time === "12:40 - 1:25" || isLunchTime(time)) {
+              dayCellMap[dayName][rIdx] = { type: "lunch" };
+              continue;
             }
-          },
-          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 13, style: { color: "#94a3b8" } }), /* @__PURE__ */ React.createElement("span", null, timeSlot))
-        ), TIMETABLE_DAYS.map((day) => {
-          const slot = timetable[day]?.[timeSlot];
-          return /* @__PURE__ */ React.createElement(
+            const slot = timetable[dayName]?.[time];
+            if (!slot || !slot.subject) {
+              dayCellMap[dayName][rIdx] = { type: "empty" };
+              continue;
+            }
+            let span = 1;
+            const mergedSlotsList = [slot];
+            let checkIdx = rIdx + 1;
+            while (checkIdx < TIME_SLOTS.length) {
+              const nextTime = TIME_SLOTS[checkIdx];
+              if (nextTime === "12:40 - 1:25" || isLunchTime(nextTime)) break;
+              const nextSlot = timetable[dayName]?.[nextTime];
+              if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                span++;
+                mergedSlotsList.push(nextSlot);
+                dayCellMap[dayName][checkIdx] = { type: "skip" };
+                checkIdx++;
+                continue;
+              }
+              if (slot.span && slot.span > 1 && span < slot.span) {
+                span++;
+                if (nextSlot) mergedSlotsList.push(nextSlot);
+                dayCellMap[dayName][checkIdx] = { type: "skip" };
+                checkIdx++;
+                continue;
+              }
+              break;
+            }
+            let timeRange = slot.combinedTimeSlot || slot.timeSlot || time;
+            if (span > 1) {
+              const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || "";
+              const lastRowTime = TIME_SLOTS[rIdx + span - 1];
+              const lastEnd = (lastRowTime.split(/[-–—]/)[1] || lastRowTime).trim();
+              timeRange = `${firstStart} - ${lastEnd}`;
+            }
+            const mergedSlot = {
+              ...slot,
+              timeSlot: timeRange,
+              span,
+              isMultiSlot: span > 1,
+              allMergedSlots: mergedSlotsList
+            };
+            dayCellMap[dayName][rIdx] = {
+              type: "card",
+              slot: mergedSlot,
+              span,
+              timeRange
+            };
+          }
+        });
+        return TIME_SLOTS.map((timeSlot, rIdx) => {
+          if (timeSlot === "12:40 - 1:25" || isLunchTime(timeSlot)) {
+            return /* @__PURE__ */ React.createElement(
+              "tr",
+              {
+                key: timeSlot,
+                style: {
+                  backgroundColor: "#f1f5f9",
+                  borderTop: "1px solid #e2e8f0",
+                  borderBottom: "1px solid #e2e8f0"
+                }
+              },
+              /* @__PURE__ */ React.createElement(
+                "td",
+                {
+                  style: {
+                    padding: "8px 16px",
+                    fontSize: "11.5px",
+                    fontWeight: "800",
+                    color: "#64748b",
+                    textAlign: "left",
+                    borderRight: "1px solid #e2e8f0"
+                  }
+                },
+                timeSlot
+              ),
+              /* @__PURE__ */ React.createElement(
+                "td",
+                {
+                  colSpan: TIMETABLE_DAYS.length,
+                  style: {
+                    padding: "8px",
+                    textAlign: "center",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    color: "#64748b",
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase"
+                  }
+                },
+                "LUNCH BREAK (45 MINS)"
+              )
+            );
+          }
+          return /* @__PURE__ */ React.createElement("tr", { key: timeSlot, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement(
             "td",
             {
-              key: day,
-              onClick: () => handleCellClick(day, timeSlot),
               style: {
-                padding: "6px 8px",
-                borderRight: "1px solid #f1f5f9",
-                verticalAlign: "top",
-                height: "76px",
-                cursor: "pointer",
-                position: "relative"
-              },
-              className: "timetable-grid-slot-cell"
+                padding: "12px 16px",
+                fontSize: "12px",
+                fontWeight: "700",
+                color: "#475569",
+                textAlign: "left",
+                backgroundColor: "#fafbfc",
+                borderRight: "1px solid #e2e8f0",
+                whiteSpace: "nowrap"
+              }
             },
-            slot ? renderSlotCard(slot) : /* @__PURE__ */ React.createElement(
-              "div",
-              {
-                style: {
-                  height: "100%",
-                  minHeight: "64px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "6px",
-                  border: "1px dashed transparent",
-                  transition: "all 0.15s ease"
+            /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 13, style: { color: "#94a3b8" } }), /* @__PURE__ */ React.createElement("span", null, timeSlot))
+          ), TIMETABLE_DAYS.map((day) => {
+            const cellInfo = dayCellMap[day]?.[rIdx];
+            if (!cellInfo || cellInfo.type === "skip") {
+              return null;
+            }
+            if (cellInfo.type === "empty") {
+              return /* @__PURE__ */ React.createElement(
+                "td",
+                {
+                  key: day,
+                  onClick: () => handleCellClick(day, timeSlot),
+                  style: {
+                    padding: "6px 8px",
+                    borderRight: "1px solid #f1f5f9",
+                    verticalAlign: "top",
+                    height: "76px",
+                    cursor: "pointer",
+                    position: "relative"
+                  },
+                  className: "timetable-grid-slot-cell"
                 },
-                className: "empty-slot-hover"
+                /* @__PURE__ */ React.createElement(
+                  "div",
+                  {
+                    style: {
+                      height: "100%",
+                      minHeight: "64px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "6px",
+                      border: "1px dashed transparent",
+                      transition: "all 0.15s ease"
+                    },
+                    className: "empty-slot-hover"
+                  },
+                  /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#cbd5e1", fontWeight: "600" } }, "-")
+                )
+              );
+            }
+            const { slot, span, timeRange } = cellInfo;
+            const isMulti = span > 1;
+            return /* @__PURE__ */ React.createElement(
+              "td",
+              {
+                key: day,
+                rowSpan: isMulti ? span : void 0,
+                onClick: () => handleCellClick(day, timeSlot, slot),
+                style: {
+                  padding: "6px 8px",
+                  borderRight: "1px solid #f1f5f9",
+                  verticalAlign: "middle",
+                  height: isMulti ? `${span * 76}px` : "76px",
+                  cursor: "pointer",
+                  position: "relative",
+                  backgroundColor: "#ffffff"
+                },
+                className: "timetable-grid-slot-cell"
               },
-              /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#cbd5e1", fontWeight: "600" } }, "-")
-            )
-          );
-        }));
-      }))
+              renderSlotCard(slot, span, timeRange)
+            );
+          }));
+        });
+      })())
     ))
   ), showUploadModal && /* @__PURE__ */ React.createElement(
     TimetableUploadModal,
@@ -15308,7 +15875,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     );
   })), !isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "17px", fontWeight: "800", color: "#0f172a", marginBottom: "16px" } }, "Schedule for ", selectedTimetableDay), (() => {
     const daySlots = facultyTimetableGrid[selectedTimetableDay] || {};
-    const isLunchTime = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
+    const isLunchTime2 = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
     const rawActiveKeys = Object.keys(daySlots).filter((t) => daySlots[t] && daySlots[t].subject);
     rawActiveKeys.sort((a, b) => {
       const ma = parseTimeRangeMinutes(a)?.startMin ?? 0;
@@ -15326,7 +15893,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
       let j = i + 1;
       while (j < rawActiveKeys.length) {
         const nextT = rawActiveKeys[j];
-        if (isLunchTime(nextT)) break;
+        if (isLunchTime2(nextT)) break;
         const nextSlot = daySlots[nextT];
         if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
           mergedList.push(nextSlot);
@@ -15471,7 +16038,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     const isToday = day === todayDayName;
     return /* @__PURE__ */ React.createElement("th", { key: day, style: { textAlign: "center", padding: "14px 10px", fontWeight: "800", color: isToday ? "#2563eb" : "#0f172a", borderRight: "1px solid #e2e8f0", minWidth: "135px" } }, /* @__PURE__ */ React.createElement("div", null, day), isToday && /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", fontSize: "10px", backgroundColor: "#dbeafe", color: "#1e40af", padding: "1px 6px", borderRadius: "4px", fontWeight: "800", marginTop: "2px" } }, "Today"));
   }))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
-    const isLunchTime = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
+    const isLunchTime2 = (t) => t.toUpperCase().includes("LUNCH") || t.startsWith("12:40") || normalizeTimeSlot(t) === "12:40 - 1:25";
     const allSlotsToRender = [];
     TIME_SLOTS.forEach((s) => allSlotsToRender.push(s));
     TIMETABLE_DAYS.forEach((day) => {
@@ -15531,7 +16098,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
       for (let rIdx = 0; rIdx < allSlotsToRender.length; rIdx++) {
         if (dayCellMap[dayName][rIdx]) continue;
         const time = allSlotsToRender[rIdx];
-        if (isLunchTime(time)) {
+        if (isLunchTime2(time)) {
           dayCellMap[dayName][rIdx] = { type: "lunch" };
           continue;
         }
@@ -15546,7 +16113,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
         let checkIdx = rIdx + 1;
         while (checkIdx < allSlotsToRender.length) {
           const nextTime = allSlotsToRender[checkIdx];
-          if (isLunchTime(nextTime)) break;
+          if (isLunchTime2(nextTime)) break;
           const nextSlot = getSlotForRow(dayName, nextTime);
           if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
             span++;
@@ -15600,7 +16167,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
       }
     });
     return allSlotsToRender.map((time, rIdx) => {
-      const isLunch = isLunchTime(time);
+      const isLunch = isLunchTime2(time);
       if (isLunch) {
         return /* @__PURE__ */ React.createElement("tr", { key: time, style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569", padding: "12px 8px", borderRight: "1px solid #e2e8f0", fontSize: "12px", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(time)), /* @__PURE__ */ React.createElement("td", { colSpan: TIMETABLE_DAYS.length, style: { textAlign: "center", padding: "12px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "800", letterSpacing: "0.08em", fontSize: "12px" } }, "\u{1F371} 12:40 to 1:25pm (Break) / LUNCH RECESS"));
       }

@@ -31,14 +31,71 @@ export const OFFICIAL_TEMPLATE_TIME_SLOTS = [
   '4:10 to 5:00pm'
 ];
 
+export const isLunchTime = (slot) => {
+  if (!slot) return false;
+  const s = String(slot).toLowerCase().trim();
+  return s.startsWith('12:40') || s.includes('break') || s.includes('lunch') || s.includes('recess');
+};
+
+export const isLabSession = (slot) => {
+  if (!slot) return false;
+  const type = String(slot.type || '').trim().toLowerCase();
+  if (type === 'lab' || type === 'laboratory' || type === 'practical') return true;
+  const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || '').toLowerCase();
+  if (/\b(lab|laboratory|practical|pr|pract)\b/i.test(subj)) return true;
+  const room = String(slot.room || '').toLowerCase();
+  if (/\b(lab|laboratory)\b/i.test(room)) return true;
+  return false;
+};
+
+export const getNextConsecutiveTimeSlot = (timeSlot) => {
+  if (!timeSlot) return null;
+  const norm = normalizeTimeSlot(timeSlot);
+  let idx = TIME_SLOTS.findIndex(s => s === timeSlot || normalizeTimeSlot(s) === norm);
+  if (idx === -1) {
+    const start = timeSlot.split(/[-–—]/)[0]?.trim();
+    if (start) {
+      idx = TIME_SLOTS.findIndex(s => s.startsWith(start) || normalizeTimeSlot(s).startsWith(start));
+    }
+  }
+  if (idx === -1) return null;
+  const nextIdx = idx + 1;
+  if (nextIdx >= TIME_SLOTS.length) return null;
+  const nextSlot = TIME_SLOTS[nextIdx];
+  if (nextSlot === '12:40 - 1:25' || isLunchTime(nextSlot)) {
+    return null;
+  }
+  return nextSlot;
+};
+
+export const getCombinedTimeSlot = (slot1, slot2) => {
+  if (!slot1) return slot2 || '';
+  if (!slot2) return slot1 || '';
+  const s1Start = slot1.split(/[-–—]/)[0]?.trim() || slot1;
+  const s2Parts = slot2.split(/[-–—]/);
+  const s2End = (s2Parts[1] || s2Parts[0]).trim();
+  return `${s1Start} - ${s2End}`;
+};
+
 export const formatOfficialTimeSlot = (slotStr) => {
   if (!slotStr) return '';
   const s = String(slotStr).trim();
+  if (s.toLowerCase().includes('break') || s.toLowerCase().includes('lunch')) return '12:40 to 1:25pm (Break)';
+
+  // Multi-slot lab combinations
+  if (/^9:0[05].*?10:50/i.test(s)) return '9:05 to 10:50am';
+  if (/^10:00.*?11:45/i.test(s)) return '10:00 to 11:45am';
+  if (/^10:55.*?12:40/i.test(s)) return '10:55 to 12:40pm';
+  if (/^1:25.*?3:10/i.test(s)) return '1:25 to 3:10pm';
+  if (/^2:20.*?4:05/i.test(s)) return '2:20 to 4:05pm';
+  if (/^3:15.*?5:00/i.test(s)) return '3:15 to 5:00pm';
+
+  // Standard single slots
   if (s.startsWith('9:00') || s.startsWith('9:05')) return '9:05 to 9:55am';
   if (s.startsWith('10:00')) return '10:00 to 10:50am';
   if (s.startsWith('10:55')) return '10:55 to 11:45am';
   if (s.startsWith('11:50')) return '11:50 to 12:40pm';
-  if (s.startsWith('12:40') || s.toLowerCase().includes('break') || s.toLowerCase().includes('lunch')) return '12:40 to 1:25pm (Break)';
+  if (s.startsWith('12:40')) return '12:40 to 1:25pm (Break)';
   if (s.startsWith('1:25')) return '1:25 to 2:15pm';
   if (s.startsWith('2:20')) return '2:20 to 3:10pm';
   if (s.startsWith('3:15')) return '3:15 to 4:05pm';
@@ -403,10 +460,19 @@ export const getSessionIdentity = (entry) => {
 export const canMergeConsecutiveSlots = (slotA, slotB) => {
   if (!slotA || !slotB) return false;
 
-  // 1. MUST have an explicit shared session identity
+  // 1. Explicit shared session identity OR matching Laboratory session
   const idA = getSessionIdentity(slotA);
   const idB = getSessionIdentity(slotB);
-  if (!idA || !idB || String(idA).trim() !== String(idB).trim()) {
+  const hasSharedSessionId = idA && idB && String(idA).trim() === String(idB).trim();
+  const bothAreLab = isLabSession(slotA) && isLabSession(slotB);
+
+  // If neither shared session ID nor both are lab sessions, they cannot be merged
+  if (!hasSharedSessionId && !bothAreLab) {
+    return false;
+  }
+
+  // If both have explicit different session IDs, do not merge!
+  if (idA && idB && String(idA).trim() !== String(idB).trim()) {
     return false;
   }
 
@@ -830,10 +896,53 @@ export const getClassTimetable = (sem, div, deptId = null) => {
 
 export const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) => {
   const entries = getTimetableEntries();
+  const isLab = slotData.type === 'Lab' || isLabSession(slotData);
+
+  let nextSlot = null;
+  let combinedTime = timeSlot;
+
+  if (isLab) {
+    nextSlot = getNextConsecutiveTimeSlot(timeSlot);
+    if (!nextSlot) {
+      throw new Error(`Cannot schedule a 2-hour laboratory session at ${timeSlot}. The session crosses the lunch recess or exceeds timetable hours.`);
+    }
+    combinedTime = getCombinedTimeSlot(timeSlot, nextSlot);
+
+    // Validate that nextSlot is not occupied by another session
+    const normSem = normalizeSem(slotData.sem || '3rd Sem');
+    const normDiv = normalizeDiv(slotData.div || 'Div 1');
+    const existingAtNext = entries.find(e => {
+      if (e.day !== day || e.timeSlot !== nextSlot) return false;
+      if (slotData.sessionId && e.sessionId === slotData.sessionId) return false;
+      if (e.facultyId === facultyId) return true;
+      if (normalizeSem(e.semId || e.sem) === normSem && normalizeDiv(e.divId || e.div) === normDiv) return true;
+      if (slotData.room && e.room && e.room !== 'TBD' && e.room.toLowerCase() === slotData.room.toLowerCase()) return true;
+      return false;
+    });
+
+    if (existingAtNext) {
+      const reason = existingAtNext.facultyId === facultyId 
+        ? `Faculty is already teaching ${existingAtNext.subjectName} in ${existingAtNext.room}`
+        : `Class ${normSem} ${normDiv} already has ${existingAtNext.subjectName}`;
+      throw new Error(`Slot ${nextSlot} is already occupied: ${reason}. Cannot allocate 2-hour laboratory session.`);
+    }
+  }
+
+  // Find existing slot being edited (to clear previous multi-slot session if moving or changing type)
+  const existingSlot = entries.find(e => e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot);
+  const targetSessionId = slotData.sessionId || existingSlot?.sessionId;
+
   // Remove existing
-  const filtered = entries.filter(e => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
-  const newEntry = {
-    id: generateId(),
+  let filtered = entries.filter(e => {
+    if (targetSessionId && e.sessionId === targetSessionId) return false;
+    if (e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot) return false;
+    if (isLab && nextSlot && e.facultyId === facultyId && e.day === day && e.timeSlot === nextSlot) return false;
+    return true;
+  });
+
+  const sessionId = targetSessionId || ('sess_lab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+
+  const baseEntry = {
     facultyId,
     facultyName: slotData.facultyName || 'Faculty',
     subjectId: slotData.subject,
@@ -844,13 +953,45 @@ export const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = n
     sem: normalizeSem(slotData.sem || '3rd Sem'),
     div: normalizeDiv(slotData.div || 'Div 1'),
     departmentId: deptId,
-    room: slotData.room || 'Room 201',
+    room: slotData.room || (isLab ? 'Lab 1' : 'Room 201'),
     color: slotData.color,
-    type: slotData.type || 'Lecture',
-    day,
-    timeSlot
+    type: isLab ? 'Lab' : (slotData.type || 'Lecture'),
+    batch: slotData.batch || 'All',
+    day
   };
-  filtered.push(newEntry);
+
+  if (isLab && nextSlot) {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      sessionId,
+      span: 2,
+      duration: '2 Hours',
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true
+    });
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot: nextSlot,
+      sessionId,
+      span: 2,
+      duration: '2 Hours',
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true,
+      isContinuation: true
+    });
+  } else {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      span: 1,
+      isMultiSlot: false
+    });
+  }
+
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
@@ -858,7 +999,13 @@ export const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = n
 
 export const clearFacultySlot = (facultyId, day, timeSlot) => {
   const entries = getTimetableEntries();
-  const filtered = entries.filter(e => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
+  const target = entries.find(e => e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot);
+  let filtered;
+  if (target && target.sessionId) {
+    filtered = entries.filter(e => e.sessionId !== target.sessionId);
+  } else {
+    filtered = entries.filter(e => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
@@ -866,17 +1013,61 @@ export const clearFacultySlot = (facultyId, day, timeSlot) => {
 
 export const updateClassSlot = (sem, div, day, timeSlot, slotData, deptId = null) => {
   const entries = getTimetableEntries();
-  // Clear any existing slot for this class at this day and time
   const normSem = normalizeSem(sem);
   const normDiv = normalizeDiv(div);
-  const filtered = entries.filter(e => !(
-    normalizeSem(e.semId || e.sem) === normSem &&
-    normalizeDiv(e.divId || e.div) === normDiv &&
-    e.day === day &&
-    e.timeSlot === timeSlot
-  ));
-  const newEntry = {
-    id: generateId(),
+  const isLab = slotData.type === 'Lab' || isLabSession(slotData);
+
+  let nextSlot = null;
+  let combinedTime = timeSlot;
+
+  if (isLab) {
+    nextSlot = getNextConsecutiveTimeSlot(timeSlot);
+    if (!nextSlot) {
+      throw new Error(`Cannot schedule a 2-hour laboratory session at ${timeSlot}. The session crosses the lunch recess or exceeds timetable hours.`);
+    }
+    combinedTime = getCombinedTimeSlot(timeSlot, nextSlot);
+
+    // Validate that nextSlot is not occupied by another session for this class or faculty
+    const existingAtNext = entries.find(e => {
+      if (e.day !== day || e.timeSlot !== nextSlot) return false;
+      if (slotData.sessionId && e.sessionId === slotData.sessionId) return false;
+      const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+      const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+      if (matchSem && matchDiv) return true;
+      if (slotData.facultyId && e.facultyId === slotData.facultyId) return true;
+      if (slotData.room && e.room && e.room !== 'TBD' && e.room.toLowerCase() === slotData.room.toLowerCase()) return true;
+      return false;
+    });
+
+    if (existingAtNext) {
+      const reason = (normalizeSem(existingAtNext.semId || existingAtNext.sem) === normSem && normalizeDiv(existingAtNext.divId || existingAtNext.div) === normDiv)
+        ? `Class already has ${existingAtNext.subjectName} scheduled`
+        : `Faculty ${existingAtNext.facultyName} is teaching ${existingAtNext.subjectName}`;
+      throw new Error(`Slot ${nextSlot} is already occupied: ${reason}. Cannot allocate 2-hour laboratory session.`);
+    }
+  }
+
+  // Find existing slot being edited (to clear previous multi-slot session if moving or changing type)
+  const existingSlot = entries.find(e => {
+    const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+    const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+    return matchSem && matchDiv && e.day === day && e.timeSlot === timeSlot;
+  });
+  const targetSessionId = slotData.sessionId || existingSlot?.sessionId;
+
+  // Clear existing slot(s) for this class
+  let filtered = entries.filter(e => {
+    if (targetSessionId && e.sessionId === targetSessionId) return false;
+    const matchSem = normalizeSem(e.semId || e.sem) === normSem;
+    const matchDiv = normalizeDiv(e.divId || e.div) === normDiv;
+    if (matchSem && matchDiv && e.day === day && e.timeSlot === timeSlot) return false;
+    if (isLab && nextSlot && matchSem && matchDiv && e.day === day && e.timeSlot === nextSlot) return false;
+    return true;
+  });
+
+  const sessionId = targetSessionId || ('sess_lab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+
+  const baseEntry = {
     facultyId: slotData.facultyId,
     facultyName: slotData.facultyName || 'Faculty',
     subjectId: slotData.subject,
@@ -887,13 +1078,45 @@ export const updateClassSlot = (sem, div, day, timeSlot, slotData, deptId = null
     sem: normSem,
     div: normDiv,
     departmentId: deptId,
-    room: slotData.room || 'Room 201',
+    room: slotData.room || (isLab ? 'Lab 1' : 'Room 201'),
     color: slotData.color,
-    type: slotData.type || 'Lecture',
-    day,
-    timeSlot
+    type: isLab ? 'Lab' : (slotData.type || 'Lecture'),
+    batch: slotData.batch || 'All',
+    day
   };
-  filtered.push(newEntry);
+
+  if (isLab && nextSlot) {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      sessionId,
+      span: 2,
+      duration: '2 Hours',
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true
+    });
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot: nextSlot,
+      sessionId,
+      span: 2,
+      duration: '2 Hours',
+      combinedTimeSlot: combinedTime,
+      isMultiSlot: true,
+      isContinuation: true
+    });
+  } else {
+    filtered.push({
+      ...baseEntry,
+      id: generateId(),
+      timeSlot,
+      span: 1,
+      isMultiSlot: false
+    });
+  }
+
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return convertEntriesToGrid(getEntriesByClass(deptId, sem, div));
@@ -903,12 +1126,23 @@ export const clearClassSlot = (sem, div, day, timeSlot, deptId = null) => {
   const entries = getTimetableEntries();
   const normSem = normalizeSem(sem);
   const normDiv = normalizeDiv(div);
-  const filtered = entries.filter(e => {
+  const target = entries.find(e => {
     const semMatch = normalizeSem(e.semId || e.sem) === normSem;
     const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
-    const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
-    return !(semMatch && divMatch && deptMatch && e.day === day && e.timeSlot === timeSlot);
+    return semMatch && divMatch && e.day === day && e.timeSlot === timeSlot;
   });
+
+  let filtered;
+  if (target && target.sessionId) {
+    filtered = entries.filter(e => e.sessionId !== target.sessionId);
+  } else {
+    filtered = entries.filter(e => {
+      const semMatch = normalizeSem(e.semId || e.sem) === normSem;
+      const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
+      const deptMatch = !deptId || !e.departmentId || e.departmentId === deptId;
+      return !(semMatch && divMatch && deptMatch && e.day === day && e.timeSlot === timeSlot);
+    });
+  }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return convertEntriesToGrid(getEntriesByClass(deptId, sem, div));
@@ -969,11 +1203,18 @@ export const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
         divId: div,
         sem: sem,
         div: div,
+        batch: slot.batch || 'All',
         room: slot.room || 'Room 201',
         color: slot.color || getSubjectColor(slot.subject),
         type: slot.type || 'Lecture',
         day,
-        timeSlot
+        timeSlot,
+        sessionId: slot.sessionId || (slot.span > 1 ? slot.sessionId : null),
+        span: slot.span || 1,
+        duration: slot.duration,
+        combinedTimeSlot: slot.combinedTimeSlot,
+        isContinuation: slot.isContinuation || false,
+        isMultiSlot: slot.span > 1
       });
     });
   });
@@ -1043,11 +1284,18 @@ export const applyUploadedClassTimetable = (sem, div, newTimetable, deptNameOrId
         divId: normDiv,
         sem: normSem,
         div: normDiv,
+        batch: slot.batch || 'All',
         room: slot.room || 'Room 201',
         color: slot.color || getSubjectColor(slot.subject),
         type: slot.type || 'Lecture',
         day,
-        timeSlot
+        timeSlot,
+        sessionId: slot.sessionId || (slot.span > 1 ? slot.sessionId : null),
+        span: slot.span || 1,
+        duration: slot.duration,
+        combinedTimeSlot: slot.combinedTimeSlot,
+        isContinuation: slot.isContinuation || false,
+        isMultiSlot: slot.span > 1
       });
     });
   });
@@ -1825,6 +2073,8 @@ export const normalizeTimetable = (rawTimetable, defaultSem = '3rd Sem', default
   if (rawTimetable && typeof rawTimetable === 'object') {
     TIMETABLE_DAYS.forEach(day => {
       const daySlots = rawTimetable[day] || {};
+
+      const normalizedDaySlots = {};
       Object.entries(daySlots).forEach(([timeSlot, slot]) => {
         if (!slot || !slot.subject) return;
         const subjShort = String(slot.subject).trim();
@@ -1833,38 +2083,120 @@ export const normalizeTimetable = (rawTimetable, defaultSem = '3rd Sem', default
         const sem = normalizeSem(slot.sem || defaultSem);
         const div = normalizeDiv(slot.div || defaultDiv);
         const deptId = slot.departmentId || defaultDeptId;
-        const room = slot.room || 'Room 201';
-        const type = slot.type || 'Lecture';
+        const room = slot.room || (isLabSession(slot) ? 'Lab 1' : 'Room 201');
+        const type = slot.type || (isLabSession(slot) ? 'Lab' : 'Lecture');
         const name = slot.name || slot.subjectFullName || subjShort;
         const color = slot.color || getSubjectColor(subjShort);
         const facName = slot.facultyName || facultyName || '';
+        const batch = slot.batch || 'All';
 
-        const normalizedSlot = {
+        normalizedDaySlots[timeSlot] = {
           subject: subjShort,
           name,
           sem,
           div,
+          batch,
           departmentId: deptId,
           room,
           type,
           color,
-          facultyName: facName
+          facultyName: facName,
+          day,
+          timeSlot,
+          span: 1
         };
+      });
 
-        timetable[day][timeSlot] = normalizedSlot;
-        subjectsSet.add(subjShort);
+      // Detect and merge consecutive laboratory slots on this day
+      const sortedSlots = TIME_SLOTS.filter(s => s !== '12:40 - 1:25' && !isLunchTime(s));
+      const processedTimes = new Set();
 
+      sortedSlots.forEach((timeSlot, idx) => {
+        if (processedTimes.has(timeSlot)) return;
+        const slot = normalizedDaySlots[timeSlot];
+        if (!slot) return;
+
+        subjectsSet.add(slot.subject);
+
+        const isLab = slot.type === 'Lab' || isLabSession(slot);
+        const nextTime = idx + 1 < sortedSlots.length ? sortedSlots[idx + 1] : null;
+        const nextSlot = nextTime ? normalizedDaySlots[nextTime] : null;
+        const isConsecutive = nextTime && getNextConsecutiveTimeSlot(timeSlot) === nextTime;
+
+        if (isLab && nextSlot && isConsecutive) {
+          const nextIsLab = nextSlot.type === 'Lab' || isLabSession(nextSlot);
+          const sameSubject = (slot.subject || '').toLowerCase() === (nextSlot.subject || '').toLowerCase();
+          const sameSem = normalizeSem(slot.sem) === normalizeSem(nextSlot.sem);
+          const sameDiv = normalizeDiv(slot.div) === normalizeDiv(nextSlot.div);
+          const sameBatch = (slot.batch || 'ALL').toUpperCase() === (nextSlot.batch || 'ALL').toUpperCase();
+          const sameFaculty = !slot.facultyName || !nextSlot.facultyName || slot.facultyName.toLowerCase() === nextSlot.facultyName.toLowerCase();
+
+          if (nextIsLab && sameSubject && sameSem && sameDiv && sameBatch && sameFaculty) {
+            const sessionId = slot.sessionId || nextSlot.sessionId || ('sess_lab_up_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+            const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
+
+            const mergedSlot1 = {
+              ...slot,
+              type: 'Lab',
+              span: 2,
+              duration: '2 Hours',
+              combinedTimeSlot: combinedTime,
+              sessionId,
+              isMultiSlot: true
+            };
+            const mergedSlot2 = {
+              ...nextSlot,
+              type: 'Lab',
+              span: 2,
+              duration: '2 Hours',
+              combinedTimeSlot: combinedTime,
+              sessionId,
+              isMultiSlot: true,
+              isContinuation: true
+            };
+
+            timetable[day][timeSlot] = mergedSlot1;
+            timetable[day][nextTime] = mergedSlot2;
+
+            previewLectures.push({
+              day,
+              time: combinedTime,
+              subject: slot.subject,
+              name: slot.name,
+              room: slot.room,
+              sem: slot.sem,
+              div: slot.div,
+              batch: slot.batch,
+              departmentId: slot.departmentId,
+              facultyName: slot.facultyName,
+              span: 2,
+              type: 'Lab',
+              duration: '2 Hours',
+              sessionId
+            });
+
+            processedTimes.add(timeSlot);
+            processedTimes.add(nextTime);
+            return;
+          }
+        }
+
+        timetable[day][timeSlot] = slot;
         previewLectures.push({
           day,
           time: timeSlot,
-          subject: subjShort,
-          name,
-          room,
-          sem,
-          div,
-          departmentId: deptId,
-          facultyName: facName
+          subject: slot.subject,
+          name: slot.name,
+          room: slot.room,
+          sem: slot.sem,
+          div: slot.div,
+          batch: slot.batch,
+          departmentId: slot.departmentId,
+          facultyName: slot.facultyName,
+          span: 1,
+          type: slot.type
         });
+        processedTimes.add(timeSlot);
       });
     });
   }
@@ -2930,6 +3262,10 @@ export const downloadFacultyTimetableCsv = (facultyName = 'Faculty', deptName = 
 };
 
 if (typeof window !== 'undefined') {
+  window.isLunchTime = isLunchTime;
+  window.isLabSession = isLabSession;
+  window.getNextConsecutiveTimeSlot = getNextConsecutiveTimeSlot;
+  window.getCombinedTimeSlot = getCombinedTimeSlot;
   window.formatOfficialTimeSlot = formatOfficialTimeSlot;
   window.calculateFacultyTeachingMetrics = calculateFacultyTeachingMetrics;
   window.downloadFacultyTimetableTemplate = downloadFacultyTimetableTemplate;
@@ -2946,5 +3282,12 @@ if (typeof window !== 'undefined') {
   window.getTimetableEntries = getTimetableEntries;
   window.getFacultyTimetable = getFacultyTimetable;
   window.notifyTimetableSync = notifyTimetableSync;
+  window.clearAllEntries = clearAllEntries;
+  window.updateFacultySlot = updateFacultySlot;
+  window.clearFacultySlot = clearFacultySlot;
+  window.updateClassSlot = updateClassSlot;
+  window.clearClassSlot = clearClassSlot;
+  window.normalizeTimetable = normalizeTimetable;
+  window.getClassTimetable = getClassTimetable;
 }
 

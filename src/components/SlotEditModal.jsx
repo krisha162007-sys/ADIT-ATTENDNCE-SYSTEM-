@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
-import { X, Clock, Calendar, BookOpen, Layers, MapPin, Trash2, Check } from 'lucide-react';
-import { checkConflicts, TIME_SLOTS, TIMETABLE_DAYS, getSubjectColor } from '../services/timetableStorage';
+import { X, Clock, Calendar, BookOpen, Layers, MapPin, Trash2, Check, FlaskConical, AlertTriangle } from 'lucide-react';
+import { 
+  checkConflicts, 
+  TIME_SLOTS, 
+  TIMETABLE_DAYS, 
+  getSubjectColor, 
+  isLabSession, 
+  getNextConsecutiveTimeSlot, 
+  getCombinedTimeSlot 
+} from '../services/timetableStorage';
 
 export default function SlotEditModal({
   day: initialDay,
@@ -32,6 +40,11 @@ export default function SlotEditModal({
   const [selectedFacultyId, setSelectedFacultyId] = useState(existingSlot?.facultyId || '');
   const [conflicts, setConflicts] = useState([]);
 
+  // Compute 2-hour lab duration and consecutive slot
+  const isLab = type === 'Lab' || isLabSession({ type, subject, room });
+  const nextSlot = isLab ? getNextConsecutiveTimeSlot(timeSlot) : null;
+  const isInvalidLabSlot = isLab && !nextSlot;
+  const combinedTime = isLab && nextSlot ? getCombinedTimeSlot(timeSlot, nextSlot) : timeSlot;
 
   // Handle subject change
   const handleSubjectSelect = (e) => {
@@ -42,10 +55,18 @@ export default function SlotEditModal({
       setSubject(short);
       setFullName(subjObj.name);
       setColor(getSubjectColor(short));
+      if (isLabSession(subjObj)) {
+        setType('Lab');
+        if (!room || room === 'Room 201') setRoom('Lab 1');
+      }
     } else {
       setSubject(selectedSubjId);
       setFullName(selectedSubjId);
       setColor(getSubjectColor(selectedSubjId));
+      if (isLabSession({ subject: selectedSubjId })) {
+        setType('Lab');
+        if (!room || room === 'Room 201') setRoom('Lab 1');
+      }
     }
   };
 
@@ -53,6 +74,11 @@ export default function SlotEditModal({
     e.preventDefault();
     if (!subject.trim()) {
       alert('Please specify a subject');
+      return;
+    }
+
+    if (isInvalidLabSlot) {
+      alert(`Cannot schedule a 2-hour laboratory session at ${timeSlot} because it crosses the lunch recess (12:40 - 1:25) or exceeds timetable hours. Please select an earlier start time.`);
       return;
     }
 
@@ -65,11 +91,16 @@ export default function SlotEditModal({
       sem,
       div,
       batch,
-      room: room.trim() || 'Room 201',
-      type,
+      room: room.trim() || (isLab ? 'Lab 1' : 'Room 201'),
+      type: isLab ? 'Lab' : type,
       color: color || getSubjectColor(subject),
       facultyId: selectedFacultyId || existingSlot?.facultyId,
-      facultyName
+      facultyName,
+      span: isLab ? 2 : 1,
+      duration: isLab ? '2 Hours' : '1 Hour',
+      combinedTimeSlot: isLab ? combinedTime : timeSlot,
+      sessionId: existingSlot?.sessionId,
+      isLab
     };
 
     if (!ignoreConflicts) {
@@ -81,6 +112,19 @@ export default function SlotEditModal({
         timeSlot
       };
       const foundConflicts = checkConflicts(entryData, existingSlot?.id);
+      if (isLab && nextSlot) {
+        const entryData2 = {
+          ...slotData,
+          semId: sem,
+          divId: div,
+          day,
+          timeSlot: nextSlot
+        };
+        const foundConflicts2 = checkConflicts(entryData2, existingSlot?.id);
+        foundConflicts2.forEach(c => {
+          if (!foundConflicts.includes(c)) foundConflicts.push(c);
+        });
+      }
       if (foundConflicts.length > 0) {
         setConflicts(foundConflicts);
         return;
@@ -91,8 +135,14 @@ export default function SlotEditModal({
   };
 
   const handleClear = () => {
-    if (window.confirm(`Clear this lecture slot on ${day} (${timeSlot})?`)) {
-      onClear(day, timeSlot);
+    const isMultiSession = existingSlot?.span > 1 || existingSlot?.sessionId || existingSlot?.type === 'Lab';
+    const confirmMsg = isMultiSession
+      ? `Clear this 2-hour laboratory session on ${day} (${existingSlot?.combinedTimeSlot || timeSlot})?
+Both consecutive slots will be freed.`
+      : `Clear this lecture slot on ${day} (${timeSlot})?`;
+
+    if (window.confirm(confirmMsg)) {
+      onClear(day, timeSlot, existingSlot?.sessionId);
       if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
       onClose();
     }
@@ -100,7 +150,7 @@ export default function SlotEditModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: '480px' }}>
+      <div className="modal-card" style={{ maxWidth: '490px' }}>
         <div className="modal-header">
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
@@ -154,6 +204,37 @@ export default function SlotEditModal({
               </div>
             </div>
 
+            {/* 2-Hour Laboratory Visual Notification Banner */}
+            {isLab && nextSlot && (
+              <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <FlaskConical size={20} style={{ color: '#059669', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '12.5px', fontWeight: '800', color: '#065f46' }}>
+                    2-Hour Laboratory Session (2 Consecutive Slots)
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#047857', marginTop: '2px' }}>
+                    Allocates <b>{timeSlot}</b> and <b>{nextSlot}</b> ({combinedTime}) • Merges into 1 continuous cell automatically
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isInvalidLabSlot && (
+              <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertTriangle size={20} style={{ color: '#dc2626', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '12.5px', fontWeight: '800', color: '#991b1b' }}>
+                    Cannot Allocate 2-Hour Laboratory
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#b91c1c', marginTop: '2px' }}>
+                    {timeSlot.startsWith('11:50')
+                      ? 'Crosses lunch recess (12:40 - 1:25). Please select an earlier or post-lunch time slot.'
+                      : 'Exceeds timetable hours. Please select an earlier time slot.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Subject Dropdown / Custom Input */}
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
@@ -184,8 +265,13 @@ export default function SlotEditModal({
                   placeholder="e.g. DBMS"
                   value={subject}
                   onChange={(e) => {
-                    setSubject(e.target.value);
-                    setColor(getSubjectColor(e.target.value));
+                    const val = e.target.value;
+                    setSubject(val);
+                    setColor(getSubjectColor(val));
+                    if (isLabSession({ subject: val })) {
+                      setType('Lab');
+                      if (!room || room === 'Room 201') setRoom('Lab 1');
+                    }
                   }}
                   required
                 />
@@ -267,7 +353,7 @@ export default function SlotEditModal({
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Room 201"
+                  placeholder={isLab ? 'e.g. Lab 1' : 'e.g. Room 201'}
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
                 />
@@ -281,10 +367,16 @@ export default function SlotEditModal({
                 <select
                   className="form-control"
                   value={type}
-                  onChange={(e) => setType(e.target.value)}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setType(newType);
+                    if (newType === 'Lab' && (!room || room === 'Room 201')) {
+                      setRoom('Lab 1');
+                    }
+                  }}
                 >
-                  <option value="Lecture">Lecture</option>
-                  <option value="Lab">Laboratory</option>
+                  <option value="Lecture">Lecture (1 Slot)</option>
+                  <option value="Lab">Laboratory (2 Slots / 2 Hours)</option>
                   <option value="Seminar">Seminar</option>
                   <option value="Tutorial">Tutorial</option>
                 </select>
@@ -374,7 +466,7 @@ export default function SlotEditModal({
               <button type="button" className="btn btn-secondary" onClick={onClose}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={isInvalidLabSlot}>
                 <Check size={16} /> Save Slot
               </button>
             </div>

@@ -28,14 +28,17 @@ import {
   saveClassTimetable, 
   updateClassSlot, 
   clearClassSlot, 
-  calculateTimetableSummary,
-  getSubjectColor,
-  normalizeSem,
-  normalizeDiv,
-  getClassKey,
-  downloadClassTimetableTemplate,
-  getEntriesByClass,
-  checkConflicts
+  calculateTimetableSummary, 
+  getSubjectColor, 
+  normalizeSem, 
+  normalizeDiv, 
+  getClassKey, 
+  downloadClassTimetableTemplate, 
+  getEntriesByClass, 
+  checkConflicts,
+  isLunchTime,
+  canMergeConsecutiveSlots,
+  isLabSession
 } from '../services/timetableStorage';
 import TimetableUploadModal from './TimetableUploadModal';
 import SlotEditModal from './SlotEditModal';
@@ -44,18 +47,27 @@ export default function ClassTimetablePanel({
   departments = [],
   faculties = [],
   subjects = [],
+  initialDept,
+  initialSem,
+  initialDiv,
+  selectedDept: propDept,
+  selectedSem: propSem,
+  selectedDiv: propDiv,
   onSwitchToFacultyTimetable,
   showToast
 }) {
   // Department, Semester & Division filters
-  const [selectedDept, setSelectedDept] = useState('AI & Data Science');
-  const [selectedSem, setSelectedSem] = useState('3rd Semester');
-  const [selectedDiv, setSelectedDiv] = useState('Div 1');
+  const [selectedDept, setSelectedDept] = useState(propDept || initialDept || departments[0]?.name || 'AI & Data Science');
+  const [selectedSem, setSelectedSem] = useState(propSem || initialSem || '3rd Semester');
+  const [selectedDiv, setSelectedDiv] = useState(propDiv || initialDiv || 'Div 1');
 
   // Timetable state
   const [timetable, setTimetable] = useState(() => {
-    const activeDeptId = departments.find(d => d.name === selectedDept)?.id || selectedDept;
-    return getClassTimetable(selectedSem, selectedDiv, activeDeptId);
+    const sDept = propDept || initialDept || departments[0]?.name || 'AI & Data Science';
+    const sSem = propSem || initialSem || '3rd Semester';
+    const sDiv = propDiv || initialDiv || 'Div 1';
+    const activeDeptId = departments.find(d => d.name === sDept)?.id || sDept;
+    return getClassTimetable(sSem, sDiv, activeDeptId);
   });
 
   // Modals state
@@ -96,23 +108,27 @@ export default function ClassTimetablePanel({
   }, [timetable]);
 
   // Cell Click Handler
-  const handleCellClick = (day, timeSlot) => {
-    const existing = timetable[day]?.[timeSlot] || null;
+  const handleCellClick = (day, timeSlot, existingSlot = null) => {
+    const existing = existingSlot || timetable[day]?.[timeSlot] || null;
     setActiveSlotData({ day, timeSlot, existingSlot: existing });
     setShowSlotModal(true);
   };
 
   // Save Slot Handler
   const handleSaveSlot = (day, timeSlot, slotData) => {
-    const activeDeptId = departments.find(d => d.name === selectedDept)?.id || selectedDept;
-    const updated = updateClassSlot(selectedSem, selectedDiv, day, timeSlot, slotData, activeDeptId);
-    setTimetable({ ...updated });
-    if (showToast) showToast(`Saved & synced ${slotData.subject} for ${day} ${timeSlot}!`);
-    setShowSlotModal(false);
+    try {
+      const activeDeptId = departments.find(d => d.name === selectedDept)?.id || selectedDept;
+      const updated = updateClassSlot(selectedSem, selectedDiv, day, timeSlot, slotData, activeDeptId);
+      setTimetable({ ...updated });
+      if (showToast) showToast(`Saved & synced ${slotData.subject} for ${day} ${timeSlot}!`);
+      setShowSlotModal(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   // Clear Slot Handler
-  const handleClearSlot = (day, timeSlot) => {
+  const handleClearSlot = (day, timeSlot, sessionId = null) => {
     const activeDeptId = departments.find(d => d.name === selectedDept)?.id || selectedDept;
     const updated = clearClassSlot(selectedSem, selectedDiv, day, timeSlot, activeDeptId);
     setTimetable({ ...updated });
@@ -121,7 +137,7 @@ export default function ClassTimetablePanel({
   };
 
   // Render Slot Card
-  const renderSlotCard = (slot) => {
+  const renderSlotCard = (slot, span = 1, timeRange = null) => {
     if (!slot || !slot.subject) return null;
 
     const color = slot.color || getSubjectColor(slot.subject);
@@ -136,6 +152,8 @@ export default function ClassTimetablePanel({
     };
 
     const style = colorStyles[color] || colorStyles.blue;
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
+    const isLab = slot.type === 'Lab' || isLabSession(slot);
 
     return (
       <div 
@@ -143,40 +161,73 @@ export default function ClassTimetablePanel({
           backgroundColor: style.bg,
           border: `1px solid ${style.border}`,
           borderRadius: '8px',
-          padding: '8px 10px',
+          padding: isMulti ? '10px 10px' : '8px 10px',
           textAlign: 'left',
           transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-          position: 'relative'
+          boxShadow: isMulti ? '0 2px 5px rgba(0,0,0,0.06)' : '0 1px 3px rgba(0,0,0,0.04)',
+          position: 'relative',
+          height: isMulti ? 'calc(100% - 6px)' : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: isMulti ? 'space-between' : 'flex-start',
+          boxSizing: 'border-box'
         }}
         className="timetable-cell-badge"
+        data-is-multislot={isMulti ? 'true' : undefined}
+        data-span={span}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: '800', fontSize: '13.5px', color: style.text, lineHeight: 1.2 }}>
-            {slot.subject}
-          </span>
-          <span 
-            style={{
-              fontSize: '10px',
-              fontWeight: '700',
-              padding: '2px 5px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(255,255,255,0.8)',
-              color: style.text
-            }}
-          >
-            {slot.type || 'Lecture'}
-          </span>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontWeight: '800', fontSize: isMulti ? '14px' : '13.5px', color: style.text, lineHeight: 1.2 }}>
+              {slot.subject}
+            </span>
+            <span 
+              style={{
+                fontSize: '9.5px',
+                fontWeight: '800',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                backgroundColor: isMulti ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.8)',
+                color: style.text,
+                letterSpacing: '0.04em',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isMulti && isLab ? 'LAB (2 SLOTS)' : (slot.type || 'Lecture')}
+            </span>
+          </div>
+
+          {slot.name && slot.name !== slot.subject && (
+            <div style={{ fontSize: '11px', color: style.subText, fontWeight: '600', marginTop: '2px', lineHeight: 1.2 }}>
+              {slot.name}
+            </div>
+          )}
+
+          <div style={{ fontSize: '11.5px', color: style.subText, fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <UserCheck size={12} />
+            <span>{slot.facultyName || 'Faculty Assigned'}</span>
+          </div>
         </div>
 
-        <div style={{ fontSize: '11.5px', color: style.subText, fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <UserCheck size={12} />
-          <span>{slot.facultyName || 'Faculty Assigned'}</span>
-        </div>
+        <div style={{ marginTop: '4px' }}>
+          <div style={{ fontSize: '11px', color: style.subText, opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <MapPin size={11} />
+              <span>{slot.room || (isLab ? 'Lab 1' : 'Room 201')}</span>
+            </span>
+            {slot.batch && slot.batch !== 'All' && (
+              <span style={{ fontWeight: '700', fontSize: '10px', backgroundColor: 'rgba(255,255,255,0.7)', padding: '1px 4px', borderRadius: '3px' }}>
+                {slot.batch}
+              </span>
+            )}
+          </div>
 
-        <div style={{ fontSize: '11px', color: style.subText, opacity: 0.85, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <MapPin size={11} />
-          <span>{slot.room || 'Room 201'}</span>
+          {timeRange && isMulti && (
+            <div style={{ fontSize: '10.5px', color: style.subText, fontWeight: '700', marginTop: '4px', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Clock size={10} />
+              <span>{timeRange}</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -505,114 +556,220 @@ export default function ClassTimetablePanel({
             </thead>
 
             <tbody>
-              {TIME_SLOTS.map((timeSlot) => {
-                // Lunch Break Banner Row
-                if (timeSlot === '12:40 - 1:25') {
+              {(() => {
+                // Pre-calculate merged cells map for each day
+                const dayCellMap = {};
+                TIMETABLE_DAYS.forEach(dayName => {
+                  dayCellMap[dayName] = new Array(TIME_SLOTS.length);
+                });
+
+                TIMETABLE_DAYS.forEach(dayName => {
+                  for (let rIdx = 0; rIdx < TIME_SLOTS.length; rIdx++) {
+                    if (dayCellMap[dayName][rIdx]) continue;
+
+                    const time = TIME_SLOTS[rIdx];
+                    if (time === '12:40 - 1:25' || isLunchTime(time)) {
+                      dayCellMap[dayName][rIdx] = { type: 'lunch' };
+                      continue;
+                    }
+
+                    const slot = timetable[dayName]?.[time];
+                    if (!slot || !slot.subject) {
+                      dayCellMap[dayName][rIdx] = { type: 'empty' };
+                      continue;
+                    }
+
+                    let span = 1;
+                    const mergedSlotsList = [slot];
+
+                    let checkIdx = rIdx + 1;
+                    while (checkIdx < TIME_SLOTS.length) {
+                      const nextTime = TIME_SLOTS[checkIdx];
+                      if (nextTime === '12:40 - 1:25' || isLunchTime(nextTime)) break;
+
+                      const nextSlot = timetable[dayName]?.[nextTime];
+
+                      // 1. Check if next slot is consecutive and belongs to same session
+                      if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                        span++;
+                        mergedSlotsList.push(nextSlot);
+                        dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                        checkIdx++;
+                        continue;
+                      }
+
+                      // 2. Check if current slot has an explicit span > 1
+                      if (slot.span && slot.span > 1 && span < slot.span) {
+                        span++;
+                        if (nextSlot) mergedSlotsList.push(nextSlot);
+                        dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                        checkIdx++;
+                        continue;
+                      }
+
+                      break;
+                    }
+
+                    let timeRange = slot.combinedTimeSlot || slot.timeSlot || time;
+                    if (span > 1) {
+                      const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || '';
+                      const lastRowTime = TIME_SLOTS[rIdx + span - 1];
+                      const lastEnd = (lastRowTime.split(/[-–—]/)[1] || lastRowTime).trim();
+                      timeRange = `${firstStart} - ${lastEnd}`;
+                    }
+
+                    const mergedSlot = {
+                      ...slot,
+                      timeSlot: timeRange,
+                      span,
+                      isMultiSlot: span > 1,
+                      allMergedSlots: mergedSlotsList
+                    };
+
+                    dayCellMap[dayName][rIdx] = {
+                      type: 'card',
+                      slot: mergedSlot,
+                      span,
+                      timeRange
+                    };
+                  }
+                });
+
+                return TIME_SLOTS.map((timeSlot, rIdx) => {
+                  // Lunch Break Banner Row
+                  if (timeSlot === '12:40 - 1:25' || isLunchTime(timeSlot)) {
+                    return (
+                      <tr 
+                        key={timeSlot}
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          borderTop: '1px solid #e2e8f0',
+                          borderBottom: '1px solid #e2e8f0'
+                        }}
+                      >
+                        <td 
+                          style={{ 
+                            padding: '8px 16px', 
+                            fontSize: '11.5px', 
+                            fontWeight: '800', 
+                            color: '#64748b', 
+                            textAlign: 'left',
+                            borderRight: '1px solid #e2e8f0'
+                          }}
+                        >
+                          {timeSlot}
+                        </td>
+                        <td 
+                          colSpan={TIMETABLE_DAYS.length}
+                          style={{
+                            padding: '8px',
+                            textAlign: 'center',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            color: '#64748b',
+                            letterSpacing: '0.15em',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          LUNCH BREAK (45 MINS)
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return (
-                    <tr 
-                      key={timeSlot}
-                      style={{
-                        backgroundColor: '#f1f5f9',
-                        borderTop: '1px solid #e2e8f0',
-                        borderBottom: '1px solid #e2e8f0'
-                      }}
-                    >
+                    <tr key={timeSlot} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {/* Time Slot Label */}
                       <td 
                         style={{ 
-                          padding: '8px 16px', 
-                          fontSize: '11.5px', 
-                          fontWeight: '800', 
-                          color: '#64748b', 
+                          padding: '12px 16px', 
+                          fontSize: '12px', 
+                          fontWeight: '700', 
+                          color: '#475569', 
                           textAlign: 'left',
-                          borderRight: '1px solid #e2e8f0'
+                          backgroundColor: '#fafbfc',
+                          borderRight: '1px solid #e2e8f0',
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        {timeSlot}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Clock size={13} style={{ color: '#94a3b8' }} />
+                          <span>{timeSlot}</span>
+                        </div>
                       </td>
-                      <td 
-                        colSpan={TIMETABLE_DAYS.length}
-                        style={{
-                          padding: '8px',
-                          textAlign: 'center',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          color: '#64748b',
-                          letterSpacing: '0.15em',
-                          textTransform: 'uppercase'
-                        }}
-                      >
-                        LUNCH BREAK (45 MINS)
-                      </td>
+
+                      {/* Day Cells */}
+                      {TIMETABLE_DAYS.map((day) => {
+                        const cellInfo = dayCellMap[day]?.[rIdx];
+
+                        // If covered by an earlier rowSpan, omit the td completely!
+                        if (!cellInfo || cellInfo.type === 'skip') {
+                          return null;
+                        }
+
+                        if (cellInfo.type === 'empty') {
+                          return (
+                            <td 
+                              key={day}
+                              onClick={() => handleCellClick(day, timeSlot)}
+                              style={{ 
+                                padding: '6px 8px', 
+                                borderRight: '1px solid #f1f5f9',
+                                verticalAlign: 'top',
+                                height: '76px',
+                                cursor: 'pointer',
+                                position: 'relative'
+                              }}
+                              className="timetable-grid-slot-cell"
+                            >
+                              <div 
+                                style={{
+                                  height: '100%',
+                                  minHeight: '64px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '6px',
+                                  border: '1px dashed transparent',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                className="empty-slot-hover"
+                              >
+                                <span style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600' }}>
+                                  -
+                                </span>
+                              </div>
+                            </td>
+                          );
+                        }
+
+                        const { slot, span, timeRange } = cellInfo;
+                        const isMulti = span > 1;
+
+                        return (
+                          <td 
+                            key={day}
+                            rowSpan={isMulti ? span : undefined}
+                            onClick={() => handleCellClick(day, timeSlot, slot)}
+                            style={{ 
+                              padding: '6px 8px', 
+                              borderRight: '1px solid #f1f5f9',
+                              verticalAlign: 'middle',
+                              height: isMulti ? `${span * 76}px` : '76px',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              backgroundColor: '#ffffff'
+                            }}
+                            className="timetable-grid-slot-cell"
+                          >
+                            {renderSlotCard(slot, span, timeRange)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
-                }
-
-                return (
-                  <tr key={timeSlot} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    {/* Time Slot Label */}
-                    <td 
-                      style={{ 
-                        padding: '12px 16px', 
-                        fontSize: '12px', 
-                        fontWeight: '700', 
-                        color: '#475569', 
-                        textAlign: 'left',
-                        backgroundColor: '#fafbfc',
-                        borderRight: '1px solid #e2e8f0',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clock size={13} style={{ color: '#94a3b8' }} />
-                        <span>{timeSlot}</span>
-                      </div>
-                    </td>
-
-                    {/* Day Cells */}
-                    {TIMETABLE_DAYS.map((day) => {
-                      const slot = timetable[day]?.[timeSlot];
-
-                      return (
-                        <td 
-                          key={day}
-                          onClick={() => handleCellClick(day, timeSlot)}
-                          style={{ 
-                            padding: '6px 8px', 
-                            borderRight: '1px solid #f1f5f9',
-                            verticalAlign: 'top',
-                            height: '76px',
-                            cursor: 'pointer',
-                            position: 'relative'
-                          }}
-                          className="timetable-grid-slot-cell"
-                        >
-                          {slot ? (
-                            renderSlotCard(slot)
-                          ) : (
-                            <div 
-                              style={{
-                                height: '100%',
-                                minHeight: '64px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '6px',
-                                border: '1px dashed transparent',
-                                transition: 'all 0.15s ease'
-                              }}
-                              className="empty-slot-hover"
-                            >
-                              <span style={{ fontSize: '11.5px', color: '#cbd5e1', fontWeight: '600' }}>
-                                -
-                              </span>
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
+                });
+              })()}
             </tbody>
           </table>
         </div>
