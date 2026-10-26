@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADIT Official Faculty Timetable Template Test Suite</title>
+  <script>
+    window.bundleErrors = [];
+    window.onerror = function(msg, src, line, col, err) {
+      window.bundleErrors.push({ msg, src, line, col, err: err ? err.stack : null });
+      console.error('BUNDLE_ERROR:', msg, 'line:', line);
+    };
+  </script>
+  <link rel="stylesheet" href="/src/index.css">
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=9999"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8fafc; }
+    #test-log { background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+    #render-mount { border: 1px solid #cbd5e1; background: #ffffff; border-radius: 8px; padding: 16px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h2>ADIT Official Faculty Timetable Template Verification Suite</h2>
+  <div id="test-log">Running template test suite...</div>
+  <div id="render-mount"></div>
+
+  <script>
+    window.addEventListener('load', async function runTestSuite() {
+      const results = [];
+      const logBox = document.getElementById('test-log');
+      const log = (msg, pass = true) => {
+        results.push({ msg, pass });
+        const text = (pass ? '✅ [PASS] ' : '❌ [FAIL] ') + msg;
+        console.log(text);
+        if (logBox) logBox.textContent += '\n' + text;
+      };
+
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.clear();
+        if (typeof initializeStorage !== 'undefined') {
+          initializeStorage();
+        } else if (typeof window.initializeStorage !== 'undefined') {
+          window.initializeStorage();
+        }
+
+        const testFaculty = {
+          id: 'FAC_PS',
+          facultyId: 'FAC_PS',
+          name: 'Prof. Priya Shah',
+          dept: 'AI & Data Science',
+          role: 'faculty'
+        };
+
+        setCurrentUser(testFaculty);
+        setActiveFacultyId(testFaculty.id);
+
+        // 1. Verify formatOfficialTimeSlot
+        log('formatOfficialTimeSlot formats 9:00 - 9:55 as 9:05 to 9:55am', formatOfficialTimeSlot('9:00 - 9:55') === '9:05 to 9:55am');
+        log('formatOfficialTimeSlot formats 10:00 - 10:50 as 10:00 to 10:50am', formatOfficialTimeSlot('10:00 - 10:50') === '10:00 to 10:50am');
+        log('formatOfficialTimeSlot formats 10:55 - 11:45 as 10:55 to 11:45am', formatOfficialTimeSlot('10:55 - 11:45') === '10:55 to 11:45am');
+        log('formatOfficialTimeSlot formats 11:50 - 12:40 as 11:50 to 12:40pm', formatOfficialTimeSlot('11:50 - 12:40') === '11:50 to 12:40pm');
+        log('formatOfficialTimeSlot formats 12:40 - 1:25 as 12:40 to 1:25pm (Break)', formatOfficialTimeSlot('12:40 - 1:25') === '12:40 to 1:25pm (Break)');
+        log('formatOfficialTimeSlot formats 1:25 - 2:15 as 1:25 to 2:15pm', formatOfficialTimeSlot('1:25 - 2:15') === '1:25 to 2:15pm');
+        log('formatOfficialTimeSlot formats 2:20 - 3:10 as 2:20 to 3:10pm', formatOfficialTimeSlot('2:20 - 3:10') === '2:20 to 3:10pm');
+        log('formatOfficialTimeSlot formats 3:15 - 4:05 as 3:15 to 4:05pm', formatOfficialTimeSlot('3:15 - 4:05') === '3:15 to 4:05pm');
+        log('formatOfficialTimeSlot formats 4:10 - 5:00 as 4:10 to 5:00pm', formatOfficialTimeSlot('4:10 - 5:00') === '4:10 to 5:00pm');
+
+        // 2. Seed Timetable entries for teaching load testing
+        const seedEntries = [
+          {
+            id: 'tte_test_1',
+            facultyId: 'FAC_PS',
+            day: 'Monday',
+            timeSlot: '9:05 to 9:55am',
+            subject: 'DBMS',
+            sem: '3rd Sem',
+            div: 'Div 1',
+            room: 'Room 201',
+            type: 'Lecture'
+          },
+          {
+            id: 'tte_test_2',
+            facultyId: 'FAC_PS',
+            day: 'Monday',
+            timeSlot: '10:00 to 10:50am',
+            subject: 'DBMS',
+            sem: '3rd Sem',
+            div: 'Div 1',
+            room: 'Room 201',
+            type: 'Lecture'
+          },
+          {
+            id: 'tte_test_3',
+            facultyId: 'FAC_PS',
+            day: 'Tuesday',
+            timeSlot: '1:25 to 2:15pm',
+            subject: 'DBMS Lab',
+            sem: '3rd Sem',
+            div: 'Div 1',
+            batch: 'Batch A',
+            room: 'Lab 2',
+            type: 'Lab'
+          },
+          {
+            id: 'tte_test_4',
+            facultyId: 'FAC_PS',
+            day: 'Tuesday',
+            timeSlot: '2:20 to 3:10pm',
+            subject: 'DBMS Lab',
+            sem: '3rd Sem',
+            div: 'Div 1',
+            batch: 'Batch A',
+            room: 'Lab 2',
+            type: 'Lab'
+          }
+        ];
+        localStorage.setItem('adit_timetable_entries', JSON.stringify(seedEntries));
+
+        // 3. Verify calculateFacultyTeachingMetrics
+        const grid = getFacultyTimetable('FAC_PS');
+        const metrics = calculateFacultyTeachingMetrics(grid);
+        log(`Teaching metrics calculated: UG L = ${metrics.ugL}, UG P/T = ${metrics.ugPT}, Total = ${metrics.ugTotal}`, metrics.ugL === 2 && metrics.ugPT === 2 && metrics.ugTotal === 4);
+        log(`Total Teaching Load equals L + P/T (${metrics.totalTeachingLoad})`, metrics.totalTeachingLoad === 4);
+
+        // 4. Verify CSV template string generation matches user template
+        const csvStr = getFacultyTimetableCsvString('Prof. Priya Shah', 'AI & Data Science', 'FAC_PS');
+        log('CSV contains "A D Patel Institute of Technology"', csvStr.includes('A D Patel Institute of Technology'));
+        log('CSV contains "The Charutar Vidya Mandal (CVM) University"', csvStr.includes('The Charutar Vidya Mandal (CVM) University'));
+        log('CSV contains "Timetable for the ODD / EVEN Semester of Academic Year 20__ - 20__"', csvStr.includes('Timetable for the ODD / EVEN Semester of Academic Year 20__ - 20__'));
+        log('CSV contains faculty details metadata', csvStr.includes('Name of Faculty:Prof. Priya Shah') && csvStr.includes('Department:AI & Data Science') && csvStr.includes('Faculty Code:FAC_PS'));
+        log('CSV contains "Time,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday"', csvStr.includes('Time,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'));
+        log('CSV contains "9:05 to 9:55am"', csvStr.includes('9:05 to 9:55am'));
+        log('CSV contains "12:40 to 1:25pm (Break)"', csvStr.includes('12:40 to 1:25pm (Break)'));
+        log('CSV contains "Working Hours,L,P/T,Total Load"', csvStr.includes('Working Hours,L,P/T,Total Load'));
+        log('CSV contains "TOTAL TEACHING LOAD"', csvStr.includes('TOTAL TEACHING LOAD'));
+        log('CSV contains "Subject Code,Name of Subject,L,T,P,C"', csvStr.includes('Subject Code,Name of Subject,L,T,P,C'));
+        log('CSV contains signature line', csvStr.includes('Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________'));
+        log('CSV contains instructions "Fill only the cream-coloured cells"', csvStr.includes('Fill only the cream-coloured cells'));
+        log('CSV contains "In each grid cell type: Class/Batch, Subject and Room, e.g. 5IT1 / DBMS / IT-5"', csvStr.includes('5IT1 / DBMS / IT-5'));
+
+        // 5. Test parsing of the official template (Spreadsheet Upload / CSV)
+        const sampleCsvRows = [
+          ['A D Patel Institute of Technology', '', '', '', '', '', ''],
+          ['The Charutar Vidya Mandal (CVM) University', '', '', '', '', '', ''],
+          ['Timetable for the ODD / EVEN Semester of Academic Year 20__ - 20__', '', '', '', '', '', ''],
+          ['', '', '', '', '', '', ''],
+          ['Name of Faculty: Prof. Priya Shah', '', '', 'Department: AI & Data Science', '', 'Faculty Code: FAC_PS', ''],
+          ['Program Code: B.Tech', '', '', 'Effective from: 01/07/2026', '', '', ''],
+          ['', '', '', '', '', '', ''],
+          ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+          ['9:05 to 9:55am', '5IT1 / DBMS / IT-5', '', '', '', '', ''],
+          ['10:00 to 10:50am', '5IT1 / DBMS / IT-5', '', '', '', '', ''],
+          ['10:55 to 11:45am', '', '', '', '', '', ''],
+          ['11:50 to 12:40pm', '', '', '', '', '', ''],
+          ['12:40 to 1:25pm (Break)', '', '', '', '', '', ''],
+          ['1:25 to 2:15pm', '', '5IT1 (Batch A) / DBMS Lab / Lab 2', '', '', '', ''],
+          ['2:20 to 3:10pm', '', '', '', '', '', ''],
+          ['3:15 to 4:05pm', '', '', '', '', '', ''],
+          ['4:10 to 5:00pm', '', '', '', '', '', ''],
+          ['', '', '', '', '', '', ''],
+          ['Working Hours', 'L', 'P/T', 'Total Load', '', '', ''],
+          ['UG Working Hours', '2', '1', '3', '', '', ''],
+          ['TOTAL TEACHING LOAD', '2', '1', '3', '', '', ''],
+          ['', '', '', '', '', '', ''],
+          ['Subject Code', 'Name of Subject', 'L', 'T', 'P', 'C', ''],
+          ['202340104', 'Python Programming', '3', '0', '2', '4', ''],
+          ['Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________', '', '', '', '', '', '']
+        ];
+
+        const gridIdx = findGridHeaderRowIdx(sampleCsvRows);
+        log(`findGridHeaderRowIdx correctly identified row index ${gridIdx} (expected 7)`, gridIdx === 7);
+
+        // 6. Test UI Rendering of the Official Template in FacultyPanel
+        const mount = document.getElementById('render-mount');
+        const root = ReactDOM.createRoot(mount);
+        await new Promise(resolve => {
+          root.render(React.createElement(FacultyPanel, {
+            currentUser: testFaculty,
+            onLogout: () => {},
+            showToast: () => {}
+          }));
+          setTimeout(resolve, 500);
+        });
+
+        // Switch to Timetable tab
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const timetableTabBtn = allButtons.find(b => b.textContent.includes('My Timetable'));
+        if (timetableTabBtn) timetableTabBtn.click();
+        await new Promise(r => setTimeout(r, 400));
+
+        // Switch to full weekly grid if in day view
+        const weeklyViewBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Full Weekly Grid'));
+        if (weeklyViewBtn) {
+          weeklyViewBtn.click();
+          await new Promise(r => setTimeout(r, 400));
+        }
+
+        // Verify Institutional Header Card in UI
+        const instHeader = document.querySelector('.official-timetable-header-card');
+        log('Official Institutional Header Card rendered in DOM', !!instHeader);
+        log('Header card contains "A D Patel Institute of Technology"', instHeader && instHeader.innerText.includes('A D PATEL INSTITUTE OF TECHNOLOGY'));
+        log('Header card contains "The Charutar Vidya Mandal (CVM) University"', instHeader && instHeader.innerText.includes('The Charutar Vidya Mandal (CVM) University'));
+        log('Header card displays Faculty Code and Department', instHeader && instHeader.innerText.includes('FAC_PS') && instHeader.innerText.includes('AI & Data Science'));
+
+        // Verify Weekly Grid displays official time slot labels
+        const tableBody = document.querySelector('table.data-table tbody');
+        const bodyText = tableBody ? tableBody.innerText : '';
+        log('Weekly grid displays official time slot "9:05 to 9:55am"', bodyText.includes('9:05 to 9:55am'));
+        log('Weekly grid displays official time slot "10:00 to 10:50am"', bodyText.includes('10:00 to 10:50am'));
+        log('Weekly grid displays official break "12:40 to 1:25pm (Break)"', bodyText.includes('12:40 to 1:25pm (Break)'));
+
+        // Verify Teaching Load Table rendered in UI
+        const teachingTable = document.querySelector('.teaching-load-table');
+        log('Teaching Load Summary table rendered in DOM', !!teachingTable);
+        log('Teaching Load table has UG Working Hours and TOTAL TEACHING LOAD', teachingTable && teachingTable.innerText.includes('UG Working Hours') && teachingTable.innerText.includes('TOTAL TEACHING LOAD'));
+
+        // Verify Subject Details Table rendered in UI
+        const subjectTable = document.querySelector('.subject-load-table');
+        log('Assigned Subjects & Credit Distribution table rendered in DOM', !!subjectTable);
+        log('Subject table headers include Subject Code, Name, L, T, P, C', subjectTable && subjectTable.innerText.includes('Subject Code') && subjectTable.innerText.includes('Name of Subject'));
+
+        // Verify Action Buttons (Download Excel & Download CSV)
+        const downloadExcelBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Download Excel'));
+        const downloadCsvBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Download CSV'));
+        log('Download Excel button rendered on timetable toolbar', !!downloadExcelBtn);
+        log('Download CSV button rendered on timetable toolbar', !!downloadCsvBtn);
+
+        // Verify Signatures Block rendered in UI
+        const signaturesBlock = document.body.innerText.includes('Prepared by:') && document.body.innerText.includes('Verified by Head:') && document.body.innerText.includes('Principal/Director:');
+        log('Signatures block (Prepared by, Verified by Head, Principal/Director) rendered', signaturesBlock);
+
+        // Verify "How to use" guide box rendered in UI
+        const howToUse = document.body.innerText.includes('How to use (Official Faculty Timetable):');
+        log('"How to use" official template instructions guide rendered', howToUse);
+
+      } catch (err) {
+        log('ERROR: ' + err.message, false);
+        console.error(err);
+      }
+
+      // Send results to test runner
+      const passedCount = results.filter(r => r.pass).length;
+      const failedCount = results.filter(r => !r.pass).length;
+      fetch('/api/test-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total: results.length,
+          passed: passedCount,
+          failed: failedCount,
+          results
+        })
+      });
+    });
+  </script>
+</body>
+</html>

@@ -26,6 +26,7 @@ def strip_imports_exports(code):
     code = re.sub(r'\bexport\s+default\s+function\s+', 'function ', code)
     code = re.sub(r'\bexport\s+default\s+', '// export default ', code)
     code = re.sub(r'\bexport\s+const\s+', 'const ', code)
+    code = re.sub(r'\bexport\s+var\s+', 'var ', code)
     code = re.sub(r'\bexport\s+let\s+', 'let ', code)
     code = re.sub(r'\bexport\s+function\s+', 'function ', code)
     return code

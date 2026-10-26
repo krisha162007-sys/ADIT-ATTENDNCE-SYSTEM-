@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>ADIT Multi-Slot Lecture & Timetable Verification Suite</title>
+  <script>
+    window.bundleErrors = [];
+    window.onerror = function(msg, src, line, col, err) {
+      window.bundleErrors.push({ msg, src, line, col, err: err ? err.stack : null });
+      console.error('BUNDLE_ERROR:', msg, 'line:', line);
+    };
+  </script>
   <link rel="stylesheet" href="/src/index.css">
   <script src="/libs/react.min.js"></script>
   <script src="/libs/react-dom.min.js"></script>
@@ -45,6 +52,10 @@
     }
 
     Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
 
     window.useState      = React.useState;
     window.useEffect     = React.useEffect;
@@ -91,8 +102,17 @@
       };
 
       try {
+        if (window.bundleErrors && window.bundleErrors.length > 0) {
+          log('Bundle error detected: ' + JSON.stringify(window.bundleErrors), false);
+        }
         if (typeof localStorage !== 'undefined') localStorage.clear();
-        initializeStorage();
+        if (typeof initializeStorage !== 'undefined') {
+          initializeStorage();
+        } else if (typeof window.initializeStorage !== 'undefined') {
+          window.initializeStorage();
+        } else {
+          throw new Error('initializeStorage is not defined on window or global scope');
+        }
         window.alert = function(msg) { console.warn('Alert:', msg); };
         window.confirm = function(msg) { return true; };
 

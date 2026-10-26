@@ -71,13 +71,15 @@ import TimetableUploadModal from './TimetableUploadModal';
 import DepartmentAdminPanel from './DepartmentAdminPanel';
 
 // Sidebar Menu Items
-export const adminMenuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'timetable', label: 'Faculty Timetable', icon: Calendar },
-  { id: 'faculty', label: 'Faculty Roster', icon: Users },
-  { id: 'classes', label: 'Student Management', icon: GraduationCap },
-  { id: 'subjects', label: 'Subjects', icon: BookOpen },
-  { id: 'departments', label: 'Departments', icon: Building2 },
+const SettingsIcon = typeof Settings !== 'undefined' ? Settings : (typeof LucideIcons !== 'undefined' ? LucideIcons.Settings : null);
+
+const adminMenuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: typeof LayoutDashboard !== 'undefined' ? LayoutDashboard : null },
+  { id: 'timetable', label: 'Faculty Timetable', icon: typeof Calendar !== 'undefined' ? Calendar : null },
+  { id: 'faculty', label: 'Faculty Roster', icon: typeof Users !== 'undefined' ? Users : null },
+  { id: 'classes', label: 'Student Management', icon: typeof GraduationCap !== 'undefined' ? GraduationCap : null },
+  { id: 'subjects', label: 'Subjects', icon: typeof BookOpen !== 'undefined' ? BookOpen : null },
+  { id: 'departments', label: 'Departments', icon: typeof Building2 !== 'undefined' ? Building2 : null },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 if (typeof window !== 'undefined') {

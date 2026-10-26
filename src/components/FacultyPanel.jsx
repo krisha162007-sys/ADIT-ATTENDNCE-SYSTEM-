@@ -104,7 +104,11 @@ import {
   doTimeSlotsOverlap,
   parseTimeRangeMinutes,
   getSessionIdentity,
-  canMergeConsecutiveSlots
+  canMergeConsecutiveSlots,
+  formatOfficialTimeSlot,
+  calculateFacultyTeachingMetrics,
+  downloadFacultyTimetableTemplate,
+  downloadFacultyTimetableCsv
 } from '../services/timetableStorage';
 
 var SUBJECT_COLOR_THEMES = {
@@ -195,6 +199,11 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
   const facultyTimetableGrid = useMemo(() => {
     return getFacultyTimetable(currentFaculty?.id || 'FAC_PS');
   }, [currentFaculty?.id, timetableSyncTick]);
+
+  // Official ADIT Faculty Template Teaching Load Metrics
+  const teachingMetrics = useMemo(() => {
+    return calculateFacultyTeachingMetrics(facultyTimetableGrid);
+  }, [facultyTimetableGrid]);
 
   // Timetable day switcher for My Timetable tab
   const todayDayName = useMemo(() => {
@@ -1832,7 +1841,7 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={() => setIsWeeklyGridView(!isWeeklyGridView)}
@@ -1854,14 +1863,131 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                   <span>{isWeeklyGridView ? 'Switch to Day View' : 'Full Weekly Grid'}</span>
                 </button>
 
+                {/* Download Official Template (Excel .xlsx) */}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm no-print"
+                  onClick={() => {
+                    downloadFacultyTimetableTemplate(currentFaculty.name, currentFaculty.dept, 'ODD/EVEN', currentFaculty.id);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                  title="Download Official ADIT CVM University Excel Template"
+                >
+                  <FileSpreadsheet size={15} color="#16a34a" />
+                  <span>Download Excel</span>
+                </button>
+
+                {/* Download Template (CSV) */}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm no-print"
+                  onClick={() => {
+                    downloadFacultyTimetableCsv(currentFaculty.name, currentFaculty.dept, 'ODD/EVEN', currentFaculty.id);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#ffffff',
+                    color: '#0f172a',
+                    fontWeight: '700',
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                  title="Download Official Faculty Template in CSV format"
+                >
+                  <Download size={15} color="#2563eb" />
+                  <span>Download CSV</span>
+                </button>
+
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => window.print()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    fontSize: '13px'
+                  }}
                 >
                   <Printer size={15} />
                   <span>Print Timetable</span>
                 </button>
+              </div>
+            </div>
+
+            {/* OFFICIAL ADIT & CVM UNIVERSITY INSTITUTIONAL HEADER */}
+            <div className="official-timetable-header-card" style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '14px',
+              padding: '20px 24px',
+              marginBottom: '20px',
+              textAlign: 'center',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+            }}>
+              <div style={{ fontSize: '21px', fontWeight: '900', color: '#1e3a8a', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                A D Patel Institute of Technology
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#334155', marginTop: '3px' }}>
+                The Charutar Vidya Mandal (CVM) University
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', marginTop: '6px' }}>
+                Timetable for the ODD / EVEN Semester of Academic Year 2025 - 2026
+              </div>
+
+              {/* Cream-coloured institutional details matching official template */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '12px',
+                marginTop: '16px',
+                padding: '12px 18px',
+                backgroundColor: '#fffdf0',
+                border: '1px solid #fef08a',
+                borderRadius: '10px',
+                textAlign: 'left',
+                fontSize: '12.5px'
+              }}>
+                <div>
+                  <span style={{ color: '#713f12', fontWeight: '700' }}>Name of Faculty: </span>
+                  <span style={{ fontWeight: '800', color: '#0f172a' }}>{currentFaculty.name}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#713f12', fontWeight: '700' }}>Department: </span>
+                  <span style={{ fontWeight: '800', color: '#0f172a' }}>{currentFaculty.dept || 'AI & Data Science'}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#713f12', fontWeight: '700' }}>Faculty Code: </span>
+                  <span style={{ fontWeight: '800', color: '#0f172a' }}>{currentFaculty.id || 'FAC_PS'}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#713f12', fontWeight: '700' }}>Program Code: </span>
+                  <span style={{ fontWeight: '800', color: '#0f172a' }}>B.Tech (ADIT)</span>
+                </div>
+                <div>
+                  <span style={{ color: '#713f12', fontWeight: '700' }}>Effective from: </span>
+                  <span style={{ fontWeight: '800', color: '#0f172a' }}>01/07/2026</span>
+                </div>
               </div>
             </div>
 
@@ -2353,11 +2479,11 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                           if (isLunch) {
                             return (
                               <tr key={time} style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                <td style={{ textAlign: 'center', fontWeight: '700', color: '#475569', padding: '12px 8px', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
-                                  {time}
+                                <td style={{ textAlign: 'center', fontWeight: '700', color: '#475569', padding: '12px 8px', borderRight: '1px solid #e2e8f0', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                  {formatOfficialTimeSlot(time)}
                                 </td>
                                 <td colSpan={TIMETABLE_DAYS.length} style={{ textAlign: 'center', padding: '12px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: '800', letterSpacing: '0.08em', fontSize: '12px' }}>
-                                  🍱 LUNCH RECESS (12:40 PM – 1:25 PM)
+                                  🍱 12:40 to 1:25pm (Break) / LUNCH RECESS
                                 </td>
                               </tr>
                             );
@@ -2365,8 +2491,8 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
 
                           return (
                             <tr key={time} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td style={{ textAlign: 'center', fontWeight: '700', color: '#1e3a8a', padding: '12px 8px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', fontSize: '12px' }}>
-                                {time}
+                              <td style={{ textAlign: 'center', fontWeight: '700', color: '#1e3a8a', padding: '12px 8px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                                {formatOfficialTimeSlot(time)}
                               </td>
                               {TIMETABLE_DAYS.map(dayName => {
                                 const cellInfo = dayCellMap[dayName]?.[rIdx];
@@ -2542,6 +2668,155 @@ export default function FacultyPanel({ currentUser, showToast, onExit }) {
                       })()}
                     </tbody>
                   </table>
+                </div>
+
+                {/* =========================================================================
+                    OFFICIAL ADIT FACULTY TEMPLATE: TEACHING LOAD, SUBJECTS, & SIGNATURES
+                    ========================================================================= */}
+
+                {/* 1. Working Hours & Total Teaching Load Table */}
+                <div style={{ marginTop: '24px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} color="#2563eb" />
+                      Teaching Load Summary (Working Hours)
+                    </h4>
+                    <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                      Calculated automatically (Load = L + P/T)
+                    </span>
+                  </div>
+
+                  <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+                    <table className="teaching-load-table" style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', borderRight: '1px solid #e2e8f0' }}>Working Hours</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', borderRight: '1px solid #e2e8f0', width: '90px' }}>L (Lectures)</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', borderRight: '1px solid #e2e8f0', width: '90px' }}>P/T (Labs/Tut)</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', width: '110px' }}>Total Load</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '9px 12px', fontWeight: '600', color: '#334155', borderRight: '1px solid #e2e8f0' }}>UG Working Hours</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#0f172a', fontWeight: '700', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.ugL}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#0f172a', fontWeight: '700', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.ugPT}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#2563eb', fontWeight: '800', backgroundColor: '#eff6ff' }}>{teachingMetrics.ugTotal}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '9px 12px', fontWeight: '600', color: '#334155', borderRight: '1px solid #e2e8f0' }}>PG Working Hours</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.pgL}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.pgPT}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>{teachingMetrics.pgTotal}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '9px 12px', fontWeight: '600', color: '#334155', borderRight: '1px solid #e2e8f0' }}>Diploma Working Hours</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>0</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>0</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>0</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '9px 12px', fontWeight: '600', color: '#334155', borderRight: '1px solid #e2e8f0' }}>Internship/Project/Seminar (Guidance) Working Hours</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.guidanceL}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>{teachingMetrics.guidancePT}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>{teachingMetrics.guidanceTotal}</td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                          <td style={{ padding: '9px 12px', fontWeight: '600', color: '#334155', borderRight: '1px solid #e2e8f0' }}>Other Institution Working Hours</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>0</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b', borderRight: '1px solid #e2e8f0' }}>0</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'center', color: '#64748b' }}>0</td>
+                        </tr>
+                        <tr style={{ backgroundColor: '#f1f5f9', fontWeight: '800' }}>
+                          <td style={{ padding: '10px 12px', color: '#0f172a', borderRight: '1px solid #cbd5e1' }}>TOTAL TEACHING LOAD</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: '#0f172a', borderRight: '1px solid #cbd5e1' }}>{teachingMetrics.totalTeachingLoadL}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: '#0f172a', borderRight: '1px solid #cbd5e1' }}>{teachingMetrics.totalTeachingLoadPT}</td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', color: '#1e40af', backgroundColor: '#dbeafe', fontSize: '13.5px' }}>{teachingMetrics.totalTeachingLoad}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 2. Subject Code, Name of Subject, L, T, P, C Table */}
+                <div style={{ marginTop: '20px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                  <h4 style={{ fontSize: '14.5px', fontWeight: '800', color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BookOpen size={16} color="#2563eb" />
+                    Assigned Subjects & Credit Distribution
+                  </h4>
+                  <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflowX: 'auto' }}>
+                    <table className="subject-load-table" style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', borderRight: '1px solid #e2e8f0', width: '180px' }}>Subject Code</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', borderRight: '1px solid #e2e8f0' }}>Name of Subject</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', borderRight: '1px solid #e2e8f0', width: '60px' }}>L</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', borderRight: '1px solid #e2e8f0', width: '60px' }}>T</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', borderRight: '1px solid #e2e8f0', width: '60px' }}>P</th>
+                          <th style={{ padding: '9px 12px', fontWeight: '800', color: '#1e293b', textAlign: 'center', width: '60px' }}>C</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teachingMetrics.subjectDetailsList.map((s, idx) => (
+                          <tr key={s.code || idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '8px 12px', fontWeight: '700', color: '#2563eb', borderRight: '1px solid #e2e8f0' }}>{s.code}</td>
+                            <td style={{ padding: '8px 12px', fontWeight: '600', color: '#1e293b', borderRight: '1px solid #e2e8f0' }}>{s.name}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', borderRight: '1px solid #e2e8f0' }}>{s.L}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', borderRight: '1px solid #e2e8f0' }}>{s.T}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', borderRight: '1px solid #e2e8f0' }}>{s.P}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '800', color: '#0f172a', backgroundColor: '#f8fafc' }}>{s.C}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 3. Official Signatures Footer */}
+                <div style={{
+                  marginTop: '28px',
+                  paddingTop: '20px',
+                  borderTop: '1px solid #cbd5e1',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '20px',
+                  fontSize: '12px',
+                  color: '#475569',
+                  fontWeight: '700'
+                }}>
+                  <div>
+                    <span>Prepared by: </span>
+                    <span style={{ display: 'inline-block', width: '160px', borderBottom: '1px dotted #94a3b8' }}></span>
+                  </div>
+                  <div>
+                    <span>Verified by Head: </span>
+                    <span style={{ display: 'inline-block', width: '160px', borderBottom: '1px dotted #94a3b8' }}></span>
+                  </div>
+                  <div>
+                    <span>Principal/Director: </span>
+                    <span style={{ display: 'inline-block', width: '160px', borderBottom: '1px dotted #94a3b8' }}></span>
+                  </div>
+                </div>
+
+                {/* 4. Instructions / How to use */}
+                <div style={{
+                  marginTop: '20px',
+                  padding: '14px 18px',
+                  backgroundColor: '#fefce8',
+                  border: '1px solid #fef08a',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  color: '#713f12'
+                }} className="no-print">
+                  <div style={{ fontWeight: '800', marginBottom: '4px' }}>💡 How to use (Official Faculty Timetable):</div>
+                  <ul style={{ margin: 0, paddingLeft: '20px', lineHeight: '1.6' }}>
+                    <li>Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects).</li>
+                    <li>In each grid cell type: Class/Batch, Subject and Room, e.g. <code>5IT1 / DBMS / IT-5</code> (use Alt+Enter for a new line).</li>
+                    <li>Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T).</li>
+                    <li>Click on any lecture card in the timetable to immediately start taking attendance.</li>
+                  </ul>
                 </div>
               </div>
             )}

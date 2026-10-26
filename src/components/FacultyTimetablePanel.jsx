@@ -36,7 +36,9 @@ import {
   getSubjectColor,
   getEntriesByFaculty,
   checkConflicts,
-  downloadFacultyTimetableTemplate
+  downloadFacultyTimetableTemplate,
+  downloadFacultyTimetableCsv,
+  formatOfficialTimeSlot
 } from '../services/timetableStorage';
 import { saveFaculty } from '../services/attendanceStorage';
 import FacultyEditModal from './FacultyEditModal';
@@ -444,14 +446,14 @@ export default function FacultyTimetablePanel({
           </p>
         </div>
 
-        {/* Action Buttons: Download Template and Upload Timetable */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Action Buttons: Download Template (Excel & CSV) and Upload Timetable */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={() => {
-              downloadFacultyTimetableTemplate(currentFaculty?.name || 'Faculty', selectedDept, selectedSem);
-              if (showToast) showToast('Faculty timetable template downloaded!');
+              downloadFacultyTimetableTemplate(currentFaculty?.name || 'Faculty', selectedDept, selectedSem, currentFaculty?.id);
+              if (showToast) showToast('Official Faculty Excel template downloaded!');
             }}
             style={{
               display: 'flex',
@@ -463,11 +465,39 @@ export default function FacultyTimetablePanel({
               borderRadius: '8px',
               padding: '10px 16px',
               fontWeight: '700',
-              fontSize: '13px'
+              fontSize: '13px',
+              cursor: 'pointer'
             }}
+            title="Download Official ADIT CVM University Faculty Template (.xlsx)"
           >
-            <Download size={15} />
+            <Download size={15} color="#16a34a" />
             <span>Download Excel Template</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              downloadFacultyTimetableCsv(currentFaculty?.name || 'Faculty', selectedDept, selectedSem, currentFaculty?.id);
+              if (showToast) showToast('Official Faculty CSV template downloaded!');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'white',
+              border: '1px solid #cbd5e1',
+              color: '#334155',
+              borderRadius: '8px',
+              padding: '10px 16px',
+              fontWeight: '700',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+            title="Download Official Faculty Template in CSV format"
+          >
+            <Download size={15} color="#2563eb" />
+            <span>Download CSV Template</span>
           </button>
 
           <button
@@ -902,7 +932,7 @@ export default function FacultyTimetablePanel({
                       return (
                         <tr key={slotTime} style={{ backgroundColor: '#f1f5f9', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
                           <td style={{ padding: '8px 14px', textAlign: 'left', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap' }}>
-                            {slotTime}
+                            {formatOfficialTimeSlot(slotTime)}
                           </td>
                           <td 
                             colSpan={6} 
@@ -934,7 +964,7 @@ export default function FacultyTimetablePanel({
                           backgroundColor: '#fcfdfe',
                           borderRight: '1px solid #f1f5f9'
                         }}>
-                          {slotTime}
+                          {formatOfficialTimeSlot(slotTime)}
                         </td>
 
                         {/* Day Slots */}

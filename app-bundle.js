@@ -3878,6 +3878,130 @@ const TIME_SLOTS = [
   "3:15 - 4:05",
   "4:10 - 5:00"
 ];
+const OFFICIAL_TEMPLATE_TIME_SLOTS = [
+  "9:05 to 9:55am",
+  "10:00 to 10:50am",
+  "10:55 to 11:45am",
+  "11:50 to 12:40pm",
+  "12:40 to 1:25pm (Break)",
+  "1:25 to 2:15pm",
+  "2:20 to 3:10pm",
+  "3:15 to 4:05pm",
+  "4:10 to 5:00pm"
+];
+const formatOfficialTimeSlot = (slotStr) => {
+  if (!slotStr) return "";
+  const s = String(slotStr).trim();
+  if (s.startsWith("9:00") || s.startsWith("9:05")) return "9:05 to 9:55am";
+  if (s.startsWith("10:00")) return "10:00 to 10:50am";
+  if (s.startsWith("10:55")) return "10:55 to 11:45am";
+  if (s.startsWith("11:50")) return "11:50 to 12:40pm";
+  if (s.startsWith("12:40") || s.toLowerCase().includes("break") || s.toLowerCase().includes("lunch")) return "12:40 to 1:25pm (Break)";
+  if (s.startsWith("1:25")) return "1:25 to 2:15pm";
+  if (s.startsWith("2:20")) return "2:20 to 3:10pm";
+  if (s.startsWith("3:15")) return "3:15 to 4:05pm";
+  if (s.startsWith("4:10")) return "4:10 to 5:00pm";
+  return s;
+};
+const calculateFacultyTeachingMetrics = (timetableGrid) => {
+  let ugL = 0;
+  let ugPT = 0;
+  let pgL = 0;
+  let pgPT = 0;
+  let guidanceL = 0;
+  let guidancePT = 0;
+  const subjectMap = {};
+  if (timetableGrid && typeof timetableGrid === "object") {
+    TIMETABLE_DAYS.forEach((day) => {
+      const daySlots = timetableGrid[day] || {};
+      Object.entries(daySlots).forEach(([timeSlot, slot]) => {
+        if (!slot || !slot.subject) return;
+        const subj = String(slot.subject).trim();
+        if (/^(lunch|break|lb|-+)$/i.test(subj)) return;
+        const isLab = slot.type === "Lab" || /lab|practical/i.test(subj) || /lab/i.test(slot.room || "");
+        const isPG = /pg|m\.?tech|master/i.test(slot.sem || "") || /pg/i.test(subj);
+        const isGuidance = /seminar|project|internship|guidance/i.test(subj);
+        if (isGuidance) {
+          if (isLab) guidancePT++;
+          else guidanceL++;
+        } else if (isPG) {
+          if (isLab) pgPT++;
+          else pgL++;
+        } else {
+          if (isLab) ugPT++;
+          else ugL++;
+        }
+        const sKey = subj.toUpperCase();
+        if (!subjectMap[sKey]) {
+          subjectMap[sKey] = {
+            code: slot.subjectCode || slot.code || "",
+            name: slot.name || slot.subjectFullName || subj,
+            L: 0,
+            T: 0,
+            P: 0,
+            C: 0
+          };
+        }
+        if (isLab) {
+          subjectMap[sKey].P += 1;
+        } else {
+          subjectMap[sKey].L += 1;
+        }
+      });
+    });
+  }
+  const subjectDetailsList = Object.values(subjectMap).map((s, idx) => {
+    const code = s.code || `20234010${idx + 1}`;
+    const credits = Math.round(s.L + s.P / 2);
+    return {
+      code,
+      name: s.name,
+      L: s.L,
+      T: s.T,
+      P: s.P,
+      C: credits > 0 ? credits : 4
+    };
+  });
+  if (subjectDetailsList.length === 0) {
+    subjectDetailsList.push({
+      code: "(example) 202340104",
+      name: "(example) Python Programming",
+      L: 3,
+      T: 0,
+      P: 2,
+      C: 4
+    });
+  }
+  const ugTotal = ugL + ugPT;
+  const pgTotal = pgL + pgPT;
+  const diplomaTotal = 0;
+  const guidanceTotal = guidanceL + guidancePT;
+  const otherTotal = 0;
+  const totalTeachingLoadL = ugL + pgL + guidanceL;
+  const totalTeachingLoadPT = ugPT + pgPT + guidancePT;
+  const totalTeachingLoad = totalTeachingLoadL + totalTeachingLoadPT;
+  return {
+    ugL,
+    ugPT,
+    ugTotal,
+    pgL,
+    pgPT,
+    pgTotal,
+    diplomaL: 0,
+    diplomaPT: 0,
+    diplomaTotal: 0,
+    guidanceL,
+    guidancePT,
+    guidanceTotal,
+    otherL: 0,
+    otherPT: 0,
+    otherTotal: 0,
+    totalTeachingLoadL,
+    totalTeachingLoadPT,
+    totalTeachingLoad,
+    subjectDetailsList
+  };
+};
 const TIMETABLE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const getSubjectColor = (subjectNameOrCode) => {
   if (!subjectNameOrCode) return "blue";
@@ -4790,14 +4914,22 @@ const _fuzzyTimeSlot = (cellTime) => {
 const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
   const raw = String(cellText || "").trim();
   if (!raw) return null;
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = raw.split(/\r?\n|\/|,/).map((l) => l.trim()).filter(Boolean);
   if (!lines.length) return null;
   if (lines.some((l) => /^(lunch|break|lb|-+)$/i.test(l))) return null;
   let subject = "";
   let room = "Room 201";
   let sem = null;
   let div = null;
+  let batch = "ALL";
   let deptId = null;
+  for (const line of lines) {
+    const bMatch = line.match(/\b(?:batch\s*([A-Za-z0-9]+)|\(([A-Za-z0-9]+)\)|-(?:B|Batch)?([A-Za-z0-9]+))\b/i);
+    if (bMatch) {
+      batch = `Batch ${bMatch[1] || bMatch[2] || bMatch[3]}`;
+      break;
+    }
+  }
   const deptCodeMap = {
     "AI": "DEP_AI",
     "IT": "DEP_IT",
@@ -4858,19 +4990,26 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     name: subject,
     sem: sem || normalizeSem(defaultSem),
     div: div || normalizeDiv(defaultDiv),
+    batch: batch || "ALL",
     deptId: deptId || defaultDeptId,
     room,
     type: isLab ? "Lab" : "Lecture"
   };
 };
+const findGridHeaderRowIdx = (rows) => {
+  if (!rows || rows.length < 2) return -1;
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    const r = rows[i];
+    if (!r || !Array.isArray(r)) continue;
+    const dayHits = TIMETABLE_DAYS.filter(
+      (d) => r.some((cell) => String(cell || "").toLowerCase().includes(d.toLowerCase()))
+    );
+    if (dayHits.length >= 3) return i;
+  }
+  return -1;
+};
 const _isGridFormat = (rows) => {
-  if (!rows || rows.length < 2) return false;
-  const header = rows[0];
-  if (!header || header.length < 3) return false;
-  const dayHits = TIMETABLE_DAYS.filter(
-    (d) => header.some((cell) => String(cell || "").toLowerCase().includes(d.toLowerCase()))
-  );
-  return dayHits.length >= 3;
+  return findGridHeaderRowIdx(rows) !== -1;
 };
 const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = "DEP_AI", targetFacultyId = null) => {
   const timetable = {};
@@ -4884,20 +5023,46 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
   const validLectures = [];
   const registeredFaculties = getFaculties();
   const existingEntries = getTimetableEntries();
-  if (_isGridFormat(rows)) {
-    const header = rows[0];
+  const gridHeaderIdx = findGridHeaderRowIdx(rows);
+  if (gridHeaderIdx !== -1) {
+    const header = rows[gridHeaderIdx];
+    let detectedFacultyId = targetFacultyId;
+    for (let r = 0; r < gridHeaderIdx; r++) {
+      const row = rows[r];
+      if (!row || !Array.isArray(row)) continue;
+      for (let c = 0; c < row.length; c++) {
+        const val = String(row[c] || "").trim();
+        if (/faculty\s*code|faculty\s*id/i.test(val)) {
+          const nextVal = String(row[c + 1] || "").trim() || val.replace(/.*?faculty\s*(?:code|id)\s*[:=]?\s*/i, "");
+          if (nextVal) {
+            const matchedFac = registeredFaculties.find((f) => f.id.toLowerCase() === nextVal.toLowerCase() || f.name.toLowerCase().includes(nextVal.toLowerCase()));
+            if (matchedFac) detectedFacultyId = matchedFac.id;
+          }
+        } else if (/name\s*of\s*faculty|faculty\s*name/i.test(val)) {
+          const nextVal = String(row[c + 1] || "").trim() || val.replace(/.*?name\s*of\s*faculty\s*[:=]?\s*/i, "");
+          if (nextVal && !detectedFacultyId) {
+            const matchedFac = registeredFaculties.find((f) => f.name.toLowerCase().includes(nextVal.toLowerCase()));
+            if (matchedFac) detectedFacultyId = matchedFac.id;
+          }
+        }
+      }
+    }
     const colToDay = {};
     header.forEach((cell, colIdx) => {
       if (colIdx === 0) return;
       const day = TIMETABLE_DAYS.find((d) => String(cell || "").toLowerCase().includes(d.toLowerCase()));
       if (day) colToDay[colIdx] = day;
     });
-    for (let ri = 1; ri < rows.length; ri++) {
+    for (let ri = gridHeaderIdx + 1; ri < rows.length; ri++) {
       const row = rows[ri];
       if (!row || row.every((c) => !c)) continue;
+      const firstCell = String(row[0] || "").trim();
+      if (/working\s*hours|teaching\s*load|subject\s*code|prepared\s*by|how\s*to\s*use/i.test(firstCell)) {
+        break;
+      }
       const timeSlot = _fuzzyTimeSlot(row[0]);
       if (!timeSlot) continue;
-      if (timeSlot === "12:40 - 1:25") continue;
+      if (timeSlot === "12:40 - 1:25" || /break|lunch/i.test(firstCell)) continue;
       Object.entries(colToDay).forEach(([colIdxStr, day]) => {
         const colIdx = parseInt(colIdxStr);
         const cellText = row[colIdx];
@@ -4914,6 +5079,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           name: parsed.subject,
           sem,
           div,
+          batch: parsed.batch || "ALL",
           departmentId: deptId,
           room,
           type,
@@ -4926,6 +5092,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           room,
           sem,
           div,
+          batch: parsed.batch || "ALL",
           departmentId: deptId,
           status: "valid"
         };
@@ -4933,7 +5100,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         validLectures.push(lec);
       });
     }
-    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures };
+    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures, detectedFacultyId };
   }
   let headerRowIdx = -1;
   const colMap = {};
@@ -5990,70 +6157,116 @@ const parseImageOrPdfFile = async (file, targetScope = "faculty", targetId = nul
     throw new Error("Unsupported file format. Please upload Excel (.xlsx, .csv), PDF, or an image (.png, .jpg).");
   }
 };
-const downloadFacultyTimetableTemplate = (facultyName = "Faculty", deptName = "Department", semName = "3rd Semester") => {
+const downloadFacultyTimetableTemplate = (facultyName = "Faculty", deptName = "Department", semName = "3rd Semester", facultyId = "FAC_PS") => {
   const wb = XLSX.utils.book_new();
   const faculties = getFaculties();
-  const colHeaders = [
-    "Faculty ID",
-    "Faculty Name",
-    "Department",
-    "Subject",
-    "Semester",
-    "Division",
-    "Batch",
-    "Day",
-    "Start Time",
-    "End Time",
-    "Room Number"
+  const targetFaculty = faculties.find((f) => f.id === facultyId || f.name === facultyName);
+  const actualFacultyName = targetFaculty?.name || (facultyName !== "Faculty" ? facultyName : "Prof. Priya Shah");
+  const actualDept = targetFaculty?.dept || (deptName !== "Department" ? deptName : "AI & Data Science");
+  const actualFacultyId = targetFaculty?.id || facultyId || "FAC_PS";
+  const timetable = getFacultyTimetable(actualFacultyId);
+  const metrics = calculateFacultyTeachingMetrics(timetable);
+  const rows = [
+    ["A D Patel Institute of Technology", "", "", "", "", "", ""],
+    ["The Charutar Vidya Mandal (CVM) University", "", "", "", "", "", ""],
+    ["Timetable for the ODD / EVEN Semester of Academic Year 2025 - 2026", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", ""],
+    ["Name of Faculty:", actualFacultyName, "", "Department:", actualDept, "Faculty Code:", actualFacultyId],
+    ["Program Code:", "B.Tech", "", "Effective from:", "01/07/2026", "", ""],
+    ["", "", "", "", "", "", ""],
+    ["Time", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   ];
-  const colRows = [
-    ["FAC_PS", "Prof. Priya Shah", "AI & Data Science", "DBMS", "3rd Sem", "Div 1", "All", "Monday", "9:00", "9:55", "Room 201"],
-    ["FAC_PS", "Prof. Priya Shah", "AI & Data Science", "DS", "3rd Sem", "Div 1", "All", "Monday", "10:00", "10:50", "Room 201"],
-    ["FAC_PS", "Prof. Priya Shah", "AI & Data Science", "DBMS Lab", "3rd Sem", "Div 1", "Batch A", "Tuesday", "1:25", "3:10", "Lab 2"],
-    ["FAC_PS", "Prof. Priya Shah", "AI & Data Science", "DS Lab", "3rd Sem", "Div 1", "Batch B", "Wednesday", "1:25", "3:10", "Lab 2"],
-    ["FAC_PS", "Prof. Priya Shah", "AI & Data Science", "DBMS Lab", "3rd Sem", "Div 1", "Batch C", "Thursday", "1:25", "3:10", "Lab 2"],
-    ["FAC_SM", "Dr. S. M. Mehta", "Computer Engineering", "OS", "5th Sem", "Div 1", "All", "Monday", "9:00", "9:55", "Room 301"],
-    ["FAC_SM", "Dr. S. M. Mehta", "Computer Engineering", "OS Lab", "5th Sem", "Div 1", "Batch A", "Wednesday", "1:25", "3:10", "CC-Lab 1"],
-    ["FAC_SM", "Dr. S. M. Mehta", "Computer Engineering", "OS Lab", "5th Sem", "Div 1", "Batch B", "Friday", "1:25", "3:10", "CC-Lab 1"]
+  const timeSlotsMapping = [
+    { label: "9:05 to 9:55am", keys: ["9:05 to 9:55am", "9:00 - 9:55", "9:05 - 9:55"] },
+    { label: "10:00 to 10:50am", keys: ["10:00 to 10:50am", "10:00 - 10:50"] },
+    { label: "10:55 to 11:45am", keys: ["10:55 to 11:45am", "10:55 - 11:45"] },
+    { label: "11:50 to 12:40pm", keys: ["11:50 to 12:40pm", "11:50 - 12:40"] },
+    { label: "12:40 to 1:25pm (Break)", isBreak: true },
+    { label: "1:25 to 2:15pm", keys: ["1:25 to 2:15pm", "1:25 - 2:15"] },
+    { label: "2:20 to 3:10pm", keys: ["2:20 to 3:10pm", "2:20 - 3:10"] },
+    { label: "3:15 to 4:05pm", keys: ["3:15 to 4:05pm", "3:15 - 4:05"] },
+    { label: "4:10 to 5:00pm", keys: ["4:10 to 5:00pm", "4:10 - 5:00"] }
   ];
-  const wsCol = XLSX.utils.aoa_to_sheet([colHeaders, ...colRows]);
-  wsCol["!cols"] = [
-    { wch: 14 },
-    // Faculty ID
-    { wch: 22 },
-    // Faculty Name
-    { wch: 24 },
-    // Department
-    { wch: 16 },
-    // Subject
-    { wch: 12 },
-    // Semester
-    { wch: 12 },
-    // Division
-    { wch: 12 },
-    // Batch
-    { wch: 14 },
-    // Day
-    { wch: 12 },
-    // Start Time
-    { wch: 12 },
-    // End Time
-    { wch: 14 }
-    // Room Number
-  ];
-  XLSX.utils.book_append_sheet(wb, wsCol, "Timetable Schedule");
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const gridRows = [["Time Slot", ...days]];
-  TIME_SLOTS.forEach((slot) => {
-    const row = [slot];
-    days.forEach(() => {
-      row.push(slot === "12:40 - 1:25" ? "LUNCH" : "");
+  timeSlotsMapping.forEach((tsDef) => {
+    if (tsDef.isBreak) {
+      rows.push([tsDef.label, "", "", "", "", "", ""]);
+      return;
+    }
+    const row = [tsDef.label];
+    TIMETABLE_DAYS.forEach((day) => {
+      const daySlots = timetable[day] || {};
+      let slot = null;
+      for (const k of tsDef.keys) {
+        if (daySlots[k] && daySlots[k].subject) {
+          slot = daySlots[k];
+          break;
+        }
+      }
+      if (!slot) {
+        for (const k of Object.keys(daySlots)) {
+          if (normalizeTimeSlot(k) === normalizeTimeSlot(tsDef.label)) {
+            slot = daySlots[k];
+            break;
+          }
+        }
+      }
+      if (slot && slot.subject) {
+        const classBatch = `${slot.sem || ""} ${slot.div || ""}${slot.batch && slot.batch !== "ALL" ? ` (${slot.batch})` : ""}`.trim();
+        const room = slot.room || "";
+        row.push(`${classBatch} / ${slot.subject} / ${room}`.trim());
+      } else {
+        row.push("");
+      }
     });
-    gridRows.push(row);
+    rows.push(row);
   });
-  const wsGrid = XLSX.utils.aoa_to_sheet(gridRows);
-  wsGrid["!cols"] = [{ wch: 16 }, ...days.map(() => ({ wch: 20 }))];
-  XLSX.utils.book_append_sheet(wb, wsGrid, "Weekly Grid");
+  rows.push(["", "", "", "", "", "", ""]);
+  rows.push(["Working Hours", "L", "P/T", "Total Load", "", "", ""]);
+  rows.push(["UG Working Hours", metrics.ugL || "", metrics.ugPT || "", metrics.ugTotal || 0, "", "", ""]);
+  rows.push(["PG Working Hours", metrics.pgL || "", metrics.pgPT || "", metrics.pgTotal || 0, "", "", ""]);
+  rows.push(["Diploma Working Hours", "", "", 0, "", "", ""]);
+  rows.push(["Internship/Project/Seminar (Guidance) Working Hours", metrics.guidanceL || "", metrics.guidancePT || "", metrics.guidanceTotal || 0, "", "", ""]);
+  rows.push(["Other Institution Working Hours", "", "", 0, "", "", ""]);
+  rows.push(["TOTAL TEACHING LOAD", metrics.totalTeachingLoadL || 0, metrics.totalTeachingLoadPT || 0, metrics.totalTeachingLoad || 0, "", "", ""]);
+  rows.push(["", "", "", "", "", "", ""]);
+  rows.push(["Subject Code", "Name of Subject", "L", "T", "P", "C", ""]);
+  metrics.subjectDetailsList.forEach((s) => {
+    rows.push([s.code, s.name, s.L, s.T, s.P, s.C, ""]);
+  });
+  for (let i = 0; i < Math.max(1, 6 - metrics.subjectDetailsList.length); i++) {
+    rows.push(["", "", "", "", "", "", ""]);
+  }
+  rows.push(["Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________", "", "", "", "", "", ""]);
+  rows.push(["", "", "", "", "", "", ""]);
+  rows.push(["How to use", "", "", "", "", "", ""]);
+  rows.push(["Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects).", "", "", "", "", "", ""]);
+  rows.push(["In each grid cell type: Class/Batch, Subject and Room, e.g. 5IT1 / DBMS / IT-5 (use Alt+Enter for a new line).", "", "", "", "", "", ""]);
+  rows.push(["Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T).", "", "", "", "", "", ""]);
+  rows.push(["Grey (example) text in the subject table is only a sample - overwrite or delete it.", "", "", "", "", "", ""]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [
+    { wch: 24 },
+    // Time / Working Hours / Subject Code
+    { wch: 22 },
+    // Monday / L / Name of Subject
+    { wch: 22 },
+    // Tuesday / P/T / L
+    { wch: 22 },
+    // Wednesday / Total Load / T
+    { wch: 22 },
+    // Thursday / P
+    { wch: 22 },
+    // Friday / C
+    { wch: 22 }
+    // Saturday
+  ];
+  ws["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+    { s: { r: 12, c: 1 }, e: { r: 12, c: 6 } }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, "Faculty Timetable");
   const facRefHeaders = ["Faculty ID", "Faculty Name", "Department", "Designation", "Email"];
   const facRefRows = faculties.map((f) => [
     f.id,
@@ -6065,27 +6278,113 @@ const downloadFacultyTimetableTemplate = (facultyName = "Faculty", deptName = "D
   const wsFac = XLSX.utils.aoa_to_sheet([facRefHeaders, ...facRefRows]);
   wsFac["!cols"] = [{ wch: 14 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 28 }];
   XLSX.utils.book_append_sheet(wb, wsFac, "Faculty Directory");
-  const instRows = [
-    ["ADIT FACULTY TIMETABLE UPLOAD TEMPLATE - GUIDELINES", ""],
-    ["", ""],
-    ["COLUMN", "REQUIREMENT / ACCEPTED VALUES"],
-    ["Faculty ID", 'Must match an existing registered Faculty ID from "Faculty Directory" sheet (e.g., FAC_PS, FAC_SM).'],
-    ["Faculty Name", "Full name of the faculty member."],
-    ["Department", "Accepted: AI & Data Science, Computer Engineering, Information Technology, EC, ME, Civil."],
-    ["Subject", "Subject short name or full title (e.g., DBMS, DS, Python, OS)."],
-    ["Semester", "Accepted: 1st Sem to 8th Sem."],
-    ["Division", "Accepted: Div 1, Div 2, Div 3, or All."],
-    ["Batch", "Accepted: Batch A, Batch B, Batch C, or All (use specific batch for practical lab sessions)."],
-    ["Day", "Accepted: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday."],
-    ["Start Time & End Time", `Use standard lecture slots: ${TIME_SLOTS.filter((s) => s !== "12:40 - 1:25").join(", ")}`],
-    ["Room Number", "Classroom or Lab (e.g., Room 201, Room 301, Lab 2, CC-Lab 1)."]
+  XLSX.writeFile(wb, `ADIT_Faculty_Timetable_${actualFacultyId || "Template"}.xlsx`);
+};
+const getFacultyTimetableCsvString = (facultyName = "Faculty", deptName = "Department", facultyId = "FAC_PS") => {
+  const faculties = getFaculties();
+  const targetFaculty = faculties.find((f) => f.id === facultyId || f.name === facultyName);
+  const actualFacultyName = targetFaculty?.name || (facultyName !== "Faculty" ? facultyName : "");
+  const actualDept = targetFaculty?.dept || (deptName !== "Department" ? deptName : "");
+  const actualFacultyId = targetFaculty?.id || facultyId || "";
+  const timetable = getFacultyTimetable(actualFacultyId);
+  const metrics = calculateFacultyTeachingMetrics(timetable);
+  const escapeCsv = (str) => {
+    if (!str) return "";
+    const s = String(str);
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+  const lines = [
+    "A D Patel Institute of Technology,,,,,,",
+    "The Charutar Vidya Mandal (CVM) University,,,,,,",
+    "Timetable for the ODD / EVEN Semester of Academic Year 20__ - 20__,,,,,,",
+    ",,,,,,",
+    `Name of Faculty:${escapeCsv(actualFacultyName)},,,Department:${escapeCsv(actualDept)},,Faculty Code:${escapeCsv(actualFacultyId)},`,
+    "Program Code:,,,Effective from:,,,",
+    ",,,,,,",
+    "Time,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday"
   ];
-  const wsInst = XLSX.utils.aoa_to_sheet(instRows);
-  wsInst["!cols"] = [{ wch: 25 }, { wch: 75 }];
-  XLSX.utils.book_append_sheet(wb, wsInst, "Instructions");
-  XLSX.writeFile(wb, "ADIT_Faculty_Timetable_Template.xlsx");
+  const timeSlotsMapping = [
+    { label: "9:05 to 9:55am", keys: ["9:05 to 9:55am", "9:00 - 9:55", "9:05 - 9:55"] },
+    { label: "10:00 to 10:50am", keys: ["10:00 to 10:50am", "10:00 - 10:50"] },
+    { label: "10:55 to 11:45am", keys: ["10:55 to 11:45am", "10:55 - 11:45"] },
+    { label: "11:50 to 12:40pm", keys: ["11:50 to 12:40pm", "11:50 - 12:40"] },
+    { label: "12:40 to 1:25pm (Break)", isBreak: true },
+    { label: "1:25 to 2:15pm", keys: ["1:25 to 2:15pm", "1:25 - 2:15"] },
+    { label: "2:20 to 3:10pm", keys: ["2:20 to 3:10pm", "2:20 - 3:10"] },
+    { label: "3:15 to 4:05pm", keys: ["3:15 to 4:05pm", "3:15 - 4:05"] },
+    { label: "4:10 to 5:00pm", keys: ["4:10 to 5:00pm", "4:10 - 5:00"] }
+  ];
+  timeSlotsMapping.forEach((tsDef) => {
+    if (tsDef.isBreak) {
+      lines.push(`${tsDef.label},,,,,,`);
+      return;
+    }
+    const cols = [tsDef.label];
+    TIMETABLE_DAYS.forEach((day) => {
+      const daySlots = timetable[day] || {};
+      let slot = null;
+      for (const k of tsDef.keys) {
+        if (daySlots[k] && daySlots[k].subject) {
+          slot = daySlots[k];
+          break;
+        }
+      }
+      if (slot && slot.subject) {
+        const classBatch = `${slot.sem || ""} ${slot.div || ""}${slot.batch && slot.batch !== "ALL" ? ` (${slot.batch})` : ""}`.trim();
+        cols.push(escapeCsv(`${classBatch} / ${slot.subject} / ${slot.room || ""}`));
+      } else {
+        cols.push("");
+      }
+    });
+    lines.push(cols.join(","));
+  });
+  lines.push(",,,,,,");
+  lines.push("Working Hours,L,P/T,Total Load,,,");
+  lines.push(`UG Working Hours,${metrics.ugL || ""},${metrics.ugPT || ""},${metrics.ugTotal || 0},,,`);
+  lines.push(`PG Working Hours,${metrics.pgL || ""},${metrics.pgPT || ""},${metrics.pgTotal || 0},,,`);
+  lines.push("Diploma Working Hours,,,0,,,");
+  lines.push(`Internship/Project/Seminar (Guidance) Working Hours,${metrics.guidanceL || ""},${metrics.guidancePT || ""},${metrics.guidanceTotal || 0},,,`);
+  lines.push("Other Institution Working Hours,,,0,,,");
+  lines.push(`TOTAL TEACHING LOAD,${metrics.totalTeachingLoadL || 0},${metrics.totalTeachingLoadPT || 0},${metrics.totalTeachingLoad || 0},,,`);
+  lines.push(",,,,,,");
+  lines.push("Subject Code,Name of Subject,L,T,P,C,");
+  metrics.subjectDetailsList.forEach((s) => {
+    lines.push(`${escapeCsv(s.code)},${escapeCsv(s.name)},${s.L},${s.T},${s.P},${s.C},`);
+  });
+  for (let i = 0; i < Math.max(1, 6 - metrics.subjectDetailsList.length); i++) {
+    lines.push(",,,,,,");
+  }
+  lines.push("Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________,,,,,,");
+  lines.push(",,,,,,");
+  lines.push("How to use,,,,,,");
+  lines.push('"Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects).",,,,,,');
+  lines.push('"In each grid cell type: Class/Batch, Subject and Room, e.g. 5IT1 / DBMS / IT-5 (use Alt+Enter for a new line).",,,,,,');
+  lines.push("Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T).,,,,,,");
+  lines.push("Grey (example) text in the subject table is only a sample - overwrite or delete it.,,,,,,");
+  return lines.join("\n");
+};
+const downloadFacultyTimetableCsv = (facultyName = "Faculty", deptName = "Department", semName = "ODD/EVEN", facultyId = "FAC_PS") => {
+  const csvContent = getFacultyTimetableCsvString(facultyName, deptName, facultyId);
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `ADIT_Faculty_Timetable_${facultyId || "Template"}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 if (typeof window !== "undefined") {
+  window.formatOfficialTimeSlot = formatOfficialTimeSlot;
+  window.calculateFacultyTeachingMetrics = calculateFacultyTeachingMetrics;
+  window.downloadFacultyTimetableTemplate = downloadFacultyTimetableTemplate;
+  window.downloadFacultyTimetableCsv = downloadFacultyTimetableCsv;
+  window.getFacultyTimetableCsvString = getFacultyTimetableCsvString;
+  window.OFFICIAL_TEMPLATE_TIME_SLOTS = OFFICIAL_TEMPLATE_TIME_SLOTS;
   window.getSessionIdentity = getSessionIdentity;
   window.canMergeConsecutiveSlots = canMergeConsecutiveSlots;
   window.rescheduleLectureEntry = rescheduleLectureEntry;
@@ -9046,14 +9345,14 @@ function FacultyTimetablePanel({
       className: "no-print"
     },
     /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", letterSpacing: "-0.02em" } }, "Faculty Timetables"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "View, edit and manage individual faculty timetables.")),
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
         className: "btn btn-secondary",
         onClick: () => {
-          downloadFacultyTimetableTemplate(currentFaculty?.name || "Faculty", selectedDept, selectedSem);
-          if (showToast) showToast("Faculty timetable template downloaded!");
+          downloadFacultyTimetableTemplate(currentFaculty?.name || "Faculty", selectedDept, selectedSem, currentFaculty?.id);
+          if (showToast) showToast("Official Faculty Excel template downloaded!");
         },
         style: {
           display: "flex",
@@ -9065,11 +9364,39 @@ function FacultyTimetablePanel({
           borderRadius: "8px",
           padding: "10px 16px",
           fontWeight: "700",
-          fontSize: "13px"
-        }
+          fontSize: "13px",
+          cursor: "pointer"
+        },
+        title: "Download Official ADIT CVM University Faculty Template (.xlsx)"
       },
-      /* @__PURE__ */ React.createElement(Download, { size: 15 }),
+      /* @__PURE__ */ React.createElement(Download, { size: 15, color: "#16a34a" }),
       /* @__PURE__ */ React.createElement("span", null, "Download Excel Template")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary",
+        onClick: () => {
+          downloadFacultyTimetableCsv(currentFaculty?.name || "Faculty", selectedDept, selectedSem, currentFaculty?.id);
+          if (showToast) showToast("Official Faculty CSV template downloaded!");
+        },
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          backgroundColor: "white",
+          border: "1px solid #cbd5e1",
+          color: "#334155",
+          borderRadius: "8px",
+          padding: "10px 16px",
+          fontWeight: "700",
+          fontSize: "13px",
+          cursor: "pointer"
+        },
+        title: "Download Official Faculty Template in CSV format"
+      },
+      /* @__PURE__ */ React.createElement(Download, { size: 15, color: "#2563eb" }),
+      /* @__PURE__ */ React.createElement("span", null, "Download CSV Template")
     ), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -9385,7 +9712,7 @@ function FacultyTimetablePanel({
       /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, TIME_SLOTS.map((slotTime) => {
         const isLunch = slotTime === "12:40 - 1:25";
         if (isLunch) {
-          return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b", whiteSpace: "nowrap" } }, slotTime), /* @__PURE__ */ React.createElement(
+          return /* @__PURE__ */ React.createElement("tr", { key: slotTime, style: { backgroundColor: "#f1f5f9", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", textAlign: "left", fontWeight: "700", color: "#64748b", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(slotTime)), /* @__PURE__ */ React.createElement(
             "td",
             {
               colSpan: 6,
@@ -9410,7 +9737,7 @@ function FacultyTimetablePanel({
           whiteSpace: "nowrap",
           backgroundColor: "#fcfdfe",
           borderRight: "1px solid #f1f5f9"
-        } }, slotTime), TIMETABLE_DAYS.map((day) => {
+        } }, formatOfficialTimeSlot(slotTime)), TIMETABLE_DAYS.map((day) => {
           const slot = timetable[day]?.[slotTime];
           return /* @__PURE__ */ React.createElement(
             "td",
@@ -13155,13 +13482,14 @@ function DepartmentAdminPanel({
     ))));
   })());
 }
+const SettingsIcon = typeof Settings !== "undefined" ? Settings : typeof LucideIcons !== "undefined" ? LucideIcons.Settings : null;
 const adminMenuItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "timetable", label: "Faculty Timetable", icon: Calendar },
-  { id: "faculty", label: "Faculty Roster", icon: Users },
-  { id: "classes", label: "Student Management", icon: GraduationCap },
-  { id: "subjects", label: "Subjects", icon: BookOpen },
-  { id: "departments", label: "Departments", icon: Building2 },
+  { id: "dashboard", label: "Dashboard", icon: typeof LayoutDashboard !== "undefined" ? LayoutDashboard : null },
+  { id: "timetable", label: "Faculty Timetable", icon: typeof Calendar !== "undefined" ? Calendar : null },
+  { id: "faculty", label: "Faculty Roster", icon: typeof Users !== "undefined" ? Users : null },
+  { id: "classes", label: "Student Management", icon: typeof GraduationCap !== "undefined" ? GraduationCap : null },
+  { id: "subjects", label: "Subjects", icon: typeof BookOpen !== "undefined" ? BookOpen : null },
+  { id: "departments", label: "Departments", icon: typeof Building2 !== "undefined" ? Building2 : null },
   { id: "settings", label: "Settings", icon: SettingsIcon }
 ];
 if (typeof window !== "undefined") {
@@ -13614,6 +13942,9 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
   const facultyTimetableGrid = useMemo(() => {
     return getFacultyTimetable(currentFaculty?.id || "FAC_PS");
   }, [currentFaculty?.id, timetableSyncTick]);
+  const teachingMetrics = useMemo(() => {
+    return calculateFacultyTeachingMetrics(facultyTimetableGrid);
+  }, [facultyTimetableGrid]);
   const todayDayName = useMemo(() => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const dName = days[(/* @__PURE__ */ new Date()).getDay()];
@@ -14828,7 +15159,7 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
       onClick: () => setFacultyTab("profile")
     },
     /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#faf5ff", color: "#9333ea", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(User, { size: 22 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Faculty Profile"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: "2px 0 0" } }, "Department info, workload & contact")))
-  ))), facultyTab === "timetable" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "My Academic Timetable"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Showing schedule for ", currentFaculty.name, " (", currentFaculty.id, ") \u2022 Live synchronized from Admin Panel")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px" } }, /* @__PURE__ */ React.createElement(
+  ))), facultyTab === "timetable" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", fontFamily: "'Outfit', sans-serif" } }, "My Academic Timetable"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Showing schedule for ", currentFaculty.name, " (", currentFaculty.id, ") \u2022 Live synchronized from Admin Panel")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -14853,12 +15184,90 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     "button",
     {
       type: "button",
+      className: "btn btn-secondary btn-sm no-print",
+      onClick: () => {
+        downloadFacultyTimetableTemplate(currentFaculty.name, currentFaculty.dept, "ODD/EVEN", currentFaculty.id);
+      },
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "8px 12px",
+        borderRadius: "8px",
+        border: "1px solid #cbd5e1",
+        backgroundColor: "#ffffff",
+        color: "#0f172a",
+        fontWeight: "700",
+        fontSize: "13px",
+        cursor: "pointer"
+      },
+      title: "Download Official ADIT CVM University Excel Template"
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 15, color: "#16a34a" }),
+    /* @__PURE__ */ React.createElement("span", null, "Download Excel")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm no-print",
+      onClick: () => {
+        downloadFacultyTimetableCsv(currentFaculty.name, currentFaculty.dept, "ODD/EVEN", currentFaculty.id);
+      },
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "8px 12px",
+        borderRadius: "8px",
+        border: "1px solid #cbd5e1",
+        backgroundColor: "#ffffff",
+        color: "#0f172a",
+        fontWeight: "700",
+        fontSize: "13px",
+        cursor: "pointer"
+      },
+      title: "Download Official Faculty Template in CSV format"
+    },
+    /* @__PURE__ */ React.createElement(Download, { size: 15, color: "#2563eb" }),
+    /* @__PURE__ */ React.createElement("span", null, "Download CSV")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
       className: "btn btn-secondary btn-sm",
-      onClick: () => window.print()
+      onClick: () => window.print(),
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "8px 14px",
+        borderRadius: "8px",
+        fontWeight: "700",
+        fontSize: "13px"
+      }
     },
     /* @__PURE__ */ React.createElement(Printer, { size: 15 }),
     /* @__PURE__ */ React.createElement("span", null, "Print Timetable")
-  ))), !isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { style: {
+  ))), /* @__PURE__ */ React.createElement("div", { className: "official-timetable-header-card", style: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: "14px",
+    padding: "20px 24px",
+    marginBottom: "20px",
+    textAlign: "center",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.03)"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "21px", fontWeight: "900", color: "#1e3a8a", letterSpacing: "0.03em", textTransform: "uppercase" } }, "A D Patel Institute of Technology"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "15px", fontWeight: "700", color: "#334155", marginTop: "3px" } }, "The Charutar Vidya Mandal (CVM) University"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#64748b", marginTop: "6px" } }, "Timetable for the ODD / EVEN Semester of Academic Year 2025 - 2026"), /* @__PURE__ */ React.createElement("div", { style: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: "12px",
+    marginTop: "16px",
+    padding: "12px 18px",
+    backgroundColor: "#fffdf0",
+    border: "1px solid #fef08a",
+    borderRadius: "10px",
+    textAlign: "left",
+    fontSize: "12.5px"
+  } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#713f12", fontWeight: "700" } }, "Name of Faculty: "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#0f172a" } }, currentFaculty.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#713f12", fontWeight: "700" } }, "Department: "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#0f172a" } }, currentFaculty.dept || "AI & Data Science")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#713f12", fontWeight: "700" } }, "Faculty Code: "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#0f172a" } }, currentFaculty.id || "FAC_PS")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#713f12", fontWeight: "700" } }, "Program Code: "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#0f172a" } }, "B.Tech (ADIT)")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#713f12", fontWeight: "700" } }, "Effective from: "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", color: "#0f172a" } }, "01/07/2026")))), !isWeeklyGridView && /* @__PURE__ */ React.createElement("div", { style: {
     display: "flex",
     gap: "8px",
     marginBottom: "20px",
@@ -15193,9 +15602,9 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
     return allSlotsToRender.map((time, rIdx) => {
       const isLunch = isLunchTime(time);
       if (isLunch) {
-        return /* @__PURE__ */ React.createElement("tr", { key: time, style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569", padding: "12px 8px", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), /* @__PURE__ */ React.createElement("td", { colSpan: TIMETABLE_DAYS.length, style: { textAlign: "center", padding: "12px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "800", letterSpacing: "0.08em", fontSize: "12px" } }, "\u{1F371} LUNCH RECESS (12:40 PM \u2013 1:25 PM)"));
+        return /* @__PURE__ */ React.createElement("tr", { key: time, style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569", padding: "12px 8px", borderRight: "1px solid #e2e8f0", fontSize: "12px", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(time)), /* @__PURE__ */ React.createElement("td", { colSpan: TIMETABLE_DAYS.length, style: { textAlign: "center", padding: "12px", backgroundColor: "#f1f5f9", color: "#64748b", fontWeight: "800", letterSpacing: "0.08em", fontSize: "12px" } }, "\u{1F371} 12:40 to 1:25pm (Break) / LUNCH RECESS"));
       }
-      return /* @__PURE__ */ React.createElement("tr", { key: time, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#1e3a8a", padding: "12px 8px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", fontSize: "12px" } }, time), TIMETABLE_DAYS.map((dayName) => {
+      return /* @__PURE__ */ React.createElement("tr", { key: time, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#1e3a8a", padding: "12px 8px", backgroundColor: "#f8fafc", borderRight: "1px solid #e2e8f0", fontSize: "12px", whiteSpace: "nowrap" } }, formatOfficialTimeSlot(time)), TIMETABLE_DAYS.map((dayName) => {
         const cellInfo = dayCellMap[dayName]?.[rIdx];
         if (!cellInfo || cellInfo.type === "skip") {
           return null;
@@ -15325,7 +15734,27 @@ function FacultyPanel({ currentUser, showToast, onExit }) {
         );
       }));
     });
-  })())))), selectedLectureDetail && (() => {
+  })()))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "24px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14.5px", fontWeight: "800", color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 16, color: "#2563eb" }), "Teaching Load Summary (Working Hours)"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b" } }, "Calculated automatically (Load = L + P/T)")), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "8px", overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { className: "teaching-load-table", style: { width: "100%", minWidth: "600px", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "left" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "2px solid #cbd5e1" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", borderRight: "1px solid #e2e8f0" } }, "Working Hours"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", borderRight: "1px solid #e2e8f0", width: "90px" } }, "L (Lectures)"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", borderRight: "1px solid #e2e8f0", width: "90px" } }, "P/T (Labs/Tut)"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", width: "110px" } }, "Total Load"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", fontWeight: "600", color: "#334155", borderRight: "1px solid #e2e8f0" } }, "UG Working Hours"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#0f172a", fontWeight: "700", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.ugL), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#0f172a", fontWeight: "700", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.ugPT), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#2563eb", fontWeight: "800", backgroundColor: "#eff6ff" } }, teachingMetrics.ugTotal)), /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", fontWeight: "600", color: "#334155", borderRight: "1px solid #e2e8f0" } }, "PG Working Hours"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.pgL), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.pgPT), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b" } }, teachingMetrics.pgTotal)), /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", fontWeight: "600", color: "#334155", borderRight: "1px solid #e2e8f0" } }, "Diploma Working Hours"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, "0"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, "0"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b" } }, "0")), /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", fontWeight: "600", color: "#334155", borderRight: "1px solid #e2e8f0" } }, "Internship/Project/Seminar (Guidance) Working Hours"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.guidanceL), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, teachingMetrics.guidancePT), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b" } }, teachingMetrics.guidanceTotal)), /* @__PURE__ */ React.createElement("tr", { style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", fontWeight: "600", color: "#334155", borderRight: "1px solid #e2e8f0" } }, "Other Institution Working Hours"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, "0"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b", borderRight: "1px solid #e2e8f0" } }, "0"), /* @__PURE__ */ React.createElement("td", { style: { padding: "9px 12px", textAlign: "center", color: "#64748b" } }, "0")), /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f1f5f9", fontWeight: "800" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", color: "#0f172a", borderRight: "1px solid #cbd5e1" } }, "TOTAL TEACHING LOAD"), /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", textAlign: "center", color: "#0f172a", borderRight: "1px solid #cbd5e1" } }, teachingMetrics.totalTeachingLoadL), /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", textAlign: "center", color: "#0f172a", borderRight: "1px solid #cbd5e1" } }, teachingMetrics.totalTeachingLoadPT), /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", textAlign: "center", color: "#1e40af", backgroundColor: "#dbeafe", fontSize: "13.5px" } }, teachingMetrics.totalTeachingLoad)))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px", backgroundColor: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "16px", boxShadow: "0 1px 3px rgba(0,0,0,0.02)" } }, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "14.5px", fontWeight: "800", color: "#0f172a", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 16, color: "#2563eb" }), "Assigned Subjects & Credit Distribution"), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "8px", overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { className: "subject-load-table", style: { width: "100%", minWidth: "600px", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "left" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "2px solid #cbd5e1" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", borderRight: "1px solid #e2e8f0", width: "180px" } }, "Subject Code"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", borderRight: "1px solid #e2e8f0" } }, "Name of Subject"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", borderRight: "1px solid #e2e8f0", width: "60px" } }, "L"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", borderRight: "1px solid #e2e8f0", width: "60px" } }, "T"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", borderRight: "1px solid #e2e8f0", width: "60px" } }, "P"), /* @__PURE__ */ React.createElement("th", { style: { padding: "9px 12px", fontWeight: "800", color: "#1e293b", textAlign: "center", width: "60px" } }, "C"))), /* @__PURE__ */ React.createElement("tbody", null, teachingMetrics.subjectDetailsList.map((s, idx) => /* @__PURE__ */ React.createElement("tr", { key: s.code || idx, style: { borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "700", color: "#2563eb", borderRight: "1px solid #e2e8f0" } }, s.code), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: "600", color: "#1e293b", borderRight: "1px solid #e2e8f0" } }, s.name), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", textAlign: "center", borderRight: "1px solid #e2e8f0" } }, s.L), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", textAlign: "center", borderRight: "1px solid #e2e8f0" } }, s.T), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", textAlign: "center", borderRight: "1px solid #e2e8f0" } }, s.P), /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", textAlign: "center", fontWeight: "800", color: "#0f172a", backgroundColor: "#f8fafc" } }, s.C))))))), /* @__PURE__ */ React.createElement("div", { style: {
+    marginTop: "28px",
+    paddingTop: "20px",
+    borderTop: "1px solid #cbd5e1",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "20px",
+    fontSize: "12px",
+    color: "#475569",
+    fontWeight: "700"
+  } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", null, "Prepared by: "), /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "160px", borderBottom: "1px dotted #94a3b8" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", null, "Verified by Head: "), /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "160px", borderBottom: "1px dotted #94a3b8" } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", null, "Principal/Director: "), /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", width: "160px", borderBottom: "1px dotted #94a3b8" } }))), /* @__PURE__ */ React.createElement("div", { style: {
+    marginTop: "20px",
+    padding: "14px 18px",
+    backgroundColor: "#fefce8",
+    border: "1px solid #fef08a",
+    borderRadius: "10px",
+    fontSize: "12px",
+    color: "#713f12"
+  }, className: "no-print" }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", marginBottom: "4px" } }, "\u{1F4A1} How to use (Official Faculty Timetable):"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: "20px", lineHeight: "1.6" } }, /* @__PURE__ */ React.createElement("li", null, "Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects)."), /* @__PURE__ */ React.createElement("li", null, "In each grid cell type: Class/Batch, Subject and Room, e.g. ", /* @__PURE__ */ React.createElement("code", null, "5IT1 / DBMS / IT-5"), " (use Alt+Enter for a new line)."), /* @__PURE__ */ React.createElement("li", null, "Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T)."), /* @__PURE__ */ React.createElement("li", null, "Click on any lecture card in the timetable to immediately start taking attendance.")))), selectedLectureDetail && (() => {
     const { slot, day, time } = selectedLectureDetail;
     const roster = getStudentsForClassCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
     const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];

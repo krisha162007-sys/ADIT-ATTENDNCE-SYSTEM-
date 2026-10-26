@@ -19,6 +19,140 @@ export const TIME_SLOTS = [
   '4:10 - 5:00'
 ];
 
+export const OFFICIAL_TEMPLATE_TIME_SLOTS = [
+  '9:05 to 9:55am',
+  '10:00 to 10:50am',
+  '10:55 to 11:45am',
+  '11:50 to 12:40pm',
+  '12:40 to 1:25pm (Break)',
+  '1:25 to 2:15pm',
+  '2:20 to 3:10pm',
+  '3:15 to 4:05pm',
+  '4:10 to 5:00pm'
+];
+
+export const formatOfficialTimeSlot = (slotStr) => {
+  if (!slotStr) return '';
+  const s = String(slotStr).trim();
+  if (s.startsWith('9:00') || s.startsWith('9:05')) return '9:05 to 9:55am';
+  if (s.startsWith('10:00')) return '10:00 to 10:50am';
+  if (s.startsWith('10:55')) return '10:55 to 11:45am';
+  if (s.startsWith('11:50')) return '11:50 to 12:40pm';
+  if (s.startsWith('12:40') || s.toLowerCase().includes('break') || s.toLowerCase().includes('lunch')) return '12:40 to 1:25pm (Break)';
+  if (s.startsWith('1:25')) return '1:25 to 2:15pm';
+  if (s.startsWith('2:20')) return '2:20 to 3:10pm';
+  if (s.startsWith('3:15')) return '3:15 to 4:05pm';
+  if (s.startsWith('4:10')) return '4:10 to 5:00pm';
+  return s;
+};
+
+export const calculateFacultyTeachingMetrics = (timetableGrid) => {
+  let ugL = 0;
+  let ugPT = 0;
+  let pgL = 0;
+  let pgPT = 0;
+  let guidanceL = 0;
+  let guidancePT = 0;
+
+  const subjectMap = {};
+
+  if (timetableGrid && typeof timetableGrid === 'object') {
+    TIMETABLE_DAYS.forEach(day => {
+      const daySlots = timetableGrid[day] || {};
+      Object.entries(daySlots).forEach(([timeSlot, slot]) => {
+        if (!slot || !slot.subject) return;
+        const subj = String(slot.subject).trim();
+        if (/^(lunch|break|lb|-+)$/i.test(subj)) return;
+
+        const isLab = slot.type === 'Lab' || /lab|practical/i.test(subj) || /lab/i.test(slot.room || '');
+        const isPG = /pg|m\.?tech|master/i.test(slot.sem || '') || /pg/i.test(subj);
+        const isGuidance = /seminar|project|internship|guidance/i.test(subj);
+
+        if (isGuidance) {
+          if (isLab) guidancePT++; else guidanceL++;
+        } else if (isPG) {
+          if (isLab) pgPT++; else pgL++;
+        } else {
+          if (isLab) ugPT++; else ugL++;
+        }
+
+        const sKey = subj.toUpperCase();
+        if (!subjectMap[sKey]) {
+          subjectMap[sKey] = {
+            code: slot.subjectCode || slot.code || '',
+            name: slot.name || slot.subjectFullName || subj,
+            L: 0,
+            T: 0,
+            P: 0,
+            C: 0
+          };
+        }
+        if (isLab) {
+          subjectMap[sKey].P += 1;
+        } else {
+          subjectMap[sKey].L += 1;
+        }
+      });
+    });
+  }
+
+  const subjectDetailsList = Object.values(subjectMap).map((s, idx) => {
+    const code = s.code || `20234010${idx + 1}`;
+    const credits = Math.round(s.L + (s.P / 2));
+    return {
+      code,
+      name: s.name,
+      L: s.L,
+      T: s.T,
+      P: s.P,
+      C: credits > 0 ? credits : 4
+    };
+  });
+
+  if (subjectDetailsList.length === 0) {
+    subjectDetailsList.push({
+      code: '(example) 202340104',
+      name: '(example) Python Programming',
+      L: 3,
+      T: 0,
+      P: 2,
+      C: 4
+    });
+  }
+
+  const ugTotal = ugL + ugPT;
+  const pgTotal = pgL + pgPT;
+  const diplomaTotal = 0;
+  const guidanceTotal = guidanceL + guidancePT;
+  const otherTotal = 0;
+
+  const totalTeachingLoadL = ugL + pgL + guidanceL;
+  const totalTeachingLoadPT = ugPT + pgPT + guidancePT;
+  const totalTeachingLoad = totalTeachingLoadL + totalTeachingLoadPT;
+
+  return {
+    ugL,
+    ugPT,
+    ugTotal,
+    pgL,
+    pgPT,
+    pgTotal,
+    diplomaL: 0,
+    diplomaPT: 0,
+    diplomaTotal: 0,
+    guidanceL,
+    guidancePT,
+    guidanceTotal,
+    otherL: 0,
+    otherPT: 0,
+    otherTotal: 0,
+    totalTeachingLoadL,
+    totalTeachingLoadPT,
+    totalTeachingLoad,
+    subjectDetailsList
+  };
+};
+
 export const TIMETABLE_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export const getSubjectColor = (subjectNameOrCode) => {
@@ -1125,7 +1259,8 @@ const _fuzzyTimeSlot = (cellTime) => {
 const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
   const raw = String(cellText || '').trim();
   if (!raw) return null;
-  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+// Support newline, slash (/), or comma separated cell content e.g. "5IT1 / DBMS / IT-5"
+  const lines = raw.split(/\r?\n|\/|,/).map(l => l.trim()).filter(Boolean);
   if (!lines.length) return null;
   if (lines.some(l => /^(lunch|break|lb|-+)$/i.test(l))) return null;
 
@@ -1133,7 +1268,17 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
   let room = 'Room 201';
   let sem = null;
   let div = null;
+  let batch = 'ALL';
   let deptId = null;
+
+  // Extract Batch if present e.g. "Batch A", "(B1)", "B2", "-A"
+  for (const line of lines) {
+    const bMatch = line.match(/\b(?:batch\s*([A-Za-z0-9]+)|\(([A-Za-z0-9]+)\)|-(?:B|Batch)?([A-Za-z0-9]+))\b/i);
+    if (bMatch) {
+      batch = `Batch ${bMatch[1] || bMatch[2] || bMatch[3]}`;
+      break;
+    }
+  }
 
   const deptCodeMap = {
     'AI': 'DEP_AI',
@@ -1217,22 +1362,30 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     name: subject,
     sem: sem || normalizeSem(defaultSem),
     div: div || normalizeDiv(defaultDiv),
+    batch: batch || 'ALL',
     deptId: deptId || defaultDeptId,
     room,
     type: isLab ? 'Lab' : 'Lecture'
   };
 };
 
-// Detect if the spreadsheet uses GRID format (time | Mon | Tue …)
+// Helper: Find which row contains the timetable day headers (Monday, Tuesday, etc.)
+export const findGridHeaderRowIdx = (rows) => {
+  if (!rows || rows.length < 2) return -1;
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    const r = rows[i];
+    if (!r || !Array.isArray(r)) continue;
+    const dayHits = TIMETABLE_DAYS.filter(d =>
+      r.some(cell => String(cell || '').toLowerCase().includes(d.toLowerCase()))
+    );
+    if (dayHits.length >= 3) return i;
+  }
+  return -1;
+};
+
+// Detect if the spreadsheet uses GRID format (time × Mon × Tue …)
 const _isGridFormat = (rows) => {
-  if (!rows || rows.length < 2) return false;
-  const header = rows[0];
-  if (!header || header.length < 3) return false;
-  const dayHits = TIMETABLE_DAYS.filter(d =>
-    header.some(cell => String(cell || '').toLowerCase().includes(d.toLowerCase()))
-  );
-  // Grid format: header row contains at least 3 day names
-  return dayHits.length >= 3;
+  return findGridHeaderRowIdx(rows) !== -1;
 };
 
 const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = 'DEP_AI', targetFacultyId = null) => {
@@ -1248,8 +1401,33 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
   const existingEntries = getTimetableEntries();
 
   // ── FORMAT A: GRID (time × day) ──
-  if (_isGridFormat(rows)) {
-    const header = rows[0];
+  const gridHeaderIdx = findGridHeaderRowIdx(rows);
+  if (gridHeaderIdx !== -1) {
+    const header = rows[gridHeaderIdx];
+
+    // Detect faculty details from rows above gridHeaderIdx if present
+    let detectedFacultyId = targetFacultyId;
+    for (let r = 0; r < gridHeaderIdx; r++) {
+      const row = rows[r];
+      if (!row || !Array.isArray(row)) continue;
+      for (let c = 0; c < row.length; c++) {
+        const val = String(row[c] || '').trim();
+        if (/faculty\s*code|faculty\s*id/i.test(val)) {
+          const nextVal = String(row[c + 1] || '').trim() || val.replace(/.*?faculty\s*(?:code|id)\s*[:=]?\s*/i, '');
+          if (nextVal) {
+            const matchedFac = registeredFaculties.find(f => f.id.toLowerCase() === nextVal.toLowerCase() || f.name.toLowerCase().includes(nextVal.toLowerCase()));
+            if (matchedFac) detectedFacultyId = matchedFac.id;
+          }
+        } else if (/name\s*of\s*faculty|faculty\s*name/i.test(val)) {
+          const nextVal = String(row[c + 1] || '').trim() || val.replace(/.*?name\s*of\s*faculty\s*[:=]?\s*/i, '');
+          if (nextVal && !detectedFacultyId) {
+            const matchedFac = registeredFaculties.find(f => f.name.toLowerCase().includes(nextVal.toLowerCase()));
+            if (matchedFac) detectedFacultyId = matchedFac.id;
+          }
+        }
+      }
+    }
+
     // Map column index → day name
     const colToDay = {};
     header.forEach((cell, colIdx) => {
@@ -1259,12 +1437,19 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
     });
 
     // Each subsequent row: col 0 = time slot, other cols = cell content
-    for (let ri = 1; ri < rows.length; ri++) {
+    for (let ri = gridHeaderIdx + 1; ri < rows.length; ri++) {
       const row = rows[ri];
       if (!row || row.every(c => !c)) continue;
+
+      const firstCell = String(row[0] || '').trim();
+      // Stop condition: Reached bottom summary tables of official template
+      if (/working\s*hours|teaching\s*load|subject\s*code|prepared\s*by|how\s*to\s*use/i.test(firstCell)) {
+        break;
+      }
+
       const timeSlot = _fuzzyTimeSlot(row[0]);
       if (!timeSlot) continue;
-      if (timeSlot === '12:40 - 1:25') continue; // lunch
+      if (timeSlot === '12:40 - 1:25' || /break|lunch/i.test(firstCell)) continue; // lunch
 
       Object.entries(colToDay).forEach(([colIdxStr, day]) => {
         const colIdx = parseInt(colIdxStr);
@@ -1284,6 +1469,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           name: parsed.subject,
           sem,
           div,
+          batch: parsed.batch || 'ALL',
           departmentId: deptId,
           room,
           type,
@@ -1296,6 +1482,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           room,
           sem,
           div,
+          batch: parsed.batch || 'ALL',
           departmentId: deptId,
           status: 'valid'
         };
@@ -1303,7 +1490,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         validLectures.push(lec);
       });
     }
-    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures };
+    return { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures, detectedFacultyId };
   }
 
   // ── FORMAT C: COLUMNAR TIMETABLE ──
@@ -2494,70 +2681,132 @@ export const parseImageOrPdfFile = async (file, targetScope = 'faculty', targetI
 };
 
 // =========================================================================
-// FACULTY TIMETABLE TEMPLATE DOWNLOAD
+// OFFICIAL FACULTY TIMETABLE TEMPLATE DOWNLOAD (EXCEL & CSV)
+// Format strictly matches ADIT CVM University Faculty Timetable Template
 // =========================================================================
 
-export const downloadFacultyTimetableTemplate = (facultyName = 'Faculty', deptName = 'Department', semName = '3rd Semester') => {
+export const downloadFacultyTimetableTemplate = (facultyName = 'Faculty', deptName = 'Department', semName = '3rd Semester', facultyId = 'FAC_PS') => {
   const wb = XLSX.utils.book_new();
   const faculties = getFaculties();
+  const targetFaculty = faculties.find(f => f.id === facultyId || f.name === facultyName);
+  const actualFacultyName = targetFaculty?.name || (facultyName !== 'Faculty' ? facultyName : 'Prof. Priya Shah');
+  const actualDept = targetFaculty?.dept || (deptName !== 'Department' ? deptName : 'AI & Data Science');
+  const actualFacultyId = targetFaculty?.id || facultyId || 'FAC_PS';
 
-  // Sheet 1: Columnar Timetable Schedule Template with realistic sample rows
-  const colHeaders = [
-    'Faculty ID',
-    'Faculty Name',
-    'Department',
-    'Subject',
-    'Semester',
-    'Division',
-    'Batch',
-    'Day',
-    'Start Time',
-    'End Time',
-    'Room Number'
+  const timetable = getFacultyTimetable(actualFacultyId);
+  const metrics = calculateFacultyTeachingMetrics(timetable);
+
+  // Sheet 1: Official ADIT CVM University Faculty Timetable Template
+  const rows = [
+    ['A D Patel Institute of Technology', '', '', '', '', '', ''],
+    ['The Charutar Vidya Mandal (CVM) University', '', '', '', '', '', ''],
+    ['Timetable for the ODD / EVEN Semester of Academic Year 2025 - 2026', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
+    ['Name of Faculty:', actualFacultyName, '', 'Department:', actualDept, 'Faculty Code:', actualFacultyId],
+    ['Program Code:', 'B.Tech', '', 'Effective from:', '01/07/2026', '', ''],
+    ['', '', '', '', '', '', ''],
+    ['Time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   ];
 
-  const colRows = [
-    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS', '3rd Sem', 'Div 1', 'All', 'Monday', '9:00', '9:55', 'Room 201'],
-    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DS', '3rd Sem', 'Div 1', 'All', 'Monday', '10:00', '10:50', 'Room 201'],
-    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS Lab', '3rd Sem', 'Div 1', 'Batch A', 'Tuesday', '1:25', '3:10', 'Lab 2'],
-    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DS Lab', '3rd Sem', 'Div 1', 'Batch B', 'Wednesday', '1:25', '3:10', 'Lab 2'],
-    ['FAC_PS', 'Prof. Priya Shah', 'AI & Data Science', 'DBMS Lab', '3rd Sem', 'Div 1', 'Batch C', 'Thursday', '1:25', '3:10', 'Lab 2'],
-    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS', '5th Sem', 'Div 1', 'All', 'Monday', '9:00', '9:55', 'Room 301'],
-    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS Lab', '5th Sem', 'Div 1', 'Batch A', 'Wednesday', '1:25', '3:10', 'CC-Lab 1'],
-    ['FAC_SM', 'Dr. S. M. Mehta', 'Computer Engineering', 'OS Lab', '5th Sem', 'Div 1', 'Batch B', 'Friday', '1:25', '3:10', 'CC-Lab 1']
+  const timeSlotsMapping = [
+    { label: '9:05 to 9:55am', keys: ['9:05 to 9:55am', '9:00 - 9:55', '9:05 - 9:55'] },
+    { label: '10:00 to 10:50am', keys: ['10:00 to 10:50am', '10:00 - 10:50'] },
+    { label: '10:55 to 11:45am', keys: ['10:55 to 11:45am', '10:55 - 11:45'] },
+    { label: '11:50 to 12:40pm', keys: ['11:50 to 12:40pm', '11:50 - 12:40'] },
+    { label: '12:40 to 1:25pm (Break)', isBreak: true },
+    { label: '1:25 to 2:15pm', keys: ['1:25 to 2:15pm', '1:25 - 2:15'] },
+    { label: '2:20 to 3:10pm', keys: ['2:20 to 3:10pm', '2:20 - 3:10'] },
+    { label: '3:15 to 4:05pm', keys: ['3:15 to 4:05pm', '3:15 - 4:05'] },
+    { label: '4:10 to 5:00pm', keys: ['4:10 to 5:00pm', '4:10 - 5:00'] }
   ];
 
-  const wsCol = XLSX.utils.aoa_to_sheet([colHeaders, ...colRows]);
-  wsCol['!cols'] = [
-    { wch: 14 }, // Faculty ID
-    { wch: 22 }, // Faculty Name
-    { wch: 24 }, // Department
-    { wch: 16 }, // Subject
-    { wch: 12 }, // Semester
-    { wch: 12 }, // Division
-    { wch: 12 }, // Batch
-    { wch: 14 }, // Day
-    { wch: 12 }, // Start Time
-    { wch: 12 }, // End Time
-    { wch: 14 }  // Room Number
-  ];
-  XLSX.utils.book_append_sheet(wb, wsCol, 'Timetable Schedule');
+  timeSlotsMapping.forEach(tsDef => {
+    if (tsDef.isBreak) {
+      rows.push([tsDef.label, '', '', '', '', '', '']);
+      return;
+    }
 
-  // Sheet 2: Weekly Grid Template
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const gridRows = [['Time Slot', ...days]];
-  TIME_SLOTS.forEach(slot => {
-    const row = [slot];
-    days.forEach(() => {
-      row.push(slot === '12:40 - 1:25' ? 'LUNCH' : '');
+    const row = [tsDef.label];
+    TIMETABLE_DAYS.forEach(day => {
+      const daySlots = timetable[day] || {};
+      let slot = null;
+      for (const k of tsDef.keys) {
+        if (daySlots[k] && daySlots[k].subject) {
+          slot = daySlots[k];
+          break;
+        }
+      }
+      if (!slot) {
+        for (const k of Object.keys(daySlots)) {
+          if (normalizeTimeSlot(k) === normalizeTimeSlot(tsDef.label)) {
+            slot = daySlots[k];
+            break;
+          }
+        }
+      }
+
+      if (slot && slot.subject) {
+        const classBatch = `${slot.sem || ''} ${slot.div || ''}${slot.batch && slot.batch !== 'ALL' ? ` (${slot.batch})` : ''}`.trim();
+        const room = slot.room || '';
+        row.push(`${classBatch} / ${slot.subject} / ${room}`.trim());
+      } else {
+        row.push('');
+      }
     });
-    gridRows.push(row);
+    rows.push(row);
   });
-  const wsGrid = XLSX.utils.aoa_to_sheet(gridRows);
-  wsGrid['!cols'] = [{ wch: 16 }, ...days.map(() => ({ wch: 20 }))];
-  XLSX.utils.book_append_sheet(wb, wsGrid, 'Weekly Grid');
 
-  // Sheet 3: Registered Faculty Directory (Reference)
+  // Working Hours table
+  rows.push(['', '', '', '', '', '', '']);
+  rows.push(['Working Hours', 'L', 'P/T', 'Total Load', '', '', '']);
+  rows.push(['UG Working Hours', metrics.ugL || '', metrics.ugPT || '', metrics.ugTotal || 0, '', '', '']);
+  rows.push(['PG Working Hours', metrics.pgL || '', metrics.pgPT || '', metrics.pgTotal || 0, '', '', '']);
+  rows.push(['Diploma Working Hours', '', '', 0, '', '', '']);
+  rows.push(['Internship/Project/Seminar (Guidance) Working Hours', metrics.guidanceL || '', metrics.guidancePT || '', metrics.guidanceTotal || 0, '', '', '']);
+  rows.push(['Other Institution Working Hours', '', '', 0, '', '', '']);
+  rows.push(['TOTAL TEACHING LOAD', metrics.totalTeachingLoadL || 0, metrics.totalTeachingLoadPT || 0, metrics.totalTeachingLoad || 0, '', '', '']);
+
+  // Subject Code table
+  rows.push(['', '', '', '', '', '', '']);
+  rows.push(['Subject Code', 'Name of Subject', 'L', 'T', 'P', 'C', '']);
+  metrics.subjectDetailsList.forEach(s => {
+    rows.push([s.code, s.name, s.L, s.T, s.P, s.C, '']);
+  });
+  for (let i = 0; i < Math.max(1, 6 - metrics.subjectDetailsList.length); i++) {
+    rows.push(['', '', '', '', '', '', '']);
+  }
+
+  // Signatures
+  rows.push(['Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________', '', '', '', '', '', '']);
+  rows.push(['', '', '', '', '', '', '']);
+
+  // How to use
+  rows.push(['How to use', '', '', '', '', '', '']);
+  rows.push(['Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects).', '', '', '', '', '', '']);
+  rows.push(['In each grid cell type: Class/Batch, Subject and Room, e.g. 5IT1 / DBMS / IT-5 (use Alt+Enter for a new line).', '', '', '', '', '', '']);
+  rows.push(['Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T).', '', '', '', '', '', '']);
+  rows.push(['Grey (example) text in the subject table is only a sample - overwrite or delete it.', '', '', '', '', '', '']);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 24 }, // Time / Working Hours / Subject Code
+    { wch: 22 }, // Monday / L / Name of Subject
+    { wch: 22 }, // Tuesday / P/T / L
+    { wch: 22 }, // Wednesday / Total Load / T
+    { wch: 22 }, // Thursday / P
+    { wch: 22 }, // Friday / C
+    { wch: 22 }  // Saturday
+  ];
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+    { s: { r: 12, c: 1 }, e: { r: 12, c: 6 } }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Faculty Timetable');
+
+  // Sheet 2: Faculty Directory (Reference)
   const facRefHeaders = ['Faculty ID', 'Faculty Name', 'Department', 'Designation', 'Email'];
   const facRefRows = faculties.map(f => [
     f.id,
@@ -2570,30 +2819,123 @@ export const downloadFacultyTimetableTemplate = (facultyName = 'Faculty', deptNa
   wsFac['!cols'] = [{ wch: 14 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 28 }];
   XLSX.utils.book_append_sheet(wb, wsFac, 'Faculty Directory');
 
-  // Sheet 4: Instructions & Reference Values
-  const instRows = [
-    ['ADIT FACULTY TIMETABLE UPLOAD TEMPLATE - GUIDELINES', ''],
-    ['', ''],
-    ['COLUMN', 'REQUIREMENT / ACCEPTED VALUES'],
-    ['Faculty ID', 'Must match an existing registered Faculty ID from "Faculty Directory" sheet (e.g., FAC_PS, FAC_SM).'],
-    ['Faculty Name', 'Full name of the faculty member.'],
-    ['Department', 'Accepted: AI & Data Science, Computer Engineering, Information Technology, EC, ME, Civil.'],
-    ['Subject', 'Subject short name or full title (e.g., DBMS, DS, Python, OS).'],
-    ['Semester', 'Accepted: 1st Sem to 8th Sem.'],
-    ['Division', 'Accepted: Div 1, Div 2, Div 3, or All.'],
-    ['Batch', 'Accepted: Batch A, Batch B, Batch C, or All (use specific batch for practical lab sessions).'],
-    ['Day', 'Accepted: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.'],
-    ['Start Time & End Time', `Use standard lecture slots: ${TIME_SLOTS.filter(s => s !== '12:40 - 1:25').join(', ')}`],
-    ['Room Number', 'Classroom or Lab (e.g., Room 201, Room 301, Lab 2, CC-Lab 1).']
-  ];
-  const wsInst = XLSX.utils.aoa_to_sheet(instRows);
-  wsInst['!cols'] = [{ wch: 25 }, { wch: 75 }];
-  XLSX.utils.book_append_sheet(wb, wsInst, 'Instructions');
+  XLSX.writeFile(wb, `ADIT_Faculty_Timetable_${actualFacultyId || 'Template'}.xlsx`);
+};
 
-  XLSX.writeFile(wb, 'ADIT_Faculty_Timetable_Template.xlsx');
+export const getFacultyTimetableCsvString = (facultyName = 'Faculty', deptName = 'Department', facultyId = 'FAC_PS') => {
+  const faculties = getFaculties();
+  const targetFaculty = faculties.find(f => f.id === facultyId || f.name === facultyName);
+  const actualFacultyName = targetFaculty?.name || (facultyName !== 'Faculty' ? facultyName : '');
+  const actualDept = targetFaculty?.dept || (deptName !== 'Department' ? deptName : '');
+  const actualFacultyId = targetFaculty?.id || facultyId || '';
+
+  const timetable = getFacultyTimetable(actualFacultyId);
+  const metrics = calculateFacultyTeachingMetrics(timetable);
+
+  const escapeCsv = (str) => {
+    if (!str) return '';
+    const s = String(str);
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const lines = [
+    'A D Patel Institute of Technology,,,,,,',
+    'The Charutar Vidya Mandal (CVM) University,,,,,,',
+    'Timetable for the ODD / EVEN Semester of Academic Year 20__ - 20__,,,,,,',
+    ',,,,,,',
+    `Name of Faculty:${escapeCsv(actualFacultyName)},,,Department:${escapeCsv(actualDept)},,Faculty Code:${escapeCsv(actualFacultyId)},`,
+    'Program Code:,,,Effective from:,,,',
+    ',,,,,,',
+    'Time,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday'
+  ];
+
+  const timeSlotsMapping = [
+    { label: '9:05 to 9:55am', keys: ['9:05 to 9:55am', '9:00 - 9:55', '9:05 - 9:55'] },
+    { label: '10:00 to 10:50am', keys: ['10:00 to 10:50am', '10:00 - 10:50'] },
+    { label: '10:55 to 11:45am', keys: ['10:55 to 11:45am', '10:55 - 11:45'] },
+    { label: '11:50 to 12:40pm', keys: ['11:50 to 12:40pm', '11:50 - 12:40'] },
+    { label: '12:40 to 1:25pm (Break)', isBreak: true },
+    { label: '1:25 to 2:15pm', keys: ['1:25 to 2:15pm', '1:25 - 2:15'] },
+    { label: '2:20 to 3:10pm', keys: ['2:20 to 3:10pm', '2:20 - 3:10'] },
+    { label: '3:15 to 4:05pm', keys: ['3:15 to 4:05pm', '3:15 - 4:05'] },
+    { label: '4:10 to 5:00pm', keys: ['4:10 to 5:00pm', '4:10 - 5:00'] }
+  ];
+
+  timeSlotsMapping.forEach(tsDef => {
+    if (tsDef.isBreak) {
+      lines.push(`${tsDef.label},,,,,,`);
+      return;
+    }
+    const cols = [tsDef.label];
+    TIMETABLE_DAYS.forEach(day => {
+      const daySlots = timetable[day] || {};
+      let slot = null;
+      for (const k of tsDef.keys) {
+        if (daySlots[k] && daySlots[k].subject) {
+          slot = daySlots[k];
+          break;
+        }
+      }
+      if (slot && slot.subject) {
+        const classBatch = `${slot.sem || ''} ${slot.div || ''}${slot.batch && slot.batch !== 'ALL' ? ` (${slot.batch})` : ''}`.trim();
+        cols.push(escapeCsv(`${classBatch} / ${slot.subject} / ${slot.room || ''}`));
+      } else {
+        cols.push('');
+      }
+    });
+    lines.push(cols.join(','));
+  });
+
+  lines.push(',,,,,,');
+  lines.push('Working Hours,L,P/T,Total Load,,,');
+  lines.push(`UG Working Hours,${metrics.ugL || ''},${metrics.ugPT || ''},${metrics.ugTotal || 0},,,`);
+  lines.push(`PG Working Hours,${metrics.pgL || ''},${metrics.pgPT || ''},${metrics.pgTotal || 0},,,`);
+  lines.push('Diploma Working Hours,,,0,,,');
+  lines.push(`Internship/Project/Seminar (Guidance) Working Hours,${metrics.guidanceL || ''},${metrics.guidancePT || ''},${metrics.guidanceTotal || 0},,,`);
+  lines.push('Other Institution Working Hours,,,0,,,');
+  lines.push(`TOTAL TEACHING LOAD,${metrics.totalTeachingLoadL || 0},${metrics.totalTeachingLoadPT || 0},${metrics.totalTeachingLoad || 0},,,`);
+  lines.push(',,,,,,');
+  lines.push('Subject Code,Name of Subject,L,T,P,C,');
+  metrics.subjectDetailsList.forEach(s => {
+    lines.push(`${escapeCsv(s.code)},${escapeCsv(s.name)},${s.L},${s.T},${s.P},${s.C},`);
+  });
+  for (let i = 0; i < Math.max(1, 6 - metrics.subjectDetailsList.length); i++) {
+    lines.push(',,,,,,');
+  }
+  lines.push('Prepared by: ____________________      Verified by Head: ____________________      Principal/Director: ____________________,,,,,,');
+  lines.push(',,,,,,');
+  lines.push('How to use,,,,,,');
+  lines.push('"Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects).",,,,,,');
+  lines.push('"In each grid cell type: Class/Batch, Subject and Room, e.g. 5IT1 / DBMS / IT-5 (use Alt+Enter for a new line).",,,,,,');
+  lines.push('Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T).,,,,,,');
+  lines.push('Grey (example) text in the subject table is only a sample - overwrite or delete it.,,,,,,');
+
+  return lines.join('\n');
+};
+
+export const downloadFacultyTimetableCsv = (facultyName = 'Faculty', deptName = 'Department', semName = 'ODD/EVEN', facultyId = 'FAC_PS') => {
+  const csvContent = getFacultyTimetableCsvString(facultyName, deptName, facultyId);
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `ADIT_Faculty_Timetable_${facultyId || 'Template'}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 if (typeof window !== 'undefined') {
+  window.formatOfficialTimeSlot = formatOfficialTimeSlot;
+  window.calculateFacultyTeachingMetrics = calculateFacultyTeachingMetrics;
+  window.downloadFacultyTimetableTemplate = downloadFacultyTimetableTemplate;
+  window.downloadFacultyTimetableCsv = downloadFacultyTimetableCsv;
+  window.getFacultyTimetableCsvString = getFacultyTimetableCsvString;
+  window.OFFICIAL_TEMPLATE_TIME_SLOTS = OFFICIAL_TEMPLATE_TIME_SLOTS;
   window.getSessionIdentity = getSessionIdentity;
   window.canMergeConsecutiveSlots = canMergeConsecutiveSlots;
   window.rescheduleLectureEntry = rescheduleLectureEntry;
