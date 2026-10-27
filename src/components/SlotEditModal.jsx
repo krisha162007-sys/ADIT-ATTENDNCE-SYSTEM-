@@ -379,10 +379,14 @@ export default function SlotEditModal({
                   value={batch}
                   onChange={(e) => setBatch(e.target.value)}
                 >
-                  <option value="All">All Batches (Entire Class)</option>
+                  <option value="All">All Batches (Entire Class / Theory)</option>
                   <option value="Batch A">Batch A</option>
                   <option value="Batch B">Batch B</option>
                   <option value="Batch C">Batch C</option>
+                  <option value="Batch D">Batch D</option>
+                  {batch && !['All', 'ALL', 'Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(batch) && (
+                    <option value={batch}>{batch}</option>
+                  )}
                 </select>
               </div>
             </div>

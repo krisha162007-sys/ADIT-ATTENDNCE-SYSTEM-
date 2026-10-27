@@ -57,7 +57,8 @@ import {
   getFaculties,
   getSubjects,
   parseAndValidateElectiveStudentList,
-  updateElectiveClassRoster
+  updateElectiveClassRoster,
+  isBatchMatch
 } from '../services/attendanceStorage';
 
 export default function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClassTimetable }) {
@@ -101,6 +102,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
 
   // Class detail search
   const [studentSearch, setStudentSearch] = useState('');
+  const [classStudentBatchFilter, setClassStudentBatchFilter] = useState('ALL');
 
   // Modals state
   const [showClassModal, setShowClassModal] = useState(false);
@@ -269,15 +271,20 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
 
   // Filtered students inside class details view
   const filteredClassStudents = useMemo(() => {
-    if (!studentSearch.trim()) return studentsInSelectedClass;
-    const q = studentSearch.toLowerCase().trim();
-    return studentsInSelectedClass.filter(s =>
-      s.name.toLowerCase().includes(q) ||
-      s.enrollmentNo.toLowerCase().includes(q) ||
-      String(s.rollNo || '').includes(q) ||
-      (s.email && s.email.toLowerCase().includes(q))
-    );
-  }, [studentsInSelectedClass, studentSearch]);
+    return studentsInSelectedClass.filter(s => {
+      const matchBatch = classStudentBatchFilter === 'ALL' || isBatchMatch(s.batch, classStudentBatchFilter);
+      if (!matchBatch) return false;
+      if (!studentSearch.trim()) return true;
+      const q = studentSearch.toLowerCase().trim();
+      return (
+        s.name.toLowerCase().includes(q) ||
+        s.enrollmentNo.toLowerCase().includes(q) ||
+        String(s.rollNo || '').includes(q) ||
+        (s.batch && s.batch.toLowerCase().includes(q)) ||
+        (s.email && s.email.toLowerCase().includes(q))
+      );
+    });
+  }, [studentsInSelectedClass, studentSearch, classStudentBatchFilter]);
 
   // -------------------------------------------------------------------------
   // CLASS HANDLERS
@@ -602,7 +609,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
       ['2', '24AD002', 'Ananya Sharma', 'Batch A', 'ananya.sharma@adit.ac.in'],
       ['3', '24AD003', 'Devansh Verma', 'Batch B', 'devansh.verma@adit.ac.in'],
       ['4', '24AD004', 'Diyansh Joshi', 'Batch B', 'diyansh.joshi@adit.ac.in'],
-      ['5', '24AD005', 'Isha Mehta', 'Batch C', 'isha.mehta@adit.ac.in']
+      ['5', '24AD005', 'Isha Mehta', 'Batch C', 'isha.mehta@adit.ac.in'],
+      ['6', '24AD006', 'Karan Dave', 'Batch D', 'karan.dave@adit.ac.in']
     ];
     const ws = XLSX.utils.aoa_to_sheet(sampleData);
     XLSX.utils.book_append_sheet(wb, ws, 'Students');
@@ -1325,11 +1333,27 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search Enrollment No, Name..."
+                  placeholder="Search Enrollment No, Name, Batch..."
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}
                   style={{ height: '36px', fontSize: '13px' }}
                 />
+              </div>
+
+              <div style={{ minWidth: '130px' }}>
+                <select
+                  className="form-control"
+                  value={classStudentBatchFilter}
+                  onChange={(e) => setClassStudentBatchFilter(e.target.value)}
+                  style={{ height: '36px', fontSize: '13px', fontWeight: '700' }}
+                  title="Filter students by lab batch"
+                >
+                  <option value="ALL">All Batches</option>
+                  <option value="Batch A">Batch A</option>
+                  <option value="Batch B">Batch B</option>
+                  <option value="Batch C">Batch C</option>
+                  <option value="Batch D">Batch D</option>
+                </select>
               </div>
 
               {selectedClass.isElective ? (
@@ -1484,8 +1508,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                               display: 'inline-flex', 
                               alignItems: 'center', 
                               padding: '3px 9px', 
-                              backgroundColor: st.batch?.includes('B') ? '#fef3c7' : st.batch?.includes('C') ? '#f3e8ff' : '#eff6ff', 
-                              color: st.batch?.includes('B') ? '#b45309' : st.batch?.includes('C') ? '#7e22ce' : '#1d4ed8', 
+                              backgroundColor: st.batch?.includes('B') ? '#fef3c7' : st.batch?.includes('C') ? '#f3e8ff' : st.batch?.includes('D') ? '#ecfdf5' : '#eff6ff', 
+                              color: st.batch?.includes('B') ? '#b45309' : st.batch?.includes('C') ? '#7e22ce' : st.batch?.includes('D') ? '#047857' : '#1d4ed8', 
                               borderRadius: '6px', 
                               fontWeight: '700', 
                               fontSize: '12px', 
@@ -2494,6 +2518,10 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                         <option value="Batch A">Batch A</option>
                         <option value="Batch B">Batch B</option>
                         <option value="Batch C">Batch C</option>
+                        <option value="Batch D">Batch D</option>
+                        {studentForm.batch && !['Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(studentForm.batch) && (
+                          <option value={studentForm.batch}>{studentForm.batch}</option>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -3264,6 +3292,10 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                         <option value="Batch A">Batch A</option>
                         <option value="Batch B">Batch B</option>
                         <option value="Batch C">Batch C</option>
+                        <option value="Batch D">Batch D</option>
+                        {globalStudentForm.batch && !['Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(globalStudentForm.batch) && (
+                          <option value={globalStudentForm.batch}>{globalStudentForm.batch}</option>
+                        )}
                       </select>
                     </div>
                   </div>

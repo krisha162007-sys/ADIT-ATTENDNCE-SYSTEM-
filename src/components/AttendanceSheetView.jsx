@@ -40,7 +40,8 @@ import {
   getInstitutionalExceptionPolicy,
   INSTITUTIONAL_POLICIES,
   isStudentExcusedForSession,
-  getExceptions
+  getExceptions,
+  isBatchMatch
 } from '../services/attendanceStorage';
 
 export default function AttendanceSheetView({ 
@@ -332,8 +333,8 @@ export default function AttendanceSheetView({
         }
 
         // Match Batch if not ALL
-        if (selectedBatch !== 'ALL' && s.batch && s.batch !== 'ALL') {
-          if (s.batch !== selectedBatch) return false;
+        if (selectedBatch !== 'ALL' && !isBatchMatch(s.batch, selectedBatch)) {
+          return false;
         }
 
         return true;
@@ -689,6 +690,10 @@ export default function AttendanceSheetView({
                 <option value="Batch A">Batch A</option>
                 <option value="Batch B">Batch B</option>
                 <option value="Batch C">Batch C</option>
+                <option value="Batch D">Batch D</option>
+                {selectedBatch && !['ALL', 'Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(selectedBatch) && (
+                  <option value={selectedBatch}>{selectedBatch}</option>
+                )}
               </select>
             </div>
 

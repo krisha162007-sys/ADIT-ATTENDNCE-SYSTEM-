@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { getSubjects, getFaculties, getCurrentUser, getDepartments, resolveDepartment, isDepartmentMatch } from './attendanceStorage';
+import { getSubjects, getFaculties, getCurrentUser, getDepartments, resolveDepartment, isDepartmentMatch, normalizeBatch, isBatchMatch } from './attendanceStorage';
 
 export const TT_STORAGE_KEYS = {
   TIMETABLE: 'adit_attendance_timetable',
@@ -673,11 +673,13 @@ export const canMergeConsecutiveSlots = (slotA, slotB) => {
     return false;
   }
 
-  // 5. Same class or batch, wherever applicable
+  // 5. Same class or batch, wherever applicable - Do not merge laboratory sessions belonging to different batches
   const batchA = (slotA.batch || 'ALL').trim().toUpperCase();
   const batchB = (slotB.batch || 'ALL').trim().toUpperCase();
   if (batchA !== batchB) {
-    return false;
+    if (!isBatchMatch(slotA.batch, slotB.batch) || !isBatchMatch(slotB.batch, slotA.batch)) {
+      return false;
+    }
   }
 
   // 6. Same classroom / room

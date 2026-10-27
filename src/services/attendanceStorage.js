@@ -694,6 +694,36 @@ export const isDepartmentMatch = (deptA, deptB) => {
   return a.toLowerCase().includes(b.toLowerCase()) || b.toLowerCase().includes(a.toLowerCase());
 };
 
+/**
+ * Normalizes a batch string into canonical identifier (e.g. 'Batch A' -> 'A', 'Batch B' -> 'B', 'ALL' -> 'ALL')
+ */
+export const normalizeBatch = (b) => {
+  if (!b) return '';
+  const s = String(b).trim();
+  if (!s || s.toUpperCase() === 'ALL' || s.toUpperCase() === 'ALL BATCHES' || s.toUpperCase() === 'WHOLE CLASS' || s.toUpperCase() === 'ENTIRE CLASS') {
+    return 'ALL';
+  }
+  const stripped = s.replace(/^batch(es)?\s*[-_:]?\s*/i, '').trim();
+  return stripped.toUpperCase() || s.toUpperCase();
+};
+
+/**
+ * Checks if a student's assigned batch matches the target attendance/timetable batch filter.
+ * - If filterBatch is empty, null, undefined, or 'ALL', matches all students (regular theory lecture).
+ * - If filterBatch specifies a batch (e.g., 'Batch B' or 'B'), returns true ONLY if the student belongs to that batch.
+ */
+export const isBatchMatch = (studentBatch, filterBatch) => {
+  const normFilter = normalizeBatch(filterBatch);
+  if (!normFilter || normFilter === 'ALL') {
+    return true;
+  }
+  const normStudent = normalizeBatch(studentBatch);
+  if (!normStudent || normStudent === 'ALL') {
+    return false;
+  }
+  return normStudent === normFilter;
+};
+
 export const findClassByCriteria = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const classes = getClasses();
   const normSem = normalizeSem(semester);
@@ -1273,6 +1303,21 @@ export const getFacultyAuthorizedAssignments = (facultyOrUser = null) => {
     }
   };
 
+  // 0. Direct assignedClasses array on faculty object
+  if (user && Array.isArray(user.assignedClasses)) {
+    user.assignedClasses.forEach(ac => {
+      addAssignment(
+        ac.department || ac.dept || user.dept,
+        ac.semester || ac.sem,
+        ac.division || ac.div,
+        ac.batch || 'ALL',
+        ac.subjectId || ac.subject,
+        ac.subjectName || ac.name || ac.subjectId || ac.subject,
+        ac.subjectCode || ac.subjectId
+      );
+    });
+  }
+
   // 1. Timetable Entries in LocalStorage
   if (typeof localStorage !== 'undefined') {
     try {
@@ -1413,9 +1458,9 @@ export const getFacultyAuthorizedAssignments = (facultyOrUser = null) => {
                   slot.sem,
                   slot.div,
                   slot.batch || 'ALL',
-                  slot.subject,
-                  slot.name || slot.subject,
-                  slot.subject
+                  slot.subjectId || slot.subject,
+                  slot.name || slot.subjectName || slot.subject,
+                  slot.subjectCode || slot.subjectId || slot.subject
                 );
               }
             });
@@ -1733,8 +1778,8 @@ export const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null
   // If a direct classId is supplied, use it as primary anchor
   if (classId && classId !== 'ALL') {
     let filtered = allStudents.filter(s => s.classId === classId);
-    if (batch && batch !== 'ALL') {
-      filtered = filtered.filter(s => s.batch === batch);
+    if (batch && normalizeBatch(batch) !== 'ALL') {
+      filtered = filtered.filter(s => isBatchMatch(s.batch, batch));
     }
     return filtered.sort((a, b) => {
       const rA = parseInt(a.rollNo, 10);
@@ -1780,10 +1825,8 @@ export const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null
     }
 
     // Check Batch
-    if (batch && batch !== 'ALL' && String(batch).toUpperCase() !== 'ALL') {
-      const sBatchNorm = String(s.batch || '').trim().toUpperCase();
-      const batchNorm = String(batch).trim().toUpperCase();
-      if (sBatchNorm !== 'ALL' && sBatchNorm !== batchNorm) return false;
+    if (batch && normalizeBatch(batch) !== 'ALL') {
+      if (!isBatchMatch(s.batch, batch)) return false;
     }
 
     // Check Academic Year
@@ -2141,6 +2184,14 @@ export const deleteSubject = (subjectId, userContext = null) => {
 
 // Attendance Sessions API (Secured with Faculty Access Control)
 export const getSessions = (filterOptions = {}, userContext = null) => {
+  let opts = filterOptions || {};
+  let user = userContext;
+  if (filterOptions && (filterOptions.role || filterOptions.facultyId || filterOptions.enrollmentNo) && !userContext) {
+    user = filterOptions;
+    opts = {};
+  }
+  user = user || getCurrentUser();
+
   initializeStorage();
   const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
   const allSessions = JSON.parse(raw || '[]').sort((a, b) => {
@@ -2151,8 +2202,6 @@ export const getSessions = (filterOptions = {}, userContext = null) => {
     if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
     return (a.submittedAt || a.id || '').localeCompare(b.submittedAt || b.id || '');
   });
-
-  const user = userContext || getCurrentUser();
   // If not authenticated, return empty array
   if (!user) return [];
 
@@ -2207,10 +2256,10 @@ export const getSessions = (filterOptions = {}, userContext = null) => {
       const divMatch = !s.division || s.division === 'ALL' || normalizeDiv(s.division || s.class) === studentDiv;
       const deptMatch = !s.department || s.department === studentDept || s.dept === studentDept;
       const classIdMatch = studentClassId && s.classId && s.classId === studentClassId;
-      const batchMatch = !s.batch || s.batch === 'ALL' || studentBatch === 'ALL' || s.batch === studentBatch;
+      const batchMatch = isBatchMatch(studentBatch, s.batch);
       const hasStudentRecord = Boolean(s.records && (s.records[studentId] !== undefined || (studentEnr && s.records[studentEnr] !== undefined)));
 
-      return (classIdMatch || (semMatch && divMatch && deptMatch && batchMatch)) || hasStudentRecord;
+      return ((classIdMatch || (semMatch && divMatch && deptMatch)) && batchMatch) || hasStudentRecord;
     });
 
     // PRIVACY SANITIZATION: Never expose other students' records to student role
@@ -2366,13 +2415,22 @@ export const saveSession = (session, userContext = null) => {
         throw new Error(`Unauthorized Security Error: You are not authorized to record attendance for elective subject ${session.subjectName || session.subject || session.electiveSubjectId}.`);
       }
     } else {
-      const isAuthorized = canFacultyTeachClassAndSubject(
+      let isAuthorized = canFacultyTeachClassAndSubject(
         user,
         session.department || session.dept,
         session.sem || session.semester,
         session.division || session.class,
         session.subjectId || session.subjectName
       );
+      if (!isAuthorized && session.subjectName && session.subjectName !== session.subjectId) {
+        isAuthorized = canFacultyTeachClassAndSubject(
+          user,
+          session.department || session.dept,
+          session.sem || session.semester,
+          session.division || session.class,
+          session.subjectName
+        );
+      }
       if (!isAuthorized) {
         throw new Error(`Unauthorized Security Error: You are not authorized to record attendance for ${session.subjectName || session.subjectId} in ${session.sem || session.semester} ${session.division || session.class}.`);
       }
@@ -4962,6 +5020,9 @@ if (typeof window !== 'undefined') {
   window.saveDepartment = saveDepartment;
   window.deleteDepartment = deleteDepartment;
   window.bulkRegisterStudents = bulkRegisterStudents;
+  window.bulkImportStudentsToClass = bulkImportStudentsToClass;
+  window.getStudentsByClassId = getStudentsByClassId;
+  window.getStudentsForAcademicGroup = getStudentsForAcademicGroup;
   window.findClassByCriteria = findClassByCriteria;
   window.getOrCreateClass = getOrCreateClass;
   window.canFacultyTeachClassAndSubject = canFacultyTeachClassAndSubject;
@@ -4974,4 +5035,8 @@ if (typeof window !== 'undefined') {
   window.reactivateDepartment = reactivateDepartment;
   window.getClassesForFaculty = getClassesForFaculty;
   window.addClass = addClass;
+  window.normalizeBatch = normalizeBatch;
+  window.isBatchMatch = isBatchMatch;
+  window.normalizeSem = normalizeSem;
+  window.normalizeDiv = normalizeDiv;
 }

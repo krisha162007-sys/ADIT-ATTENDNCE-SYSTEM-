@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Batch-Wise Laboratory Attendance Test Suite</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8fafc; }
+    .test-card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .pass { color: #16a34a; font-weight: 700; }
+    .fail { color: #dc2626; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Batch-Wise Laboratory Attendance Test Suite</h1>
+  <div id="results">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; min-height: 800px; background: white;"></div>
+
+  <!-- Vendors -->
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen','File','Blob',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props = {}) => {
+          const { size = 18, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            if (!node || !Array.isArray(node)) return null;
+            const [tag, attrs, children] = node;
+            const reactAttrs = { key };
+            if (attrs) {
+              Object.keys(attrs).forEach(k => {
+                const rk = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                reactAttrs[rk] = attrs[k];
+              });
+            }
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState = React.useState;
+    window.useEffect = React.useEffect;
+    window.useMemo = React.useMemo;
+    window.useRef = React.useRef;
+    window.useCallback = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext = React.useContext;
+    window.useReducer = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=batch_att_1"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const results = [];
+      function assert(name, condition, extra = '') {
+        results.push({ name, pass: Boolean(condition), extra });
+        console.log((condition ? 'PASS: ' : 'FAIL: ') + name + (extra ? ' - ' + extra : ''));
+      }
+
+      try {
+        const {
+          initializeStorage,
+          getDepartments,
+          saveDepartment,
+          getClasses,
+          saveClass,
+          getStudents,
+          saveStudent,
+          bulkImportStudentsToClass,
+          getStudentsForAcademicGroup,
+          getStudentsByClassId,
+          normalizeBatch,
+          isBatchMatch,
+          normalizeSem,
+          normalizeDiv,
+          saveSession,
+          getSessions,
+          saveFaculty,
+          getFacultyTimetable,
+          updateFacultySlot,
+          canMergeConsecutiveSlots,
+          clearAllEntries,
+          calculateStudentAttendanceStats
+        } = window;
+
+        // Initialize clean storage
+        initializeStorage();
+        localStorage.setItem('adit_timetable_entries', JSON.stringify([]));
+
+        // Ensure IT Department exists
+        const depts = getDepartments();
+        let itDept = depts.find(d => d.id === 'DEP_IT' || d.code === 'IT' || d.name === 'Information Technology');
+        if (!itDept) {
+          itDept = saveDepartment({
+            id: 'DEP_IT',
+            code: 'IT',
+            name: 'Information Technology',
+            status: 'active'
+          });
+        }
+
+        // =====================================================================
+        // TEST GROUP 1: Class Structure - One Class, Multiple Batches
+        // =====================================================================
+        // Requirement: IT Semester 1 Division 1 with Batches A, B, C, D
+        // All four batches belong to the SAME class, not separate classes.
+        const itClass = saveClass({
+          id: 'CLASS_DEP_IT_1_1_2026-27',
+          departmentId: 'DEP_IT',
+          departmentName: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          academicYear: '2026-27'
+        });
+
+        assert('Class created for IT 1st Sem Div 1', Boolean(itClass));
+        assert('Class department is Information Technology', itClass.departmentName === 'Information Technology');
+        assert('Class semester is 1st Sem', normalizeSem(itClass.semester) === '1st Sem');
+        assert('Class division is Div 1', normalizeDiv(itClass.division) === 'Div 1');
+
+        // Verify that classes list has only 1 class for IT 1st Sem Div 1 (not 4 classes)
+        const allClasses = getClasses().filter(c => 
+          (c.departmentId === 'DEP_IT' || c.departmentName === 'Information Technology') &&
+          normalizeSem(c.semester) === '1st Sem' &&
+          normalizeDiv(c.division) === 'Div 1'
+        );
+        assert('Single class exists for IT 1st Sem Div 1 (not divided by batch)', allClasses.length === 1);
+
+        // =====================================================================
+        // TEST GROUP 2: Student Batch Assignments & Bulk Upload Support
+        // =====================================================================
+        // Assign students to Batches A, B, C, D within IT 1st Sem Div 1
+        const studentUploadData = [
+          { rollNo: '1', enrollmentNo: '26IT001', name: 'Aarav Patel', batch: 'Batch A', email: 'aarav@adit.ac.in' },
+          { rollNo: '2', enrollmentNo: '26IT002', name: 'Ananya Sharma', batch: 'Batch A', email: 'ananya@adit.ac.in' },
+          { rollNo: '3', enrollmentNo: '26IT003', name: 'Bhavya Shah', batch: 'Batch B', email: 'bhavya@adit.ac.in' },
+          { rollNo: '4', enrollmentNo: '26IT004', name: 'Chirag Dave', batch: 'Batch B', email: 'chirag@adit.ac.in' },
+          { rollNo: '5', enrollmentNo: '26IT005', name: 'Drashti Joshi', batch: 'Batch C', email: 'drashti@adit.ac.in' },
+          { rollNo: '6', enrollmentNo: '26IT006', name: 'Eshaan Mehta', batch: 'Batch C', email: 'eshaan@adit.ac.in' },
+          { rollNo: '7', enrollmentNo: '26IT007', name: 'Falguni Rana', batch: 'Batch D', email: 'falguni@adit.ac.in' },
+          { rollNo: '8', enrollmentNo: '26IT008', name: 'Gaurav Modi', batch: 'Batch D', email: 'gaurav@adit.ac.in' }
+        ];
+
+        const uploadResult = bulkImportStudentsToClass('CLASS_DEP_IT_1_1_2026-27', studentUploadData);
+        assert('Bulk imported 8 students into IT class', uploadResult.importedCount >= 8 || getStudentsByClassId('CLASS_DEP_IT_1_1_2026-27').length >= 8);
+
+        const classStudents = getStudentsByClassId('CLASS_DEP_IT_1_1_2026-27');
+        assert('Total enrolled students in class is 8', classStudents.length === 8, `found ${classStudents.length}`);
+
+        const bA = classStudents.filter(s => s.batch === 'Batch A');
+        const bB = classStudents.filter(s => s.batch === 'Batch B');
+        const bC = classStudents.filter(s => s.batch === 'Batch C');
+        const bD = classStudents.filter(s => s.batch === 'Batch D');
+
+        assert('Batch A has 2 students (Aarav, Ananya)', bA.length === 2 && bA.some(s => s.name === 'Aarav Patel'));
+        assert('Batch B has 2 students (Bhavya, Chirag)', bB.length === 2 && bB.some(s => s.name === 'Bhavya Shah'));
+        assert('Batch C has 2 students (Drashti, Eshaan)', bC.length === 2 && bC.some(s => s.name === 'Drashti Joshi'));
+        assert('Batch D has 2 students (Falguni, Gaurav)', bD.length === 2 && bD.some(s => s.name === 'Falguni Rana'));
+
+        // Verify all students maintain identical class attributes
+        const allInSameClass = classStudents.every(s => 
+          s.classId === 'CLASS_DEP_IT_1_1_2026-27' &&
+          normalizeSem(s.semester || s.sem) === '1st Sem' &&
+          normalizeDiv(s.division || s.class) === 'Div 1'
+        );
+        assert('All batches share identical department, semester, and division', allInSameClass);
+
+        // =====================================================================
+        // TEST GROUP 3: Batch Normalization Utilities
+        // =====================================================================
+        assert('normalizeBatch("Batch B") returns "B"', normalizeBatch('Batch B') === 'B');
+        assert('normalizeBatch("B") returns "B"', normalizeBatch('B') === 'B');
+        assert('normalizeBatch("batch b") returns "B"', normalizeBatch('batch b') === 'B');
+        assert('normalizeBatch("Batch-B") returns "B"', normalizeBatch('Batch-B') === 'B');
+        assert('normalizeBatch("Batch D") returns "D"', normalizeBatch('Batch D') === 'D');
+        assert('normalizeBatch("ALL") returns "ALL"', normalizeBatch('ALL') === 'ALL');
+        assert('normalizeBatch("All Batches") returns "ALL"', normalizeBatch('All Batches') === 'ALL');
+        assert('normalizeBatch("") returns ""', normalizeBatch('') === '');
+
+        assert('isBatchMatch("Batch B", "Batch B") is true', isBatchMatch('Batch B', 'Batch B') === true);
+        assert('isBatchMatch("Batch B", "B") is true', isBatchMatch('Batch B', 'B') === true);
+        assert('isBatchMatch("B", "Batch B") is true', isBatchMatch('B', 'Batch B') === true);
+        assert('isBatchMatch("Batch B", "ALL") is true (matches whole class lecture)', isBatchMatch('Batch B', 'ALL') === true);
+        assert('isBatchMatch("Batch A", "Batch B") is false (A does not attend B)', isBatchMatch('Batch A', 'Batch B') === false);
+        assert('isBatchMatch("Batch C", "Batch B") is false (C does not attend B)', isBatchMatch('Batch C', 'Batch B') === false);
+        assert('isBatchMatch("Batch D", "Batch B") is false (D does not attend B)', isBatchMatch('Batch D', 'Batch B') === false);
+
+        // =====================================================================
+        // TEST GROUP 4: Student Retrieval for Normal Theory Lectures vs Labs
+        // =====================================================================
+        // Faculty teaching IT 1st Sem Div 1
+        const facultyContext = {
+          id: 'FAC_IT_DR_PATEL',
+          name: 'Dr. Patel',
+          dept: 'Information Technology',
+          role: 'faculty',
+          teachingAssignments: [
+            {
+              department: 'Information Technology',
+              semester: '1st Sem',
+              division: 'Div 1',
+              subjectId: 'SUB_CPC',
+              subjectName: 'Computer Programming'
+            },
+            {
+              department: 'Information Technology',
+              semester: '1st Sem',
+              division: 'Div 1',
+              subjectId: 'SUB_CPC_LAB',
+              subjectName: 'Programming Lab'
+            }
+          ],
+          assignedClasses: [
+            {
+              department: 'Information Technology',
+              semester: '1st Sem',
+              division: 'Div 1',
+              subjectId: 'SUB_CPC',
+              subjectName: 'Computer Programming'
+            },
+            {
+              department: 'Information Technology',
+              semester: '1st Sem',
+              division: 'Div 1',
+              subjectId: 'SUB_CPC_LAB',
+              subjectName: 'Programming Lab'
+            }
+          ]
+        };
+        saveFaculty(facultyContext);
+
+        // 4A. Normal Theory Lecture (batch: 'ALL' or not specified)
+        const theoryStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+
+        assert('Theory lecture (ALL) loads all 8 students in class', theoryStudents.length === 8, `found ${theoryStudents.length}`);
+        assert('Theory lecture includes Batch A student', theoryStudents.some(s => s.name === 'Aarav Patel'));
+        assert('Theory lecture includes Batch B student', theoryStudents.some(s => s.name === 'Bhavya Shah'));
+        assert('Theory lecture includes Batch C student', theoryStudents.some(s => s.name === 'Drashti Joshi'));
+        assert('Theory lecture includes Batch D student', theoryStudents.some(s => s.name === 'Falguni Rana'));
+
+        // 4B. Laboratory Session for Batch B
+        const labBatchBStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch B',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+
+        assert('Laboratory Batch B loads exactly 2 students', labBatchBStudents.length === 2, `found ${labBatchBStudents.length}`);
+        assert('Laboratory Batch B includes Bhavya Shah', labBatchBStudents.some(s => s.name === 'Bhavya Shah'));
+        assert('Laboratory Batch B includes Chirag Dave', labBatchBStudents.some(s => s.name === 'Chirag Dave'));
+        assert('Laboratory Batch B does NOT display Batch A students', !labBatchBStudents.some(s => s.batch === 'Batch A'));
+        assert('Laboratory Batch B does NOT display Batch C students', !labBatchBStudents.some(s => s.batch === 'Batch C'));
+        assert('Laboratory Batch B does NOT display Batch D students', !labBatchBStudents.some(s => s.batch === 'Batch D'));
+
+        // 4C. Laboratory Session for Batch D
+        const labBatchDStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch D',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+
+        assert('Laboratory Batch D loads exactly 2 students', labBatchDStudents.length === 2, `found ${labBatchDStudents.length}`);
+        assert('Laboratory Batch D includes Falguni Rana', labBatchDStudents.some(s => s.name === 'Falguni Rana'));
+        assert('Laboratory Batch D includes Gaurav Modi', labBatchDStudents.some(s => s.name === 'Gaurav Modi'));
+        assert('Laboratory Batch D does NOT display Batch B students', !labBatchDStudents.some(s => s.batch === 'Batch B'));
+
+        // 4D. Format flexibility: query using bare "B" matches "Batch B"
+        const labBareBStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'B',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+        assert('Querying with bare batch "B" matches Batch B students', labBareBStudents.length === 2);
+
+        // =====================================================================
+        // TEST GROUP 5: Timetable Slot Merging - Never Merge Different Batches
+        // =====================================================================
+        const baseSlot = {
+          subject: 'Programming Lab',
+          type: 'Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          room: 'Lab 1',
+          facultyId: 'FAC_IT_DR_PATEL'
+        };
+
+        // Same batch slots -> CAN merge
+        const sameBatchSlot1 = { ...baseSlot, batch: 'Batch B', timeSlot: '10:55 - 11:45' };
+        const sameBatchSlot2 = { ...baseSlot, batch: 'Batch B', timeSlot: '11:50 - 12:40' };
+        assert('canMergeConsecutiveSlots merges consecutive slots of SAME batch (Batch B)', canMergeConsecutiveSlots(sameBatchSlot1, sameBatchSlot2));
+
+        // Different batch slots -> CANNOT merge
+        const diffBatchSlot1 = { ...baseSlot, batch: 'Batch A', timeSlot: '10:55 - 11:45' };
+        const diffBatchSlot2 = { ...baseSlot, batch: 'Batch B', timeSlot: '11:50 - 12:40' };
+        assert('canMergeConsecutiveSlots REJECTS slots of different batches (Batch A vs Batch B)', !canMergeConsecutiveSlots(diffBatchSlot1, diffBatchSlot2));
+
+        const diffBatchSlot3 = { ...baseSlot, batch: 'Batch B', timeSlot: '10:55 - 11:45' };
+        const diffBatchSlot4 = { ...baseSlot, batch: 'Batch C', timeSlot: '11:50 - 12:40' };
+        assert('canMergeConsecutiveSlots REJECTS slots of different batches (Batch B vs Batch C)', !canMergeConsecutiveSlots(diffBatchSlot3, diffBatchSlot4));
+
+        // =====================================================================
+        // TEST GROUP 6: DOM UI Verification - FacultyPanel Click Lab Card
+        // =====================================================================
+        clearAllEntries();
+        // Schedule Batch B Lab on Monday 10:55 - 12:40
+        updateFacultySlot('FAC_IT_DR_PATEL', 'Monday', '10:55 - 11:45', {
+          subject: 'Programming Lab',
+          subjectId: 'SUB_CPC_LAB',
+          name: 'Programming Lab',
+          type: 'Lab',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch B',
+          room: 'Lab 1',
+          departmentId: 'DEP_IT'
+        }, 'DEP_IT');
+
+        const mountEl = document.getElementById('render-mount');
+        ReactDOM.unmountComponentAtNode(mountEl);
+
+        const FacultyPanel = window.FacultyPanel;
+        if (FacultyPanel) {
+          ReactDOM.render(
+            React.createElement(FacultyPanel, {
+              currentUser: facultyContext,
+              currentFaculty: facultyContext,
+              initialTab: 'timetable'
+            }),
+            mountEl
+          );
+
+          await new Promise(r => setTimeout(r, 500));
+
+          // Find the scheduled Batch B Lab Card
+          const allText = mountEl.textContent;
+          assert('FacultyPanel timetable rendered', allText.includes('Programming Lab'));
+
+          // Click on the lecture card for Programming Lab
+          const labCard = mountEl.querySelector('.timetable-lecture-card');
+          assert('Lab card found in timetable grid', Boolean(labCard));
+
+          if (labCard) {
+            labCard.click();
+            await new Promise(r => setTimeout(r, 400));
+
+            // Verify navigation to Take Attendance form
+            const formText = mountEl.textContent;
+            assert('Navigated to Take Attendance view', formText.includes('Mark Lecture Attendance') || formText.includes('Take Attendance') || formText.includes('Course / Subject'));
+
+            // Verify populated batch dropdown value
+            const batchSelect = mountEl.querySelector('select[value="Batch B"]') || 
+              Array.from(mountEl.querySelectorAll('select')).find(s => s.value === 'Batch B' || s.value === 'B');
+            assert('Attendance form Batch is automatically populated as Batch B', Boolean(batchSelect) && (batchSelect.value === 'Batch B' || batchSelect.value === 'B'));
+
+            // Verify only Batch B students loaded in checklist
+            const studentRows = Array.from(mountEl.querySelectorAll('.student-checklist-entry, .student-checkbox-card, table tbody tr')).filter(tr => 
+              tr.textContent.includes('Bhavya') || tr.textContent.includes('Chirag') || tr.textContent.includes('Aarav') || tr.textContent.includes('Falguni')
+            );
+            assert('Loaded student rows only contains Batch B students (count: 2)', studentRows.length === 2, `found ${studentRows.length}`);
+            assert('Bhavya Shah is displayed', studentRows.some(tr => tr.textContent.includes('Bhavya Shah')));
+            assert('Chirag Dave is displayed', studentRows.some(tr => tr.textContent.includes('Chirag Dave')));
+            assert('Aarav Patel (Batch A) is NOT displayed', !studentRows.some(tr => tr.textContent.includes('Aarav Patel')));
+            assert('Falguni Rana (Batch D) is NOT displayed', !studentRows.some(tr => tr.textContent.includes('Falguni Rana')));
+          }
+        }
+
+        // =====================================================================
+        // TEST GROUP 7: Attendance Recording & Batch Isolation
+        // =====================================================================
+        const testSession = {
+          date: '2026-10-27',
+          timeSlot: '10:55 - 12:40',
+          subjectId: 'SUB_CPC_LAB',
+          subjectName: 'Programming Lab',
+          facultyId: 'FAC_IT_DR_PATEL',
+          facultyName: 'Dr. Patel',
+          department: 'Information Technology',
+          sem: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch B',
+          room: 'Lab 1',
+          records: {
+            '26IT003': 'present', // Bhavya Shah
+            '26IT004': 'absent'   // Chirag Dave
+          }
+        };
+
+        const savedSess = saveSession(testSession, facultyContext);
+        const savedRecord = savedSess?.saved || (Array.isArray(savedSess) ? savedSess.find(s => s.id === savedSess.id) : savedSess);
+        assert('Attendance session saved with batch "Batch B"', savedRecord && savedRecord.batch === 'Batch B');
+
+        // Check student attendance calculations
+        // Bhavya (Batch B) has 1 attended out of 1 conducted
+        const bhavyaSessions = getSessions(facultyContext).filter(s => s.batch === 'Batch B');
+        const bhavyaStats = calculateStudentAttendanceStats('26IT003', bhavyaSessions);
+        assert('Bhavya (Batch B) has 1 attended lab session', bhavyaStats.totalConducted === 1 && (bhavyaStats.totalAttended === 1 || bhavyaStats.regularPresent === 1));
+
+        // Aarav (Batch A) should have 0 conducted for this Batch B lab session
+        const aaravSessions = getSessions({ id: '26IT001', role: 'student', batch: 'Batch A', semester: '1st Sem', division: 'Div 1', department: 'Information Technology' });
+        assert('Aarav (Batch A) has 0 conducted sessions for Batch B lab', aaravSessions.length === 0);
+
+        // Post Results
+        const allPassed = results.every(r => r.pass);
+        const summary = `Total Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        console.log(summary);
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed, summary })
+        });
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: err.message, stack: err.stack, allPassed: false })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

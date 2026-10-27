@@ -88,7 +88,11 @@ import {
   getElectiveAssignments,
   EXCEPTION_CATEGORIES,
   INSTITUTIONAL_POLICIES,
-  SEMESTERS
+  SEMESTERS,
+  resolveDepartment,
+  isDepartmentMatch,
+  normalizeBatch,
+  isBatchMatch
 } from '../services/attendanceStorage';
 import AttendanceSheetView from './AttendanceSheetView';
 import { 
@@ -304,6 +308,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   const [attYear, setAttYear] = useState(DEFAULT_ACADEMIC_YEAR);
   const [attSubjectId, setAttSubjectId] = useState('SUB_DS');
   const [attSubjectName, setAttSubjectName] = useState('DATA STRUCTURES');
+  const [attRoom, setAttRoom] = useState('Room 201');
 
   // Multi-lecture & Register Navigation Synchronization
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
@@ -413,12 +418,34 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     return Array.from(divSet).sort();
   }, [authorizedClasses, currentFaculty, attDiv]);
 
-  const takeAvailableBatches = useMemo(() => [
-    { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
-    { value: 'Batch A', label: 'Batch A (Lab / Practical)' },
-    { value: 'Batch B', label: 'Batch B (Lab / Practical)' },
-    { value: 'Batch C', label: 'Batch C (Lab / Practical)' }
-  ], []);
+  const takeAvailableBatches = useMemo(() => {
+    const classStudentsList = getStudents().filter(s => {
+      const matchDept = !attDept || attDept === 'ALL' || isDepartmentMatch(s.department || s.dept || s.departmentId, attDept);
+      const matchSem = !attSem || normalizeSem(s.semester || s.sem) === normalizeSem(attSem);
+      const matchDiv = !attDiv || attDiv === 'ALL' || normalizeDiv(s.division || s.class) === normalizeDiv(attDiv);
+      return matchDept && matchSem && matchDiv;
+    });
+    const foundBatches = new Set();
+    classStudentsList.forEach(s => {
+      if (s.batch && s.batch.trim() && s.batch.toUpperCase() !== 'ALL') {
+        foundBatches.add(s.batch.trim());
+      }
+    });
+    ['Batch A', 'Batch B', 'Batch C', 'Batch D'].forEach(b => foundBatches.add(b));
+    if (attBatch && attBatch !== 'ALL') {
+      foundBatches.add(attBatch);
+    }
+    const sortedBatches = Array.from(foundBatches).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    return [
+      { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
+      ...sortedBatches.map(b => ({
+        value: b,
+        label: `${b.toLowerCase().startsWith('batch') ? b : `Batch ${b}`} (Lab / Practical)`
+      }))
+    ];
+  }, [attDept, attSem, attDiv, attBatch, studentsTick]);
 
   const [attTopic, setAttTopic] = useState('');
   const [attRecords, setAttRecords] = useState({});
@@ -518,6 +545,9 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     setAttSem(resolvedSem);
     setAttDiv(resolvedDiv);
     setAttBatch(resolvedBatch);
+    if (lec.room) {
+      setAttRoom(lec.room);
+    }
 
     setAttTopic('');
     setIsExtraLecture(false);
@@ -850,6 +880,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       division: attDiv,
       batch: isElective ? 'ALL' : attBatch,
       academicYear: attYear,
+      room: attRoom || 'Room 201',
       classId: activeClass ? activeClass.id : null,
       classType: isElective ? 'elective' : 'regular',
       isElective: isElective,
@@ -3228,13 +3259,51 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                       <select
                         className="form-control"
                         value={attBatch}
-                        onChange={(e) => setAttBatch(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setAttBatch(val);
+                          if (hasLoadedStudents) {
+                            const refreshed = getStudentsForAcademicGroup({
+                              department: activeClass?.isElective ? 'Elective (No Department)' : attDept,
+                              semester: attSem,
+                              division: attDiv,
+                              batch: val,
+                              academicYear: attYear,
+                              subjectId: attSubjectId,
+                              classId: activeClass?.id
+                            }, currentFaculty);
+                            setLoadedStudents(refreshed || []);
+                            const newRecs = {};
+                            const newRems = {};
+                            (refreshed || []).forEach(st => {
+                              newRecs[st.id] = null;
+                              newRems[st.id] = '';
+                            });
+                            setAttRecords(newRecs);
+                            setAttRemarks(newRems);
+                          }
+                        }}
                         style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
                       >
                         {takeAvailableBatches.map(b => (
                           <option key={b.value} value={b.value}>{b.label}</option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* 9. Classroom */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
+                        9. Classroom / Lab
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={attRoom}
+                        onChange={(e) => setAttRoom(e.target.value)}
+                        placeholder="e.g. Room 201 or Lab 1"
+                        style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
+                      />
                     </div>
 
                     {/* Extra Lecture Option */}
