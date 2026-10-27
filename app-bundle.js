@@ -250,22 +250,22 @@ const initializeStorage = () => {
   }
   const CLEAN_SLATE_KEY = "adit_clean_slate_real_data_v2";
   if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
-    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
-    localStorage.setItem("adit_timetable_entries", JSON.stringify([]));
-    localStorage.setItem("adit_attendance_timetable", JSON.stringify({}));
-    localStorage.setItem("adit_timetable_file_info", "null");
-    localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
-    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
+    if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.SUBJECTS)) localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.FACULTIES)) localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
+    if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
+    if (!localStorage.getItem(STORAGE_KEYS.SESSIONS)) localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.EXCEPTIONS)) localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.PROMOTION_HISTORY)) localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
+    if (!localStorage.getItem("adit_timetable_entries")) localStorage.setItem("adit_timetable_entries", JSON.stringify([]));
+    if (!localStorage.getItem("adit_attendance_timetable")) localStorage.setItem("adit_attendance_timetable", JSON.stringify({}));
+    if (!localStorage.getItem("adit_timetable_file_info")) localStorage.setItem("adit_timetable_file_info", "null");
+    if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
+    if (!localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME)) localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
     localStorage.setItem(CLEAN_SLATE_KEY, "true");
   }
   if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) {
@@ -2207,6 +2207,9 @@ const saveFaculty = (faculty, userContext = null) => {
     faculties.push(faculty);
   }
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+  }
   return faculties;
 };
 const deleteFaculty = (facultyId, userContext = null) => {
@@ -13947,13 +13950,24 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
   }
 }
 function DepartmentAdminPanel({
+  initialDept = "ALL",
   onOpenFacultyTimetable,
   showToast
 }) {
   const [departments, setDepartments] = useState(getDepartments());
   const [faculties, setFaculties] = useState(getFaculties());
   const [subjects, setSubjects] = useState(getSubjects());
-  const [selectedDeptName, setSelectedDeptName] = useState("AI & Data Science");
+  const [students, setStudents] = useState(getStudents ? getStudents() : []);
+  React.useEffect(() => {
+    const handleFacultyUpdated = () => {
+      setFaculties([...getFaculties()]);
+    };
+    window.addEventListener("adit-faculty-updated", handleFacultyUpdated);
+    return () => {
+      window.removeEventListener("adit-faculty-updated", handleFacultyUpdated);
+    };
+  }, []);
+  const [selectedDeptName, setSelectedDeptName] = useState(initialDept || "ALL");
   const [selectedSem, setSelectedSem] = useState("3rd Semester");
   const [deptSubTab, setDeptSubTab] = useState("faculty");
   const [facultySearch, setFacultySearch] = useState("");
@@ -14006,8 +14020,25 @@ function DepartmentAdminPanel({
     pcs: 30,
     inCharge: ""
   });
+  const isAllDepts = selectedDeptName === "ALL" || selectedDeptName === "All Departments" || !selectedDeptName;
   const currentDept = useMemo(() => {
-    return departments.find((d) => d.name === selectedDeptName) || departments[0] || {
+    if (isAllDepts) {
+      return {
+        name: "All Departments",
+        code: "ALL",
+        fullName: "Centralized Faculty Management \u2022 All Departments",
+        hod: "Dean / Academic Office",
+        hodEmail: "academic@adit.ac.in",
+        hodPhone: "+91 2692 233680",
+        cabin: "Administrative Block",
+        established: "2000",
+        totalStudents: (students || []).length || 1800,
+        classrooms: ["Campus-Wide Blocks"],
+        labs: [],
+        divisions: []
+      };
+    }
+    return departments.find((d) => d.name === selectedDeptName || d.code === selectedDeptName || d.id === selectedDeptName) || departments[0] || {
       name: "AI & Data Science",
       code: "AI&DS",
       fullName: "Department of Artificial Intelligence & Data Science",
@@ -14030,20 +14061,21 @@ function DepartmentAdminPanel({
         { id: "3", name: "Div 3", counselor: "Prof. A. Kumar", cr: "Devansh Verma", studentCount: 60 }
       ]
     };
-  }, [departments, selectedDeptName]);
+  }, [departments, selectedDeptName, isAllDepts, students]);
   const deptFaculties = useMemo(() => {
     return faculties.filter((f) => {
-      const matchDept = !f.dept || isDepartmentMatch(f.dept, currentDept.name);
+      const matchDept = isAllDepts || !f.dept || isDepartmentMatch(f.dept, selectedDeptName) || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
-      const matchQuery = !q || f.name.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.designation && f.designation.toLowerCase().includes(q);
+      const matchQuery = !q || f.name.toLowerCase().includes(q) || f.id && f.id.toLowerCase().includes(q) || f.dept && f.dept.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.designation && f.designation.toLowerCase().includes(q) || f.email && f.email.toLowerCase().includes(q);
       return matchDept && matchQuery;
     });
-  }, [faculties, currentDept, facultySearch]);
+  }, [faculties, currentDept, facultySearch, isAllDepts, selectedDeptName]);
   const deptSubjects = useMemo(() => {
     return subjects.filter((s) => {
-      return !s.dept || isDepartmentMatch(s.dept, currentDept.name);
+      if (isAllDepts) return true;
+      return !s.dept || isDepartmentMatch(s.dept, currentDept.name) || isDepartmentMatch(s.dept, selectedDeptName);
     });
-  }, [subjects, currentDept]);
+  }, [subjects, currentDept, isAllDepts, selectedDeptName]);
   const allTimetables = useMemo(() => {
     return getAllFacultyTimetables();
   }, [faculties]);
@@ -14173,16 +14205,17 @@ function DepartmentAdminPanel({
       alert("Faculty name is required");
       return;
     }
+    const defaultDept = isAllDepts ? departments[0]?.name || "Information Technology" : currentDept.name;
     const newFac = {
       ...facultyForm,
-      dept: facultyForm.dept || currentDept.name
+      dept: facultyForm.dept || defaultDept
     };
     const updated = saveFaculty(newFac);
     notifyTimetableSync();
     setFaculties([...updated]);
     setShowAddFacultyModal(false);
-    setFacultyForm({ name: "", designation: "Assistant Professor", email: "", phone: "", subjects: "" });
-    if (showToast) showToast(`${facultyForm.name} added to ${currentDept.name}!`);
+    setFacultyForm({ name: "", designation: "Assistant Professor", email: "", phone: "", subjects: "", dept: "" });
+    if (showToast) showToast(`${facultyForm.name} added to ${newFac.dept}!`);
     window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
   };
   const handleAddSubject = (e) => {
@@ -14380,8 +14413,20 @@ function DepartmentAdminPanel({
           outline: "none"
         }
       },
+      /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Departments (College-Wide)"),
       departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")", d.status === "inactive" ? " [Deactivated]" : ""))
-    )), /* @__PURE__ */ React.createElement(
+    )), !isAllDepts && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => setSelectedDeptName("ALL"),
+        style: { display: "flex", alignItems: "center", gap: "5px", fontWeight: "700", color: "#475569" },
+        title: "Clear department filter to view complete college roster"
+      },
+      /* @__PURE__ */ React.createElement(X, { size: 14 }),
+      " Clear Filter (View All)"
+    ), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -14391,7 +14436,7 @@ function DepartmentAdminPanel({
       },
       /* @__PURE__ */ React.createElement(Plus, { size: 14 }),
       " Add Department"
-    ), /* @__PURE__ */ React.createElement(
+    ), !isAllDepts && /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -14480,7 +14525,7 @@ function DepartmentAdminPanel({
         }
       },
       renderDeptIcon(currentDept.icon)
-    ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#1d4ed8", fontWeight: "800", fontSize: "12px" } }, currentDept.code), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b", fontWeight: "600" } }, "Est. ", currentDept.established || "2020", " \u2022 ADIT Campus")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", marginTop: "6px", lineHeight: 1.2 } }, currentDept.fullName || `Department of ${currentDept.name}`), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", marginTop: "4px" } }, "Autonomous Department Administration Panel \u2022 Curriculum & Faculty Roster"))), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#1d4ed8", fontWeight: "800", fontSize: "12px" } }, isAllDepts ? "COLLEGE-WIDE" : currentDept.code), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "#64748b", fontWeight: "600" } }, "Est. ", isAllDepts ? "2000" : currentDept.established || "2020", " \u2022 ADIT Campus")), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "24px", fontWeight: "800", color: "#0f172a", marginTop: "6px", lineHeight: 1.2 } }, isAllDepts ? "College-Wide Faculty Roster" : currentDept.fullName || `Department of ${currentDept.name}`), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", marginTop: "4px" } }, isAllDepts ? "Centralized Institutional Faculty Management \u2022 Unified Roster & Workload Across All Departments" : "Autonomous Department Administration Panel \u2022 Curriculum & Faculty Roster"))), !isAllDepts ? /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -14490,6 +14535,16 @@ function DepartmentAdminPanel({
       },
       /* @__PURE__ */ React.createElement(Edit3, { size: 14 }),
       " Edit Department Profile"
+    ) : /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-primary btn-sm no-print",
+        onClick: () => setShowAddFacultyModal(true),
+        style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", borderRadius: "8px" }
+      },
+      /* @__PURE__ */ React.createElement(UserPlus, { size: 14 }),
+      " Add Faculty Member"
     )),
     /* @__PURE__ */ React.createElement(
       "div",
@@ -14530,7 +14585,7 @@ function DepartmentAdminPanel({
       },
       className: "no-print"
     },
-    /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Faculty Strength"), /* @__PURE__ */ React.createElement(Users, { size: 18, style: { color: "#2563eb" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, deptFaculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#059669", fontWeight: "600" } }, "Full-time Teaching Faculty")),
+    /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, isAllDepts ? "Total Faculty Strength" : "Department Faculty"), /* @__PURE__ */ React.createElement(Users, { size: 18, style: { color: "#2563eb" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, deptFaculties.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#059669", fontWeight: "600" } }, isAllDepts ? "Full-time Faculty Across College" : `Teaching Faculty in ${currentDept.name}`)),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Department Subjects"), /* @__PURE__ */ React.createElement(BookOpen, { size: 18, style: { color: "#d97706" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, deptSubjects.length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b", fontWeight: "600" } }, "Active Course Catalog")),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Labs & Classrooms"), /* @__PURE__ */ React.createElement(Laptop, { size: 18, style: { color: "#0284c7" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, (currentDept.labs || []).length + (currentDept.classrooms || []).length), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#0284c7", fontWeight: "600" } }, (currentDept.labs || []).length, " Labs \u2022 ", (currentDept.classrooms || []).length, " Classrooms")),
     /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "18px 20px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12.5px", fontWeight: "700", color: "#64748b" } }, "Weekly Lecture Load"), /* @__PURE__ */ React.createElement(Clock, { size: 18, style: { color: "#059669" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a", marginTop: "8px" } }, totalWeeklyHours, " Hrs"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#059669", fontWeight: "600" } }, "Across 6 Working Days"))
@@ -14595,11 +14650,11 @@ function DepartmentAdminPanel({
         )
       );
     })
-  ), deptSubTab === "faculty" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px", marginBottom: "16px" }, className: "no-print" }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: "320px" } }, /* @__PURE__ */ React.createElement(Search, { size: 15, style: { position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+  ), deptSubTab === "faculty" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px", marginBottom: "16px" }, className: "no-print" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: "280px" } }, /* @__PURE__ */ React.createElement(Search, { size: 15, style: { position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
-      placeholder: "Search faculty in this department...",
+      placeholder: "Search by name, ID, department...",
       value: facultySearch,
       onChange: (e) => setFacultySearch(e.target.value),
       style: {
@@ -14612,7 +14667,37 @@ function DepartmentAdminPanel({
         outline: "none"
       }
     }
-  )), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 15, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: selectedDeptName,
+      onChange: (e) => setSelectedDeptName(e.target.value),
+      style: {
+        padding: "8px 12px",
+        borderRadius: "8px",
+        border: "1px solid #cbd5e1",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#0f172a",
+        backgroundColor: "white",
+        cursor: "pointer",
+        outline: "none"
+      },
+      title: "Filter unified faculty roster by department"
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Departments (College-Wide)"),
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")", d.status === "inactive" ? " [Deactivated]" : ""))
+  ), !isAllDepts && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: () => setSelectedDeptName("ALL"),
+      style: { fontSize: "12px", padding: "6px 10px", color: "#475569", fontWeight: "700" },
+      title: "Clear filter and show all departments"
+    },
+    "Clear Filter"
+  ))), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -14622,7 +14707,7 @@ function DepartmentAdminPanel({
     },
     /* @__PURE__ */ React.createElement(UserPlus, { size: 15 }),
     " Add Faculty Member"
-  )), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: 0, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Faculty Member"), /* @__PURE__ */ React.createElement("th", null, "Designation"), /* @__PURE__ */ React.createElement("th", null, "Official Email & Contact"), /* @__PURE__ */ React.createElement("th", null, "Subjects Taught"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Weekly Load"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Active Days"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "right" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, deptFaculties.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 7, style: { textAlign: "center", padding: "36px", color: "#94a3b8" } }, 'No faculty found for this search or department. Click "Add Faculty Member" to register faculty.')) : deptFaculties.map((fac) => {
+  )), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: 0, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive" }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Faculty Member"), /* @__PURE__ */ React.createElement("th", null, "Department"), /* @__PURE__ */ React.createElement("th", null, "Designation"), /* @__PURE__ */ React.createElement("th", null, "Official Email & Contact"), /* @__PURE__ */ React.createElement("th", null, "Subjects Taught"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Weekly Load"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center" } }, "Active Days"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "right" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, deptFaculties.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 8, style: { textAlign: "center", padding: "36px", color: "#94a3b8" } }, 'No faculty found for this search or department filter. Click "Add Faculty Member" to register faculty.')) : deptFaculties.map((fac) => {
     const load = facultyWorkloads[fac.id] || { totalLectures: 0, activeDays: 0 };
     const isHOD = fac.name === currentDept.hod;
     return /* @__PURE__ */ React.createElement("tr", { key: fac.id }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: {
@@ -14636,14 +14721,17 @@ function DepartmentAdminPanel({
       justifyContent: "center",
       fontWeight: "800",
       fontSize: "13px"
-    } }, getInitials(fac.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" } }, fac.name, isHOD && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px", padding: "1px 5px" } }, "HOD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", marginTop: "1px" } }, /* @__PURE__ */ React.createElement("span", null, fac.id), /* @__PURE__ */ React.createElement("span", { style: {
-      fontSize: "10px",
-      fontWeight: "800",
-      padding: "1px 5px",
-      borderRadius: "4px",
+    } }, getInitials(fac.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" } }, fac.name, isHOD && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px", padding: "1px 5px" } }, "HOD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", marginTop: "1px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700" } }, fac.id))))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: {
+      fontSize: "11.5px",
+      fontWeight: "700",
+      padding: "3px 8px",
+      borderRadius: "6px",
       backgroundColor: "#e0f2fe",
-      color: "#0369a1"
-    } }, fac.dept || currentDept.name))))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "600", color: "#334155" } }, fac.designation || "Assistant Professor")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#1e293b" } }, fac.email || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, fac.phone || "\u2014")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "#0f172a", fontWeight: "700" } }, fac.subjects || "General Curriculum")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
+      color: "#0369a1",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px"
+    } }, /* @__PURE__ */ React.createElement(Building2, { size: 12 }), fac.dept || "General Category")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "600", color: "#334155" } }, fac.designation || "Assistant Professor")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#1e293b" } }, fac.email || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, fac.phone || "\u2014")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "#0f172a", fontWeight: "700" } }, fac.subjects || "General Curriculum")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
       "span",
       {
         className: "badge",
@@ -14839,7 +14927,7 @@ function DepartmentAdminPanel({
       value: deptEditForm.hodPhone,
       onChange: (e) => setDeptEditForm({ ...deptEditForm, hodPhone: e.target.value })
     }
-  )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowEditDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Department Changes"))))), showAddFacultyModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(UserPlus, { size: 18 }), "Add Faculty to ", currentDept.name), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowAddFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddFaculty }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty Name *"), /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowEditDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Department Changes"))))), showAddFacultyModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(UserPlus, { size: 18 }), "Add Faculty to ", isAllDepts ? "College Roster" : currentDept.name), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowAddFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddFaculty }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty Name *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",

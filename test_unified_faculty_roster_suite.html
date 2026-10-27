@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Unified College-Wide Faculty Roster Test Suite</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen','File','Blob',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props = {}) => {
+          const { size = 18, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            if (!node || !Array.isArray(node)) return null;
+            const [tag, attrs, children] = node;
+            const reactAttrs = { key };
+            if (attrs) {
+              Object.keys(attrs).forEach(k => {
+                const rk = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                reactAttrs[rk] = attrs[k];
+              });
+            }
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=unified_roster_1"></script>
+</head>
+<body style="padding: 24px; font-family: system-ui, -apple-system, sans-serif;">
+  <h2>Unified College-Wide Faculty Roster Test Suite</h2>
+  <div id="test-log" style="white-space: pre-wrap; font-family: monospace; background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px;">Running tests...</div>
+  <div id="render-mount" style="margin-top: 24px; border: 1px dashed #cbd5e1; padding: 16px; border-radius: 8px; min-height: 400px;"></div>
+
+  <script>
+        function setInputValue(input, val) {
+      const setter = (_nat.Object || Object).getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, val);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    const results = [];
+    function assert(name, condition, extra = '') {
+      const passed = Boolean(condition);
+      results.push({ name, passed, extra });
+      const logEl = document.getElementById('test-log');
+      const symbol = passed ? '✅ [PASS]' : '❌ [FAIL]';
+      const msg = `${symbol} ${name} ${extra ? `(${extra})` : ''}\n`;
+      logEl.textContent += msg;
+      console.log(msg.trim());
+      if (!passed) console.error(`Assertion failed: ${name}`, extra);
+    }
+
+    async function runTestSuite() {
+      try {
+        console.log("Starting Unified College-Wide Faculty Roster Test Suite...");
+        
+        // Reset and populate faculties across diverse college departments
+        localStorage.clear();
+        initializeStorage();
+
+        const testFaculties = [
+          { id: 'FAC_IT_PATEL', name: 'Dr. Aarav Patel', dept: 'Information Technology', designation: 'Professor', email: 'aarav.patel@adit.ac.in', phone: '9825000001', subjects: 'CPC, OS' },
+          { id: 'FAC_AE_KUMAR', name: 'Prof. Vikram Kumar', dept: 'Aeronautical Engineering', designation: 'Associate Professor', email: 'vikram.kumar@adit.ac.in', phone: '9825000002', subjects: 'Aerodynamics' },
+          { id: 'FAC_CE_SHARMA', name: 'Prof. Neha Sharma', dept: 'Computer Engineering', designation: 'Assistant Professor', email: 'neha.sharma@adit.ac.in', phone: '9825000003', subjects: 'Data Structures' },
+          { id: 'FAC_CL_JOSHI', name: 'Prof. Rajesh Joshi', dept: 'Civil Engineering', designation: 'Associate Professor', email: 'rajesh.joshi@adit.ac.in', phone: '9825000004', subjects: 'Structural Analysis' },
+          { id: 'FAC_ME_VERMA', name: 'Prof. Amit Verma', dept: 'Mechanical Engineering', designation: 'Assistant Professor', email: 'amit.verma@adit.ac.in', phone: '9825000005', subjects: 'Thermodynamics' },
+          { id: 'FAC_EE_DESAI', name: 'Prof. Pooja Desai', dept: 'Electrical Engineering', designation: 'Assistant Professor', email: 'pooja.desai@adit.ac.in', phone: '9825000006', subjects: 'Power Systems' },
+          { id: 'FAC_EC_MODI', name: 'Prof. Sanjay Modi', dept: 'Electronics & Communication Engineering', designation: 'Associate Professor', email: 'sanjay.modi@adit.ac.in', phone: '9825000007', subjects: 'Signals & Systems' },
+          { id: 'FAC_FPT_RANA', name: 'Prof. Geeta Rana', dept: 'Food Processing Technology', designation: 'Assistant Professor', email: 'geeta.rana@adit.ac.in', phone: '9825000008', subjects: 'Food Chemistry' },
+          { id: 'FAC_DT_MEHTA', name: 'Prof. Hitesh Mehta', dept: 'Dairy Technology', designation: 'Assistant Professor', email: 'hitesh.mehta@adit.ac.in', phone: '9825000009', subjects: 'Dairy Microbiology' }
+        ];
+
+        testFaculties.forEach(f => saveFaculty(f));
+
+        const allStored = getFaculties();
+        assert('getFaculties stores all 9 diverse departments', allStored.length >= 9);
+
+        // =====================================================================
+        // TEST GROUP 1: Default Open Roster Displays All Faculty Together
+        // =====================================================================
+        const mountEl = document.getElementById('render-mount');
+        ReactDOM.unmountComponentAtNode(mountEl);
+
+        ReactDOM.render(
+          React.createElement(DepartmentAdminPanel, {}),
+          mountEl
+        );
+
+        await new Promise(r => setTimeout(r, 300));
+
+        // 1. Check title shows College-Wide
+        const panelText = mountEl.textContent;
+        assert('Opening Faculty Roster displays College-Wide banner', 
+          panelText.includes('College-Wide Faculty Roster') || panelText.includes('COLLEGE-WIDE'));
+
+        // 2. Check total count reflects all departments
+        const facultyRows = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Table contains at least 9 faculty rows across departments', facultyRows.length >= 9);
+
+        // 3. Faculty from AE, IT, CE, CL, ME, EE, EC, FPT, DT appear in the SAME list
+        const textInRows = facultyRows.map(r => r.textContent).join(' ');
+        assert('Dr. Aarav Patel (IT) appears in unified roster', textInRows.includes('Dr. Aarav Patel'));
+        assert('Prof. Vikram Kumar (AE) appears in unified roster', textInRows.includes('Prof. Vikram Kumar'));
+        assert('Prof. Neha Sharma (CE) appears in unified roster', textInRows.includes('Prof. Neha Sharma'));
+        assert('Prof. Rajesh Joshi (CL) appears in unified roster', textInRows.includes('Prof. Rajesh Joshi'));
+        assert('Prof. Amit Verma (ME) appears in unified roster', textInRows.includes('Prof. Amit Verma'));
+        assert('Prof. Pooja Desai (EE) appears in unified roster', textInRows.includes('Prof. Pooja Desai'));
+        assert('Prof. Sanjay Modi (EC) appears in unified roster', textInRows.includes('Prof. Sanjay Modi'));
+        assert('Prof. Geeta Rana (FPT) appears in unified roster', textInRows.includes('Prof. Geeta Rana'));
+        assert('Prof. Hitesh Mehta (DT) appears in unified roster', textInRows.includes('Prof. Hitesh Mehta'));
+
+        // 4. Department column is present in the table header
+        const thList = Array.from(mountEl.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        assert('Table header contains explicit Department column', thList.includes('Department'));
+
+        // =====================================================================
+        // TEST GROUP 2: Search by Name, Faculty ID, and Department
+        // =====================================================================
+        const searchInput = mountEl.querySelector('input[placeholder*="Search by name"]');
+        assert('Unified roster search input is present', Boolean(searchInput));
+
+        // Search by Faculty ID
+        setInputValue(searchInput, 'FAC_AE_KUMAR');
+        await new Promise(r => setTimeout(r, 200));
+
+        let currentRows = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Search by Faculty ID filters to exact faculty', currentRows.length === 1 && currentRows[0].textContent.includes('Prof. Vikram Kumar'));
+
+        // Search by Faculty Name
+        setInputValue(searchInput, 'Patel');
+        await new Promise(r => setTimeout(r, 200));
+
+        currentRows = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Search by Name filters correctly to Patel', currentRows.length === 1 && currentRows[0].textContent.includes('Dr. Aarav Patel'));
+
+        // Clear search
+        setInputValue(searchInput, '');
+        await new Promise(r => setTimeout(r, 200));
+
+        // =====================================================================
+        // TEST GROUP 3: Optional Department Filter & Clear Filter
+        // =====================================================================
+        const deptSelects = Array.from(mountEl.querySelectorAll('select'));
+        const filterSelect = deptSelects.find(s => Array.from(s.options).some(o => o.value === 'ALL'));
+        assert('Department filter dropdown contains "ALL" option', Boolean(filterSelect));
+        assert('Department filter defaults to "ALL"', filterSelect.value === 'ALL');
+
+        // Filter by Information Technology
+        filterSelect.value = 'Information Technology';
+        filterSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        await new Promise(r => setTimeout(r, 200));
+
+        let itRows = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Filtering by IT shows only IT faculty', itRows.length === 1 && itRows[0].textContent.includes('Dr. Aarav Patel'));
+
+        // Clear filter using Clear Filter button or selecting ALL
+        const clearBtn = Array.from(mountEl.querySelectorAll('button')).find(b => b.textContent.includes('Clear Filter'));
+        assert('Clear Filter button is visible when department filter is active', Boolean(clearBtn));
+
+        clearBtn.click();
+        await new Promise(r => setTimeout(r, 200));
+
+        const restoredRows = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Clearing filter restores complete college-wide roster (9+ faculty)', restoredRows.length >= 9);
+
+        // =====================================================================
+        // TEST GROUP 4: Add, Edit, Replace, Remove in Unified Roster
+        // =====================================================================
+        // 1. Add Faculty member with Automobile Engineering department
+        const newFaculty = {
+          id: 'FAC_AUTO_TEST',
+          name: 'Prof. Chirag Rawal',
+          dept: 'Aeronautical Engineering',
+          designation: 'Assistant Professor',
+          email: 'chirag@adit.ac.in',
+          phone: '9825000010',
+          subjects: 'Aerodynamics II'
+        };
+        saveFaculty(newFaculty);
+        
+        // Refresh panel
+        ReactDOM.unmountComponentAtNode(mountEl);
+        ReactDOM.unmountComponentAtNode(mountEl);
+        ReactDOM.render(
+          React.createElement(DepartmentAdminPanel, {}),
+          mountEl
+        );
+        await new Promise(r => setTimeout(r, 200));
+
+        const rowsAfterAdd = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Newly added faculty appears in unified roster', rowsAfterAdd.some(r => r.textContent.includes('Prof. Chirag Rawal')));
+
+        // 2. Edit faculty home department
+        const edited = { ...newFaculty, dept: 'Mechanical Engineering' };
+        saveFaculty(edited);
+
+        ReactDOM.unmountComponentAtNode(mountEl);
+        ReactDOM.render(
+          React.createElement(DepartmentAdminPanel, {}),
+          mountEl
+        );
+        await new Promise(r => setTimeout(r, 200));
+
+        const chiragRow = Array.from(mountEl.querySelectorAll('tbody tr')).find(r => r.textContent.includes('Prof. Chirag Rawal'));
+        assert('Edited faculty displays updated department in table', chiragRow && chiragRow.textContent.includes('Mechanical Engineering'));
+
+        // 3. Remove faculty
+        deleteFaculty('FAC_AUTO_TEST');
+        ReactDOM.render(
+          React.createElement(DepartmentAdminPanel, {}),
+          mountEl
+        );
+        await new Promise(r => setTimeout(r, 200));
+
+        const rowsAfterDelete = Array.from(mountEl.querySelectorAll('tbody tr'));
+        assert('Deleted faculty removed from active unified roster', !rowsAfterDelete.some(r => r.textContent.includes('Prof. Chirag Rawal')));
+
+        // =====================================================================
+        // TEST GROUP 5: Cross-Department Timetable & Authorization (Centralized System)
+        // =====================================================================
+        // Dr. Patel (Home dept: IT) teaches Aeronautical Engineering (AE) students
+        const itFaculty = getFaculties().find(f => f.id === 'FAC_IT_PATEL');
+        assert('Dr. Patel home category is Information Technology', itFaculty.dept === 'Information Technology');
+
+        // Create timetable entry with class department AE
+        const timetableEntry = {
+          facultyId: itFaculty.id,
+          facultyName: itFaculty.name,
+          departmentId: 'DEP_AE',
+          department: 'Aeronautical Engineering',
+          deptId: 'DEP_AE',
+          dept: 'Aeronautical Engineering',
+          sem: '1st Sem',
+          div: 'Div 1',
+          subject: 'CPC',
+          subjectName: 'CPC',
+          timeSlot: '9:00 - 9:55',
+          day: 'Monday',
+          room: 'Room 210',
+          type: 'Lecture'
+        };
+        updateFacultySlot(itFaculty.id, 'Monday', '9:00 - 9:55', timetableEntry, 'DEP_AE');
+
+        const savedSlot = getTimetableEntries().find(e => e.facultyId === itFaculty.id && e.day === 'Monday');
+        assert('Timetable entry stores AE as class department', savedSlot && savedSlot.departmentId === 'DEP_AE');
+        assert('Faculty home department remains separate (Information Technology)', itFaculty.dept !== savedSlot.department);
+
+        // Authorization check: Dr. Patel can teach assigned AE class
+        const isAuth = canFacultyTeachClassAndSubject(itFaculty, 'Aeronautical Engineering', '1st Sem', 'Div 1', 'CPC');
+        assert('IT faculty member is authorized to teach assigned AE class', isAuth);
+
+        // Register AE students
+        bulkRegisterStudents([
+          { rollNo: '1', enrollmentNo: '230010101901', name: 'Kunal Patel', department: 'Aeronautical Engineering', semester: '1st Sem', division: 'Div 1', batch: 'ALL', status: 'Active' },
+          { rollNo: '2', enrollmentNo: '230010101902', name: 'Riya Shah', department: 'Aeronautical Engineering', semester: '1st Sem', division: 'Div 1', batch: 'ALL', status: 'Active' }
+        ]);
+
+        const roster = getStudentsForAcademicGroup({
+          department: 'Aeronautical Engineering',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          subjectId: 'CPC'
+        }, itFaculty);
+
+        assert('getStudentsForAcademicGroup retrieves AE students for IT faculty', roster.length === 2);
+
+        // Record attendance using saveSession with faculty user context
+        const userContext = { ...itFaculty, role: 'faculty' };
+        const attendanceRecord = saveSession({
+          facultyId: itFaculty.id,
+          facultyName: itFaculty.name,
+          department: 'Aeronautical Engineering',
+          departmentId: 'DEP_AE',
+          semester: '1st Sem',
+          division: 'Div 1',
+          subjectId: 'CPC',
+          subjectName: 'CPC',
+          date: '2026-10-27',
+          timeSlot: '9:00 - 9:55',
+          records: {
+            '230010101901': 'present',
+            '230010101902': 'present'
+          }
+        }, userContext);
+
+        assert('Attendance recorded successfully for cross-department class', Boolean(attendanceRecord));
+
+        // =====================================================================
+        // TEST GROUP 6: AdminPanel Default Tab & Navigation
+        // =====================================================================
+        ReactDOM.unmountComponentAtNode(mountEl);
+        ReactDOM.render(
+          React.createElement(AdminPanel, { initialTab: 'faculty' }),
+          mountEl
+        );
+
+        await new Promise(r => setTimeout(r, 300));
+        const adminText = mountEl.textContent;
+        assert('AdminPanel renders Faculty Roster as primary view', adminText.includes('Faculty Roster'));
+        assert('AdminPanel displays unified roster across all departments', adminText.includes('Dr. Aarav Patel') && adminText.includes('Prof. Vikram Kumar'));
+
+        console.log("TEST SUITE COMPLETED!");
+      } catch (err) {
+        console.error("Test Suite Execution Error:", err);
+        assert('Test suite executed without fatal error', false, err.message + '\n' + err.stack);
+      }
+
+      // Send results to runner
+      try {
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results })
+        });
+      } catch (e) {
+        console.warn('Could not post test results:', e);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', runTestSuite);
+  </script>
+</body>
+</html>

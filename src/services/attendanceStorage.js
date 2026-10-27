@@ -308,22 +308,22 @@ export const initializeStorage = () => {
   // One-time automatic clean slate initialization: wipe all demo data for real data entry
   const CLEAN_SLATE_KEY = 'adit_clean_slate_real_data_v2';
   if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
-    localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
-    localStorage.setItem('adit_timetable_entries', JSON.stringify([]));
-    localStorage.setItem('adit_attendance_timetable', JSON.stringify({}));
-    localStorage.setItem('adit_timetable_file_info', 'null');
-    localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
-    localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
+    if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.SUBJECTS)) localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.FACULTIES)) localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
+    if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
+    if (!localStorage.getItem(STORAGE_KEYS.SESSIONS)) localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.EXCEPTIONS)) localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
+    if (!localStorage.getItem(STORAGE_KEYS.PROMOTION_HISTORY)) localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
+    if (!localStorage.getItem('adit_timetable_entries')) localStorage.setItem('adit_timetable_entries', JSON.stringify([]));
+    if (!localStorage.getItem('adit_attendance_timetable')) localStorage.setItem('adit_attendance_timetable', JSON.stringify({}));
+    if (!localStorage.getItem('adit_timetable_file_info')) localStorage.setItem('adit_timetable_file_info', 'null');
+    if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
+    if (!localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME)) localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
     localStorage.setItem(CLEAN_SLATE_KEY, 'true');
   }
 
@@ -2690,6 +2690,9 @@ export const saveFaculty = (faculty, userContext = null) => {
     faculties.push(faculty);
   }
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+  }
   return faculties;
 };
 

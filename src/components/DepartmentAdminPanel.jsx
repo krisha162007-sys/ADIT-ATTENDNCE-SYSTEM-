@@ -46,7 +46,8 @@ import {
   deleteFaculty,
   getSubjects, 
   saveSubject, 
-  deleteSubject 
+  deleteSubject,
+  getStudents
 } from '../services/attendanceStorage';
 import {
   getAllFacultyTimetables, 
@@ -63,6 +64,7 @@ import {
 } from '../services/timetableStorage';
 
 export default function DepartmentAdminPanel({
+  initialDept = 'ALL',
   onOpenFacultyTimetable,
   showToast
 }) {
@@ -70,9 +72,21 @@ export default function DepartmentAdminPanel({
   const [departments, setDepartments] = useState(getDepartments());
   const [faculties, setFaculties] = useState(getFaculties());
   const [subjects, setSubjects] = useState(getSubjects());
+  const [students, setStudents] = useState(getStudents ? getStudents() : []);
 
-  // Selected Department & Semester
-  const [selectedDeptName, setSelectedDeptName] = useState('AI & Data Science');
+  // Listen for faculty roster updates
+  React.useEffect(() => {
+    const handleFacultyUpdated = () => {
+      setFaculties([...getFaculties()]);
+    };
+    window.addEventListener('adit-faculty-updated', handleFacultyUpdated);
+    return () => {
+      window.removeEventListener('adit-faculty-updated', handleFacultyUpdated);
+    };
+  }, []);
+
+  // Selected Department Filter (Defaults to 'ALL' for unified college-wide roster)
+  const [selectedDeptName, setSelectedDeptName] = useState(initialDept || 'ALL');
   const [selectedSem, setSelectedSem] = useState('3rd Semester');
 
   // Sub-tabs inside Department Admin Panel:
@@ -139,9 +153,27 @@ export default function DepartmentAdminPanel({
     inCharge: ''
   });
 
+  const isAllDepts = selectedDeptName === 'ALL' || selectedDeptName === 'All Departments' || !selectedDeptName;
+
   // Current Active Department Object
   const currentDept = useMemo(() => {
-    return departments.find(d => d.name === selectedDeptName) || departments[0] || {
+    if (isAllDepts) {
+      return {
+        name: 'All Departments',
+        code: 'ALL',
+        fullName: 'Centralized Faculty Management • All Departments',
+        hod: 'Dean / Academic Office',
+        hodEmail: 'academic@adit.ac.in',
+        hodPhone: '+91 2692 233680',
+        cabin: 'Administrative Block',
+        established: '2000',
+        totalStudents: (students || []).length || 1800,
+        classrooms: ['Campus-Wide Blocks'],
+        labs: [],
+        divisions: []
+      };
+    }
+    return departments.find(d => d.name === selectedDeptName || d.code === selectedDeptName || d.id === selectedDeptName) || departments[0] || {
       name: 'AI & Data Science',
       code: 'AI&DS',
       fullName: 'Department of Artificial Intelligence & Data Science',
@@ -164,27 +196,31 @@ export default function DepartmentAdminPanel({
         { id: '3', name: 'Div 3', counselor: 'Prof. A. Kumar', cr: 'Devansh Verma', studentCount: 60 }
       ]
     };
-  }, [departments, selectedDeptName]);
+  }, [departments, selectedDeptName, isAllDepts, students]);
 
-  // Faculties belonging to this department (Category)
+  // Faculties belonging to this department (Category) or all if 'ALL'
   const deptFaculties = useMemo(() => {
     return faculties.filter(f => {
-      const matchDept = !f.dept || isDepartmentMatch(f.dept, currentDept.name);
+      const matchDept = isAllDepts || !f.dept || isDepartmentMatch(f.dept, selectedDeptName) || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
       const matchQuery = !q || 
         f.name.toLowerCase().includes(q) || 
+        (f.id && f.id.toLowerCase().includes(q)) ||
+        (f.dept && f.dept.toLowerCase().includes(q)) ||
         (f.subjects && f.subjects.toLowerCase().includes(q)) ||
-        (f.designation && f.designation.toLowerCase().includes(q));
+        (f.designation && f.designation.toLowerCase().includes(q)) ||
+        (f.email && f.email.toLowerCase().includes(q));
       return matchDept && matchQuery;
     });
-  }, [faculties, currentDept, facultySearch]);
+  }, [faculties, currentDept, facultySearch, isAllDepts, selectedDeptName]);
 
-  // Subjects belonging to this department
+  // Subjects belonging to this department or all if 'ALL'
   const deptSubjects = useMemo(() => {
     return subjects.filter(s => {
-      return !s.dept || isDepartmentMatch(s.dept, currentDept.name);
+      if (isAllDepts) return true;
+      return !s.dept || isDepartmentMatch(s.dept, currentDept.name) || isDepartmentMatch(s.dept, selectedDeptName);
     });
-  }, [subjects, currentDept]);
+  }, [subjects, currentDept, isAllDepts, selectedDeptName]);
 
   // Timetables master
   const allTimetables = useMemo(() => {
@@ -332,16 +368,17 @@ export default function DepartmentAdminPanel({
       alert('Faculty name is required');
       return;
     }
+    const defaultDept = isAllDepts ? (departments[0]?.name || 'Information Technology') : currentDept.name;
     const newFac = {
       ...facultyForm,
-      dept: facultyForm.dept || currentDept.name
+      dept: facultyForm.dept || defaultDept
     };
     const updated = saveFaculty(newFac);
     notifyTimetableSync();
     setFaculties([...updated]);
     setShowAddFacultyModal(false);
-    setFacultyForm({ name: '', designation: 'Assistant Professor', email: '', phone: '', subjects: '' });
-    if (showToast) showToast(`${facultyForm.name} added to ${currentDept.name}!`);
+    setFacultyForm({ name: '', designation: 'Assistant Professor', email: '', phone: '', subjects: '', dept: '' });
+    if (showToast) showToast(`${facultyForm.name} added to ${newFac.dept}!`);
     // Notify parent/sibling panels that faculty list changed
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
   };
@@ -580,6 +617,7 @@ export default function DepartmentAdminPanel({
                 outline: 'none'
               }}
             >
+              <option value="ALL">All Departments (College-Wide)</option>
               {departments.map((d) => (
                 <option key={d.id || d.name} value={d.name}>
                   {d.name} ({d.code}){d.status === 'inactive' ? ' [Deactivated]' : ''}
@@ -587,6 +625,18 @@ export default function DepartmentAdminPanel({
               ))}
             </select>
           </div>
+
+          {!isAllDepts && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setSelectedDeptName('ALL')}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '700', color: '#475569' }}
+              title="Clear department filter to view complete college roster"
+            >
+              <X size={14} /> Clear Filter (View All)
+            </button>
+          )}
 
           <button
             type="button"
@@ -597,22 +647,24 @@ export default function DepartmentAdminPanel({
             <Plus size={14} /> Add Department
           </button>
 
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={handleToggleDepartmentStatus}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontWeight: '700',
-              backgroundColor: currentDept.status === 'inactive' ? '#ecfdf5' : '#fff1f2',
-              color: currentDept.status === 'inactive' ? '#059669' : '#e11d48',
-              border: `1px solid ${currentDept.status === 'inactive' ? '#a7f3d0' : '#fecdd3'}`
-            }}
-          >
-            {currentDept.status === 'inactive' ? 'Reactivate Department' : 'Deactivate Department'}
-          </button>
+          {!isAllDepts && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={handleToggleDepartmentStatus}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontWeight: '700',
+                backgroundColor: currentDept.status === 'inactive' ? '#ecfdf5' : '#fff1f2',
+                color: currentDept.status === 'inactive' ? '#059669' : '#e11d48',
+                border: `1px solid ${currentDept.status === 'inactive' ? '#a7f3d0' : '#fecdd3'}`
+              }}
+            >
+              {currentDept.status === 'inactive' ? 'Reactivate Department' : 'Deactivate Department'}
+            </button>
+          )}
 
           <div style={{
             display: 'flex',
@@ -700,31 +752,44 @@ export default function DepartmentAdminPanel({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', fontWeight: '800', fontSize: '12px' }}>
-                  {currentDept.code}
+                  {isAllDepts ? 'COLLEGE-WIDE' : currentDept.code}
                 </span>
                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
-                  Est. {currentDept.established || '2020'} • ADIT Campus
+                  Est. {isAllDepts ? '2000' : (currentDept.established || '2020')} • ADIT Campus
                 </span>
               </div>
 
               <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', marginTop: '6px', lineHeight: 1.2 }}>
-                {currentDept.fullName || `Department of ${currentDept.name}`}
+                {isAllDepts ? 'College-Wide Faculty Roster' : (currentDept.fullName || `Department of ${currentDept.name}`)}
               </h1>
               <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                Autonomous Department Administration Panel • Curriculum & Faculty Roster
+                {isAllDepts 
+                  ? 'Centralized Institutional Faculty Management • Unified Roster & Workload Across All Departments'
+                  : 'Autonomous Department Administration Panel • Curriculum & Faculty Roster'}
               </p>
             </div>
           </div>
 
-          {/* Edit Department Button */}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm no-print"
-            onClick={handleOpenEditDept}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', borderRadius: '8px' }}
-          >
-            <Edit3 size={14} /> Edit Department Profile
-          </button>
+          {/* Action Button */}
+          {!isAllDepts ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm no-print"
+              onClick={handleOpenEditDept}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', borderRadius: '8px' }}
+            >
+              <Edit3 size={14} /> Edit Department Profile
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm no-print"
+              onClick={() => setShowAddFacultyModal(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', borderRadius: '8px' }}
+            >
+              <UserPlus size={14} /> Add Faculty Member
+            </button>
+          )}
         </div>
 
         {/* HOD Profile Details Row */}
@@ -820,14 +885,16 @@ export default function DepartmentAdminPanel({
         {/* 1. Faculty Strength */}
         <div className="card" style={{ padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>Faculty Strength</span>
+            <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#64748b' }}>
+              {isAllDepts ? 'Total Faculty Strength' : 'Department Faculty'}
+            </span>
             <Users size={18} style={{ color: '#2563eb' }} />
           </div>
           <div style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginTop: '8px' }}>
             {deptFaculties.length}
           </div>
           <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: '600' }}>
-            Full-time Teaching Faculty
+            {isAllDepts ? 'Full-time Faculty Across College' : `Teaching Faculty in ${currentDept.name}`}
           </span>
         </div>
 
@@ -944,25 +1011,67 @@ export default function DepartmentAdminPanel({
           =================================================================== */}
       {deptSubTab === 'faculty' && (
         <div>
-          {/* Header with Search & Add Faculty */}
+          {/* Header with Search & Optional Department Filter & Add Faculty */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }} className="no-print">
-            <div style={{ position: 'relative', width: '320px' }}>
-              <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input
-                type="text"
-                placeholder="Search faculty in this department..."
-                value={facultySearch}
-                onChange={(e) => setFacultySearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px 9px 34px',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '13px',
-                  backgroundColor: 'white',
-                  outline: 'none'
-                }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: '280px' }}>
+                <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Search by name, ID, department..."
+                  value={facultySearch}
+                  onChange={(e) => setFacultySearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px 9px 34px',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '13px',
+                    backgroundColor: 'white',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* Department Filter (Optional) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Building2 size={15} style={{ color: '#64748b' }} />
+                <select
+                  value={selectedDeptName}
+                  onChange={(e) => setSelectedDeptName(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#0f172a',
+                    backgroundColor: 'white',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                  title="Filter unified faculty roster by department"
+                >
+                  <option value="ALL">All Departments (College-Wide)</option>
+                  {departments.map((d) => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name} ({d.code}){d.status === 'inactive' ? ' [Deactivated]' : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {!isAllDepts && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSelectedDeptName('ALL')}
+                    style={{ fontSize: '12px', padding: '6px 10px', color: '#475569', fontWeight: '700' }}
+                    title="Clear filter and show all departments"
+                  >
+                    Clear Filter
+                  </button>
+                )}
+              </div>
             </div>
 
             <button
@@ -982,6 +1091,7 @@ export default function DepartmentAdminPanel({
                 <thead>
                   <tr>
                     <th>Faculty Member</th>
+                    <th>Department</th>
                     <th>Designation</th>
                     <th>Official Email & Contact</th>
                     <th>Subjects Taught</th>
@@ -993,8 +1103,8 @@ export default function DepartmentAdminPanel({
                 <tbody>
                   {deptFaculties.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>
-                        No faculty found for this search or department. Click "Add Faculty Member" to register faculty.
+                      <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#94a3b8' }}>
+                        No faculty found for this search or department filter. Click "Add Faculty Member" to register faculty.
                       </td>
                     </tr>
                   ) : (
@@ -1030,20 +1140,26 @@ export default function DepartmentAdminPanel({
                                   )}
                                 </div>
                                 <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
-                                  <span>{fac.id}</span>
-                                  <span style={{
-                                    fontSize: '10px',
-                                    fontWeight: '800',
-                                    padding: '1px 5px',
-                                    borderRadius: '4px',
-                                    backgroundColor: '#e0f2fe',
-                                    color: '#0369a1'
-                                  }}>
-                                    {fac.dept || currentDept.name}
-                                  </span>
+                                  <span style={{ fontWeight: '700' }}>{fac.id}</span>
                                 </div>
                               </div>
                             </div>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              backgroundColor: '#e0f2fe',
+                              color: '#0369a1',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Building2 size={12} />
+                              {fac.dept || 'General Category'}
+                            </span>
                           </td>
                           <td>
                             <span style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
@@ -1446,7 +1562,7 @@ export default function DepartmentAdminPanel({
             <div className="modal-header">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
                 <UserPlus size={18} />
-                Add Faculty to {currentDept.name}
+                Add Faculty to {isAllDepts ? 'College Roster' : currentDept.name}
               </h3>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowAddFacultyModal(false)}>
                 <X size={16} />
