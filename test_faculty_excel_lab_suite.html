@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <title>Faculty Timetable Excel Upload & 2-Slot Lab Card Test Suite</title>
   <script>
+    window.__scriptErrors = [];
+    window.onerror = function(msg, url, line, col, error) {
+      window.__scriptErrors.push({ msg: msg, url: url, line: line, col: col, error: error ? error.stack : '' });
+      fetch('/api/test-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Global Error: ' + msg + ' at line ' + line + ':' + col, allPassed: false })
+      });
+    };
     window.bundleErrors = [];
     window.onerror = function(msg, src, line, col, err) {
       window.bundleErrors.push({ msg, src, line, col, err: err ? err.stack : null });

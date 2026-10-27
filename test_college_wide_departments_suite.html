@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      fetch('/api/test-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Global Script Error: ' + msg + ' at ' + url + ':' + line + ':' + col + (error ? ' ' + error.stack : ''), allPassed: false })
+      });
+    };
+  </script>
+  <meta charset="UTF-8" />
+  <title>ADIT College-Wide Attendance & All Departments Test Suite</title>
+  <link rel="stylesheet" href="/src/index.css" />
+
+  <!-- Vendor dependencies -->
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props) => {
+          const { size = 24, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            const [tag, attrs = {}, children = []] = node;
+            const reactAttrs = { key };
+            Object.keys(attrs).forEach(k => { reactAttrs[k === 'class' ? 'className' : k] = attrs[k]; });
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        if (!_nat[pascalName]) {
+          window[pascalName] = IconComponent;
+        }
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=cw_1"></script>
+</head>
+<body style="font-family: sans-serif; padding: 20px; background-color: #f1f5f9;">
+  <h2>College-Wide Attendance & All Departments Support Test Suite</h2>
+  <div id="test-status" style="font-weight: bold; margin-bottom: 12px; color: #2563eb;">Running tests...</div>
+  <div id="test-results-list" style="margin-bottom: 20px;"></div>
+  <div id="react-test-container" style="background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 400px;"></div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      const results = [];
+      const statusEl = document.getElementById('test-status');
+      const listEl = document.getElementById('test-results-list');
+      const container = document.getElementById('react-test-container');
+
+      function assert(desc, condition, details = '') {
+        const pass = Boolean(condition);
+        results.push({ desc, pass, details });
+        const item = document.createElement('div');
+        item.style.padding = '4px 8px';
+        item.style.marginBottom = '4px';
+        item.style.borderRadius = '4px';
+        item.style.fontSize = '13px';
+        if (pass) {
+          item.style.backgroundColor = '#dcfce7';
+          item.style.color = '#166534';
+          item.textContent = `✅ [PASS] ${desc}`;
+        } else {
+          item.style.backgroundColor = '#fee2e2';
+          item.style.color = '#991b1b';
+          item.textContent = `❌ [FAIL] ${desc} ${details ? '(' + details + ')' : ''}`;
+        }
+        listEl.appendChild(item);
+      }
+
+      try {
+        localStorage.clear();
+
+        // =====================================================================
+        // Test Group 1: Initial College Departments Master & Dynamic Resolution
+        // =====================================================================
+        const depts = window.getDepartments();
+        assert('getDepartments returns array of departments', Array.isArray(depts) && depts.length >= 9, `length=${depts.length}`);
+
+        const expectedCodes = ['AE', 'CL', 'EE', 'EC', 'ME', 'FPT', 'DT', 'CE', 'IT'];
+        expectedCodes.forEach(code => {
+          const match = depts.find(d => d.code === code);
+          assert(`Initial department code "${code}" is registered out of the box`, Boolean(match), `matched: ${match?.name}`);
+          assert(`Department "${code}" is active by default`, match?.status === 'active');
+        });
+
+        // Test resolveDepartment
+        const ae = window.resolveDepartment('AE');
+        assert('resolveDepartment("AE") resolves to DEP_AE', ae && ae.id === 'DEP_AE' && ae.code === 'AE');
+
+        const cl = window.resolveDepartment('Civil Engineering');
+        assert('resolveDepartment("Civil Engineering") resolves to DEP_CL', cl && cl.id === 'DEP_CL' && cl.code === 'CL');
+
+        const ee = window.resolveDepartment('EE');
+        assert('resolveDepartment("EE") resolves to DEP_EE', ee && ee.id === 'DEP_EE' && ee.code === 'EE');
+
+        const ec = window.resolveDepartment('Electronics & Communication Engineering');
+        assert('resolveDepartment("EC") resolves to DEP_EC', ec && ec.id === 'DEP_EC');
+
+        const me = window.resolveDepartment('ME');
+        assert('resolveDepartment("ME") resolves to DEP_ME', me && me.id === 'DEP_ME');
+
+        const fpt = window.resolveDepartment('Food Processing Technology');
+        assert('resolveDepartment("FPT") resolves to DEP_FPT', fpt && fpt.id === 'DEP_FPT');
+
+        const dt = window.resolveDepartment('Dairy Technology');
+        assert('resolveDepartment("DT") resolves to DEP_DT', dt && dt.id === 'DEP_DT');
+
+        const ce = window.resolveDepartment('Computer Engineering');
+        assert('resolveDepartment("CE") resolves to DEP_CE', ce && ce.id === 'DEP_CE');
+
+        const it = window.resolveDepartment('IT');
+        assert('resolveDepartment("IT") resolves to DEP_IT', it && it.id === 'DEP_IT');
+
+        // Test isDepartmentMatch
+        assert('isDepartmentMatch("IT", "Information Technology") is true', window.isDepartmentMatch('IT', 'Information Technology'));
+        assert('isDepartmentMatch("CE", "Computer Engineering") is true', window.isDepartmentMatch('CE', 'Computer Engineering'));
+        assert('isDepartmentMatch("DEP_CL", "Civil") is true', window.isDepartmentMatch('DEP_CL', 'Civil'));
+        assert('isDepartmentMatch("IT", "Civil Engineering") is false', !window.isDepartmentMatch('IT', 'Civil Engineering'));
+
+        // =====================================================================
+        // Test Group 2: Department Management (Add, Edit, Deactivate, Reactivate)
+        // =====================================================================
+        // Admin dynamically adds a department
+        window.saveDepartment({
+          code: 'RA',
+          name: 'Robotics and Automation',
+          fullName: 'Department of Robotics & Automation',
+          hod: 'Prof. Vikram Patel'
+        });
+
+        const raDept = window.resolveDepartment('RA');
+        assert('Admin can add new department "RA" dynamically', Boolean(raDept) && raDept.id === 'DEP_RA');
+        assert('New department has status active', raDept.status === 'active');
+
+        // Avoid duplicate department records
+        const beforeCount = window.getDepartments().length;
+        window.saveDepartment({ code: 'RA', name: 'Robotics and Automation' });
+        const afterCount = window.getDepartments().length;
+        assert('Avoid duplicate department records when saving existing department', beforeCount === afterCount);
+
+        // Deactivate department
+        window.deactivateDepartment('DEP_RA');
+        const raDeactivated = window.getDepartments(true).find(d => d.id === 'DEP_RA');
+        assert('Department can be deactivated without deleting record', raDeactivated && raDeactivated.status === 'inactive');
+        const activeOnly = window.getActiveDepartments();
+        assert('getActiveDepartments excludes deactivated department', !activeOnly.some(d => d.id === 'DEP_RA'));
+
+        // Reactivate department
+        window.reactivateDepartment('DEP_RA');
+        const raReactivated = window.getDepartments(true).find(d => d.id === 'DEP_RA');
+        assert('Department can be reactivated', raReactivated && raReactivated.status === 'active');
+
+        // =====================================================================
+        // Test Group 3: Class Creation Across All Departments
+        // =====================================================================
+        // Requirement: Admin can add classes in each configured department
+        const testDeptCodes = ['AE', 'CL', 'EE', 'EC', 'ME', 'FPT', 'DT', 'CE', 'IT'];
+        testDeptCodes.forEach(c => {
+          const deptObj = window.resolveDepartment(c);
+          const cls = window.saveClass({
+            departmentName: deptObj.name,
+            departmentId: deptObj.id,
+            semester: '3rd Sem',
+            division: 'Div 1',
+            batch: 'ALL',
+            academicYear: '2026-27'
+          });
+          assert(`Admin can create class for department "${c}"`, cls && cls.departmentId === deptObj.id);
+        });
+
+        // Requirement: Elective classes can be created without a department
+        const electiveClass = window.saveClass({
+          isElective: true,
+          semester: '5th Sem',
+          division: 'Elective Section A',
+          subjectId: 'SUB_CYBER',
+          subjectName: 'Cyber Security',
+          facultyId: 'FAC_SEC',
+          facultyName: 'Prof. Dev Trivedi',
+          academicYear: '2026-27'
+        });
+        assert('Elective class created with isElective: true', electiveClass && electiveClass.isElective === true);
+        assert('Elective class has no department restriction (departmentId is null)', electiveClass.departmentId === null);
+        assert('Elective class departmentName is "Elective (No Department)"', electiveClass.departmentName === 'Elective (No Department)');
+
+        // =====================================================================
+        // Test Group 4: Faculty Management: Department as a Category
+        // =====================================================================
+        // Create faculty member with home department category
+        const facMe = window.saveFaculty({
+          id: 'FAC_ME01',
+          name: 'Prof. Rajesh Sharma',
+          dept: 'Mechanical Engineering',
+          designation: 'Associate Professor',
+          email: 'rajesh.sharma@adit.ac.in',
+          phone: '9825012345',
+          subjects: 'Thermodynamics, Mechanics'
+        });
+        assert('Admin can create faculty member with department category', facMe.some(f => f.id === 'FAC_ME01' && f.dept === 'Mechanical Engineering'));
+
+        // Admin can change faculty home department without deleting account
+        window.saveFaculty({
+          id: 'FAC_ME01',
+          name: 'Prof. Rajesh Sharma',
+          dept: 'Aeronautical Engineering',
+          designation: 'Associate Professor'
+        });
+        const updatedFac = window.getFaculties().find(f => f.id === 'FAC_ME01');
+        assert('Admin can change faculty home department category', updatedFac.dept === 'Aeronautical Engineering');
+        assert('Faculty account ID and credentials preserved after department change', updatedFac.id === 'FAC_ME01');
+
+        // =====================================================================
+        // Test Group 5: Cross-Department Faculty Assignment & Access
+        // =====================================================================
+        // Assign Prof. Rajesh Sharma (Home Dept: AE) to teach a class in Computer Engineering
+        const ceClass = window.saveClass({
+          departmentName: 'Computer Engineering',
+          departmentId: 'DEP_CE',
+          semester: '3rd Sem',
+          division: 'Div 2',
+          batch: 'ALL',
+          subjectId: 'SUB_PYTHON',
+          subjectName: 'Python Programming',
+          facultyId: 'FAC_ME01',
+          facultyName: 'Prof. Rajesh Sharma',
+          academicYear: '2026-27'
+        });
+
+        // Verify assignment-based authorization
+        const profRajesh = { id: 'FAC_ME01', name: 'Prof. Rajesh Sharma', dept: 'Aeronautical Engineering' };
+        const canTeachCrossDept = window.canFacultyTeachClassAndSubject(profRajesh, 'Computer Engineering', '3rd Sem', 'Div 2', 'SUB_PYTHON');
+        assert('Faculty authorized to teach assigned class outside home department (cross-dept)', canTeachCrossDept === true);
+
+        const authClassesRajesh = window.getAuthorizedFacultyClasses(profRajesh);
+        assert('Authorized classes includes cross-department class', authClassesRajesh.some(c => c.departmentId === 'DEP_CE' && c.division === 'Div 2'));
+
+        // =====================================================================
+        // Test Group 6: Strict Isolation: Unauthorized Classes & Records Blocked
+        // =====================================================================
+        // Assign existing IT class to another faculty (Prof. Priya Shah)
+        const existingIt = window.getClasses().find(c => c.departmentId === 'DEP_IT' && c.division === 'Div 1');
+        const itClass = window.saveClass({
+          ...(existingIt || {}),
+          id: existingIt ? existingIt.id : undefined,
+          departmentName: 'Information Technology',
+          departmentId: 'DEP_IT',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          subjectId: 'SUB_DBMS',
+          subjectName: 'Database Management Systems',
+          facultyId: 'FAC_PS',
+          facultyName: 'Prof. Priya Shah',
+          academicYear: '2026-27'
+        });
+
+        // Prof. Rajesh Sharma (NOT assigned to IT class) attempts to access IT class
+        const canTeachUnauthorized = window.canFacultyTeachClassAndSubject(profRajesh, 'Information Technology', '3rd Sem', 'Div 1', 'SUB_DBMS');
+        assert('Faculty CANNOT teach or access unauthorized class in another department', canTeachUnauthorized === false);
+
+        // Record session by Prof. Priya Shah (authenticated context)
+        const facPSUser = { id: 'FAC_PS', name: 'Prof. Priya Shah', role: 'faculty' };
+        window.saveSession({
+          id: 'SESS_IT_DBMS_01',
+          facultyId: 'FAC_PS',
+          facultyName: 'Prof. Priya Shah',
+          department: 'Information Technology',
+          sem: '3rd Sem',
+          division: 'Div 1',
+          subjectId: 'SUB_DBMS',
+          subjectName: 'DBMS',
+          date: '2026-10-27',
+          timeSlot: '10:00 - 10:50',
+          records: { 'S101': 'present' }
+        }, facPSUser);
+
+        // Prof. Rajesh Sharma queries sessions for IT DBMS
+        const rajeshView = window.getSessions({ department: 'Information Technology', semester: '3rd Sem', division: 'Div 1', subjectId: 'SUB_DBMS' }, profRajesh);
+        assert('Faculty cannot view unauthorized attendance records of other faculty', Array.isArray(rajeshView) && rajeshView.length === 0);
+
+        // Same department check: Prof. AnotherAE belongs to AE like Prof. Rajesh, but is NOT assigned to CE class
+        const profAnotherAE = { id: 'FAC_AE99', name: 'Prof. Another AE', dept: 'Aeronautical Engineering' };
+        const anotherCanTeach = window.canFacultyTeachClassAndSubject(profAnotherAE, 'Computer Engineering', '3rd Sem', 'Div 2', 'SUB_PYTHON');
+        assert('Same home department does not grant access to another faculty classes', anotherCanTeach === false);
+
+        // =====================================================================
+        // Test Group 7: Student Enrollment & Attendance Across Departments
+        // =====================================================================
+        // Register students across multiple departments
+        const importRows = [
+          { name: 'Aarav Patel', enrollmentNo: '26AE001', department: 'Aeronautical Engineering', semester: '3rd Sem', division: 'Div 1', batch: 'Batch A' },
+          { name: 'Bhavin Shah', enrollmentNo: '26CL001', department: 'Civil Engineering', semester: '3rd Sem', division: 'Div 1', batch: 'Batch A' },
+          { name: 'Chirag Joshi', enrollmentNo: '26CE001', department: 'Computer Engineering', semester: '3rd Sem', division: 'Div 2', batch: 'Batch A' }
+        ];
+        const regStats = window.bulkRegisterStudents(importRows, '2026-27');
+        assert('Bulk register imports students across departments', regStats.importedCount === 3);
+
+        const studentsInDb = window.getStudents();
+        assert('Student in AE saved correctly', studentsInDb.some(s => s.enrollmentNo === '26AE001' && s.department === 'Aeronautical Engineering'));
+        assert('Student in CL saved correctly', studentsInDb.some(s => s.enrollmentNo === '26CL001' && s.department === 'Civil Engineering'));
+        assert('Student in CE saved correctly', studentsInDb.some(s => s.enrollmentNo === '26CE001' && s.department === 'Computer Engineering'));
+
+        // Record attendance for CE class with student Chirag Joshi
+        const stChirag = studentsInDb.find(s => s.enrollmentNo === '26CE001');
+        const sessCE = window.saveSession({
+          id: 'SESS_CE_PY_01',
+          facultyId: 'FAC_ME01',
+          facultyName: 'Prof. Rajesh Sharma',
+          department: 'Computer Engineering',
+          sem: '3rd Sem',
+          division: 'Div 2',
+          batch: 'ALL',
+          subjectId: 'SUB_PYTHON',
+          subjectName: 'Python Programming',
+          date: '2026-10-27',
+          timeSlot: '9:00 - 9:55',
+          records: { [stChirag.id]: 'present' }
+        }, profRajesh);
+        const savedSess = sessCE.saved || (Array.isArray(sessCE) ? sessCE.find(s => s.id === 'SESS_CE_PY_01') : sessCE);
+        assert('Attendance recorded successfully for cross-dept class', savedSess && savedSess.records && savedSess.records[stChirag.id] === 'present');
+
+        // =====================================================================
+        // Test Group 8: Excel Timetable Upload Across Every Configured Department
+        // =====================================================================
+        // Build columnar timetable with rows in every department + cross-dept teaching
+        const ttHeaders = ['Faculty ID', 'Faculty Name', 'Department', 'Semester', 'Division', 'Batch', 'Subject', 'Day', 'Time', 'Room', 'Type'];
+        const ttRows = [
+          ttHeaders,
+          ['FAC_PS', 'Prof. Priya Shah', 'Aeronautical Engineering', '3rd Sem', 'Div 1', 'ALL', 'Aerodynamics', 'Monday', '9:00 - 9:55', 'Room 101', 'Lecture'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Civil Engineering', '3rd Sem', 'Div 1', 'ALL', 'Surveying', 'Tuesday', '10:00 - 10:50', 'Room 102', 'Lecture'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Food Processing Technology', '3rd Sem', 'Div 1', 'Batch A', 'Food Microbiology Lab', 'Wednesday', '10:55 - 12:40', 'Lab FPT', 'Lab'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Dairy Technology', '3rd Sem', 'Div 1', 'ALL', 'Dairy Chemistry', 'Thursday', '1:25 - 2:15', 'Room 104', 'Lecture'],
+          ['FAC_PS', 'Prof. Priya Shah', 'Elective (No Department)', '5th Sem', 'Elective Class A', 'ALL', 'Cyber Security', 'Friday', '2:20 - 3:10', 'Room 201', 'Lecture']
+        ];
+        const wb = XLSX.utils.aoa_to_sheet(ttRows);
+        const wbBook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wbBook, wb, 'Timetable');
+        const ttBuffer = XLSX.write(wbBook, { type: 'array', bookType: 'xlsx' });
+
+        const parseResult = await window.parseExcelTimetableForFaculty(ttBuffer, 'FAC_PS', '3rd Sem', 'Div 1', 'DEP_AI');
+        assert('Excel timetable parses all departments without errors', parseResult.errorRows.length === 0, `errors: ${JSON.stringify(parseResult.errorRows)}`);
+        assert('Valid lectures parsed for every department row', parseResult.validLectures.length >= 5);
+
+        // Upload unknown department row and verify clear error
+        const badRows = [
+          ttHeaders,
+          ['FAC_PS', 'Prof. Priya Shah', 'UNKNOWN_FICTIONAL_DEPT_XYZ', '3rd Sem', 'Div 1', 'ALL', 'Magic 101', 'Monday', '9:00 - 9:55', 'Room 999', 'Lecture']
+        ];
+        const badWb = XLSX.utils.aoa_to_sheet(badRows);
+        const badBook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(badBook, badWb, 'BadTimetable');
+        const badBuffer = XLSX.write(badBook, { type: 'array', bookType: 'xlsx' });
+
+        const badResult = await window.parseExcelTimetableForFaculty(badBuffer, 'FAC_PS', '3rd Sem', 'Div 1', 'DEP_AI');
+        assert('Unknown department generates clear validation error', badResult.errorRows.length > 0);
+        assert('Error message explicitly identifies unknown department', badResult.errorRows[0].error.includes('UNKNOWN_FICTIONAL_DEPT_XYZ'));
+
+        // =====================================================================
+        // Test Group 9: Existing Timetable Merging (2-Slot Lab) Preserved
+        // =====================================================================
+        // Wednesday Food Microbiology Lab at 10:55 - 12:40 (2 consecutive slots)
+        window.commitUploadedTimetable('faculty', 'FAC_PS', parseResult);
+        const wedLabEntries = window.getTimetableEntries().filter(e => e.day === 'Wednesday' && e.subjectName.includes('Food Microbiology'));
+        assert('2-Hour Lab creates linked entries in database across departments', wedLabEntries.length === 2);
+        assert('Linked Lab entries share the same sessionId', wedLabEntries[0].sessionId === wedLabEntries[1].sessionId);
+        assert('Slot 1 has span: 2', wedLabEntries[0].span === 2);
+        assert('Slot 2 is marked as continuation', wedLabEntries[1].isContinuation === true);
+
+        // =====================================================================
+        // Test Group 10: Adding New Department Requires No Code Changes or Rebuild
+        // =====================================================================
+        // Add dynamic department "Nano Technology" (NT)
+        window.saveDepartment({
+          code: 'NT',
+          name: 'Nano Technology',
+          fullName: 'Department of Nano Technology & Advanced Materials'
+        });
+
+        // Timetable parser immediately accepts the new department
+        const ntRows = [
+          ttHeaders,
+          ['FAC_PS', 'Prof. Priya Shah', 'Nano Technology', '3rd Sem', 'Div 1', 'ALL', 'Nanomaterials', 'Saturday', '9:05 - 9:55', 'Room 401', 'Lecture']
+        ];
+        const ntWb = XLSX.utils.aoa_to_sheet(ntRows);
+        const ntBook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(ntBook, ntWb, 'NT');
+        const ntBuffer = XLSX.write(ntBook, { type: 'array', bookType: 'xlsx' });
+
+        const ntResult = await window.parseExcelTimetableForFaculty(ntBuffer, 'FAC_PS', '3rd Sem', 'Div 1', 'DEP_NT');
+        assert('New department parsed immediately without code change', ntResult.errorRows.length === 0);
+        assert('New department resolved correctly to DEP_NT', ntResult.validLectures.some(l => l.departmentId === 'DEP_NT'));
+
+        // =====================================================================
+        // Post Test Results
+        // =====================================================================
+        const allPassed = results.every(r => r.pass);
+        const summary = `Total Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        statusEl.textContent = allPassed ? 'All Tests Passed! ✅' : 'Some Tests Failed! ❌';
+        statusEl.style.color = allPassed ? '#166534' : '#991b1b';
+        console.log(summary);
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed, summary })
+        });
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.style.color = '#991b1b';
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: err.message, stack: err.stack, allPassed: false })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

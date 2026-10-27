@@ -354,12 +354,12 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
     try {
       const isElective = Boolean(classForm.isElective);
       let subjName = classForm.subjectName;
-      if (isElective && classForm.subjectId && !subjName) {
+      if (classForm.subjectId && !subjName) {
         const sub = allSubjects.find(s => s.id === classForm.subjectId || s.code === classForm.subjectId);
         if (sub) subjName = sub.name;
       }
       let facName = classForm.facultyName;
-      if (isElective && classForm.facultyId && !facName) {
+      if (classForm.facultyId && !facName) {
         const fac = allFaculties.find(f => f.id === classForm.facultyId);
         if (fac) facName = fac.name;
       }
@@ -368,14 +368,16 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
         ...(editingClass ? { id: editingClass.id } : {}),
         isElective,
         departmentName: isElective ? null : classForm.departmentName,
+        departmentId: isElective ? null : classForm.departmentId,
         semester: classForm.semester,
         division: classForm.division,
+        batch: classForm.batch || 'ALL',
         name: classForm.division,
         academicYear: classForm.academicYear,
-        subjectId: isElective ? classForm.subjectId : undefined,
-        subjectName: isElective ? (subjName || classForm.subjectId) : undefined,
-        facultyId: isElective ? classForm.facultyId : undefined,
-        facultyName: isElective ? facName : undefined,
+        subjectId: classForm.subjectId || undefined,
+        subjectName: subjName || classForm.subjectName || undefined,
+        facultyId: classForm.facultyId || undefined,
+        facultyName: facName || undefined,
         studentEnrollmentNos: classForm.excelStats ? classForm.excelStats.matchedEnrollmentNos : (editingClass?.studentEnrollmentNos || []),
         studentIds: classForm.excelStats ? classForm.excelStats.matchedStudentIds : (editingClass?.studentIds || [])
       });
@@ -2112,19 +2114,79 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
 
                   {/* Department Field: Required for Regular, Omitted for Elective */}
                   {!classForm.isElective ? (
-                    <div className="form-group">
-                      <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Department *</label>
-                      <select
-                        className="form-control"
-                        value={classForm.departmentName}
-                        onChange={(e) => setClassForm(prev => ({ ...prev, departmentName: e.target.value }))}
-                        required
-                      >
-                        {departments.map(d => (
-                          <option key={d.id || d.name} value={d.name}>{d.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <>
+                      <div className="form-group">
+                        <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Department *</label>
+                        <select
+                          id="select-class-department"
+                          className="form-control"
+                          value={classForm.departmentName}
+                          onChange={(e) => {
+                            const dName = e.target.value;
+                            const dObj = departments.find(d => d.name === dName || d.id === dName);
+                            setClassForm(prev => ({ 
+                              ...prev, 
+                              departmentName: dName,
+                              departmentId: dObj ? dObj.id : prev.departmentId 
+                            }));
+                          }}
+                          required
+                        >
+                          {departments.map(d => (
+                            <option key={d.id || d.name} value={d.name}>
+                              {d.name} ({d.code || d.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Regular Class Optional Subject & Assigned Faculty (Cross-Department Supported) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="form-group">
+                          <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Subject (Optional)</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. DBMS, Python, Mechanics"
+                            value={classForm.subjectName || classForm.subjectId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setClassForm(prev => ({ ...prev, subjectId: val, subjectName: val }));
+                            }}
+                            list="regular-subject-options"
+                          />
+                          <datalist id="regular-subject-options">
+                            {allSubjects.map(s => (
+                              <option key={s.id} value={s.name}>{s.code ? `(${s.code}) ` : ''}{s.name}</option>
+                            ))}
+                          </datalist>
+                        </div>
+
+                        <div className="form-group">
+                          <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Assigned Faculty (Cross-Dept Allowed)</label>
+                          <select
+                            className="form-control"
+                            value={classForm.facultyId}
+                            onChange={(e) => {
+                              const fId = e.target.value;
+                              const fac = allFaculties.find(f => f.id === fId);
+                              setClassForm(prev => ({ 
+                                ...prev, 
+                                facultyId: fId, 
+                                facultyName: fac ? fac.name : '' 
+                              }));
+                            }}
+                          >
+                            <option value="">-- Optional: Assign Faculty --</option>
+                            {allFaculties.map(f => (
+                              <option key={f.id} value={f.id}>
+                                {f.name} ({f.dept || 'ADIT'})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div style={{ padding: '10px 14px', backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', fontSize: '12.5px', color: '#6d28d9' }}>
                       ⚡ <strong>Elective Class:</strong> No department required. Students from any department in this semester can enroll.
@@ -2229,6 +2291,24 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                         </select>
                       )}
                     </div>
+                  </div>
+
+                  {!classForm.isElective && (
+                    <div className="form-group">
+                      <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Batch (Where Applicable)</label>
+                      <select
+                        className="form-control"
+                        value={classForm.batch || 'ALL'}
+                        onChange={(e) => setClassForm(prev => ({ ...prev, batch: e.target.value }))}
+                      >
+                        <option value="ALL">All Batches (Entire Class)</option>
+                        <option value="Batch A">Batch A</option>
+                        <option value="Batch B">Batch B</option>
+                        <option value="Batch C">Batch C</option>
+                      </select>
+                    </div>
+                  )}
+                  <div style={{ display: 'none' }}>
                   </div>
 
                   {/* Academic Year */}

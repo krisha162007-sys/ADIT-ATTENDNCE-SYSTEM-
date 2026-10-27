@@ -38,6 +38,9 @@ import * as XLSX from 'xlsx';
 import { 
   getDepartments, 
   saveDepartment, 
+  deactivateDepartment,
+  reactivateDepartment,
+  isDepartmentMatch,
   getFaculties, 
   saveFaculty, 
   deleteFaculty,
@@ -84,6 +87,19 @@ export default function DepartmentAdminPanel({
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+  const [showEditFacultyModal, setShowEditFacultyModal] = useState(false);
+  const [editingFacultyForm, setEditingFacultyForm] = useState(null);
+  const [newDeptForm, setNewDeptForm] = useState({
+    code: '',
+    name: '',
+    fullName: '',
+    hod: '',
+    hodEmail: '',
+    hodPhone: '',
+    cabin: '',
+    established: '2026'
+  });
 
   // Replace Faculty Modal state
   const [showReplaceModal, setShowReplaceModal] = useState(false);
@@ -150,10 +166,10 @@ export default function DepartmentAdminPanel({
     };
   }, [departments, selectedDeptName]);
 
-  // Faculties belonging to this department
+  // Faculties belonging to this department (Category)
   const deptFaculties = useMemo(() => {
     return faculties.filter(f => {
-      const matchDept = !f.dept || f.dept.toLowerCase().includes(currentDept.name.toLowerCase().slice(0, 4));
+      const matchDept = !f.dept || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
       const matchQuery = !q || 
         f.name.toLowerCase().includes(q) || 
@@ -166,7 +182,7 @@ export default function DepartmentAdminPanel({
   // Subjects belonging to this department
   const deptSubjects = useMemo(() => {
     return subjects.filter(s => {
-      return !s.dept || s.dept.toLowerCase().includes(currentDept.name.toLowerCase().slice(0, 4));
+      return !s.dept || isDepartmentMatch(s.dept, currentDept.name);
     });
   }, [subjects, currentDept]);
 
@@ -233,6 +249,70 @@ export default function DepartmentAdminPanel({
       divisions: currentDept.divisions || []
     });
     setShowEditDeptModal(true);
+  };
+
+  // Toggle Department Active / Inactive Status
+  const handleToggleDepartmentStatus = () => {
+    const isInactive = currentDept.status === 'inactive';
+    if (isInactive) {
+      const updated = reactivateDepartment(currentDept.id);
+      setDepartments([...updated]);
+      if (showToast) showToast(`Department "${currentDept.name}" reactivated!`);
+    } else {
+      if (window.confirm(`Are you sure you want to deactivate ${currentDept.name}? Historical attendance records and data will be fully preserved.`)) {
+        const updated = deactivateDepartment(currentDept.id);
+        setDepartments([...updated]);
+        if (showToast) showToast(`Department "${currentDept.name}" deactivated. Historical records preserved.`);
+      }
+    }
+  };
+
+  // Save New Department
+  const handleSaveNewDepartment = (e) => {
+    e.preventDefault();
+    if (!newDeptForm.code || !newDeptForm.name) {
+      alert('Department Code and Name are required');
+      return;
+    }
+    const updated = saveDepartment({
+      ...newDeptForm,
+      status: 'active'
+    });
+    setDepartments([...updated]);
+    setSelectedDeptName(newDeptForm.name);
+    setShowAddDeptModal(false);
+    setNewDeptForm({ code: '', name: '', fullName: '', hod: '', hodEmail: '', hodPhone: '', cabin: '', established: '2026' });
+    if (showToast) showToast(`Department "${newDeptForm.name}" created!`);
+  };
+
+  // Open Edit Faculty Modal
+  const handleOpenEditFaculty = (fac) => {
+    setEditingFacultyForm({
+      id: fac.id,
+      name: fac.name || '',
+      dept: fac.dept || currentDept.name,
+      designation: fac.designation || 'Assistant Professor',
+      email: fac.email || '',
+      phone: fac.phone || '',
+      subjects: fac.subjects || '',
+      password: fac.password || 'faculty123'
+    });
+    setShowEditFacultyModal(true);
+  };
+
+  // Save Faculty Edit
+  const handleSaveFacultyEdit = (e) => {
+    e.preventDefault();
+    if (!editingFacultyForm.name.trim()) {
+      alert('Faculty name is required');
+      return;
+    }
+    const updated = saveFaculty(editingFacultyForm);
+    notifyTimetableSync();
+    setFaculties([...updated]);
+    setShowEditFacultyModal(false);
+    if (showToast) showToast(`Faculty details updated for ${editingFacultyForm.name}!`);
+    window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
   };
 
   // Save Department Edit
@@ -487,6 +567,7 @@ export default function DepartmentAdminPanel({
               Department Admin:
             </span>
             <select
+              id="select-active-department"
               value={selectedDeptName}
               onChange={(e) => setSelectedDeptName(e.target.value)}
               style={{
@@ -501,11 +582,37 @@ export default function DepartmentAdminPanel({
             >
               {departments.map((d) => (
                 <option key={d.id || d.name} value={d.name}>
-                  {d.name} ({d.code})
+                  {d.name} ({d.code}){d.status === 'inactive' ? ' [Deactivated]' : ''}
                 </option>
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowAddDeptModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '700' }}
+          >
+            <Plus size={14} /> Add Department
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={handleToggleDepartmentStatus}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontWeight: '700',
+              backgroundColor: currentDept.status === 'inactive' ? '#ecfdf5' : '#fff1f2',
+              color: currentDept.status === 'inactive' ? '#059669' : '#e11d48',
+              border: `1px solid ${currentDept.status === 'inactive' ? '#a7f3d0' : '#fecdd3'}`
+            }}
+          >
+            {currentDept.status === 'inactive' ? 'Reactivate Department' : 'Deactivate Department'}
+          </button>
 
           <div style={{
             display: 'flex',
@@ -958,6 +1065,26 @@ export default function DepartmentAdminPanel({
                           </td>
                           <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                title="Edit Faculty Profile & Home Department"
+                                onClick={() => handleOpenEditFaculty(fac)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '5px 10px',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  color: '#0f172a',
+                                  backgroundColor: '#f1f5f9',
+                                  border: '1px solid #cbd5e1'
+                                }}
+                              >
+                                <Edit3 size={13} />
+                                <span>Edit</span>
+                              </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
@@ -1884,6 +2011,210 @@ export default function DepartmentAdminPanel({
         );
       })()}
 
+
+      {/* ===================================================================
+          MODAL: EDIT FACULTY MEMBER & HOME DEPARTMENT
+          =================================================================== */}
+      {showEditFacultyModal && editingFacultyForm && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+                <Edit3 size={18} />
+                Edit Faculty: {editingFacultyForm.name}
+              </h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowEditFacultyModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveFacultyEdit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={editingFacultyForm.name}
+                    onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty ID</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={editingFacultyForm.id}
+                    disabled
+                    style={{ backgroundColor: '#f8fafc', color: '#64748b' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Home Department / Category *</label>
+                  <select
+                    className="form-control"
+                    value={editingFacultyForm.dept}
+                    onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, dept: e.target.value })}
+                    required
+                  >
+                    {departments.map(d => (
+                      <option key={d.id || d.name} value={d.name}>
+                        {d.name} ({d.code})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                    Identifies home department. Faculty can be assigned to teach classes in any department.
+                  </span>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Designation</label>
+                  <select
+                    className="form-control"
+                    value={editingFacultyForm.designation}
+                    onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, designation: e.target.value })}
+                  >
+                    <option value="Professor & HOD">Professor & HOD</option>
+                    <option value="Professor">Professor</option>
+                    <option value="Associate Professor">Associate Professor</option>
+                    <option value="Assistant Professor">Assistant Professor</option>
+                    <option value="Visiting Faculty">Visiting Faculty</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Official Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={editingFacultyForm.email}
+                      onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Contact Phone</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editingFacultyForm.phone}
+                      onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Subjects Handled</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={editingFacultyForm.subjects}
+                    onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, subjects: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditFacultyModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">
+                  <Check size={16} /> Save Faculty Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================
+          MODAL: ADD NEW ACADEMIC DEPARTMENT
+          =================================================================== */}
+      {showAddDeptModal && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a' }}>
+                <Building2 size={18} />
+                Create New Academic Department
+              </h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowAddDeptModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveNewDepartment}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Code *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. ME, EE, IT"
+                      value={newDeptForm.code}
+                      onChange={(e) => setNewDeptForm({ ...newDeptForm, code: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Department Name *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Mechanical Engineering"
+                      value={newDeptForm.name}
+                      onChange={(e) => setNewDeptForm({ ...newDeptForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>HOD Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Prof. R. K. Patel"
+                    value={newDeptForm.hod}
+                    onChange={(e) => setNewDeptForm({ ...newDeptForm, hod: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>HOD Email</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      placeholder="hod@adit.ac.in"
+                      value={newDeptForm.hodEmail}
+                      onChange={(e) => setNewDeptForm({ ...newDeptForm, hodEmail: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Contact Phone</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="+91 98250 11111"
+                      value={newDeptForm.hodPhone}
+                      onChange={(e) => setNewDeptForm({ ...newDeptForm, hodPhone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddDeptModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">
+                  <Check size={16} /> Create Department
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

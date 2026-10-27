@@ -928,22 +928,13 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     return getEntriesByFaculty(currentFaculty.id);
   }, [currentFaculty.id, timetableSyncTick]);
 
-  // Distinct classes relevant for this faculty
+  // Distinct classes relevant for this faculty (Strictly assignment-based, no department leakage)
   const facultyClasses = useMemo(() => {
-    const taughtMap = new Set();
-    facultyEntries.forEach(e => {
-      taughtMap.add(`${normalizeSem(e.semId || e.sem)}_${normalizeDiv(e.divId || e.div)}`);
-    });
-
-    const list = allClasses.filter(c => {
-      const isDept = c.departmentName?.toLowerCase() === currentFaculty.dept?.toLowerCase() ||
-                     c.departmentId === currentFaculty.deptId;
-      const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
-      return taughtMap.has(key) || isDept;
-    });
-
-    return list.length > 0 ? list : allClasses;
-  }, [allClasses, facultyEntries, currentFaculty]);
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      return allClasses;
+    }
+    return (authorizedClasses && authorizedClasses.length > 0) ? authorizedClasses : [];
+  }, [allClasses, authorizedClasses, currentFaculty]);
 
   // Selected Class in Register
   const [regClassId, setRegClassId] = useState('CLASS_DEP_AI_3_1_2026-27');
@@ -955,23 +946,25 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
            allClasses[0] || null;
   }, [allClasses, facultyClasses, regClassId]);
 
-  // Relevant subjects for this faculty
+  // Relevant subjects for this faculty (Strictly assignment-based)
   const facultySubjects = useMemo(() => {
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      return allSubjects;
+    }
     const list = allSubjects.filter(s => {
-      const isAssigned = s.faculty && s.faculty.toLowerCase() === currentFaculty.name.toLowerCase();
+      const isAssigned = (s.facultyId && s.facultyId === currentFaculty.id) ||
+                         (s.faculty && s.faculty.trim().toLowerCase() === (currentFaculty.name || '').trim().toLowerCase());
       const inTimetable = facultyEntries.some(e => 
         e.subjectId === s.id || 
         e.subjectId === s.shortName || 
         e.subjectName === s.shortName || 
         e.subjectFullName === s.name
       );
-      const isDept = s.dept && currentFaculty.dept && 
-        (s.dept.toLowerCase().includes(currentFaculty.dept.toLowerCase()) || 
-         currentFaculty.dept.toLowerCase().includes(s.dept.toLowerCase()));
-      return isAssigned || inTimetable || isDept;
+      const inAuthorized = authorizedSubjects.some(as => as.id === s.id || as.code === s.code);
+      return isAssigned || inTimetable || inAuthorized;
     });
-    return list.length > 0 ? list : allSubjects;
-  }, [allSubjects, currentFaculty, facultyEntries]);
+    return list.length > 0 ? list : authorizedSubjects;
+  }, [allSubjects, currentFaculty, facultyEntries, authorizedSubjects]);
 
   // Selected Subject in Register
   const [regSubjectId, setRegSubjectId] = useState('SUB_AI_DBMS');
@@ -2833,7 +2826,8 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
             {/* LECTURE DETAIL & STUDENT ROSTER MODAL */}
             {selectedLectureDetail && (() => {
               const { slot, day, time } = selectedLectureDetail;
-              const roster = getStudentsForClassCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+              const slotDept = slot.department || slot.departmentName || slot.dept || currentFaculty.dept;
+              const roster = getStudentsForClassCriteria(slot.sem, slot.div, slotDept);
               const todayStr = new Date().toISOString().split('T')[0];
               const recordedSession = allSessions.find(s => 
                 s.date === todayStr &&
@@ -2963,10 +2957,11 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         type="button"
                         className="btn btn-secondary"
                         onClick={() => {
-                          const targetClass = findClassByCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+                          const slotDept = slot.department || slot.departmentName || slot.dept || currentFaculty.dept;
+                          const targetClass = findClassByCriteria(slotDept, slot.sem, slot.div);
                           if (targetClass?.id) setRegClassId(targetClass.id);
                           if (slot.subject) setRegSubjectId(slot.subject);
-                          if (slot.dept || currentFaculty.dept) setRegNavDept(slot.dept || currentFaculty.dept);
+                          if (slotDept) setRegNavDept(slotDept);
                           if (slot.sem) setRegNavSem(slot.sem);
                           if (slot.div) setRegNavDiv(slot.div);
                           if (slot.batch) setRegNavBatch(slot.batch);

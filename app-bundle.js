@@ -44,7 +44,19 @@ const SEMESTERS = [
   { id: "7th Sem", num: 7, term: "Odd", year: "4th Year" },
   { id: "8th Sem", num: 8, term: "Even", year: "4th Year" }
 ];
-const DEFAULT_DEPARTMENTS = [];
+const INITIAL_COLLEGE_DEPARTMENTS = [
+  { id: "DEP_AE", code: "AE", name: "Aeronautical Engineering", status: "active" },
+  { id: "DEP_CL", code: "CL", name: "Civil Engineering", status: "active" },
+  { id: "DEP_EE", code: "EE", name: "Electrical Engineering", status: "active" },
+  { id: "DEP_EC", code: "EC", name: "Electronics & Communication Engineering", status: "active" },
+  { id: "DEP_ME", code: "ME", name: "Mechanical Engineering", status: "active" },
+  { id: "DEP_FPT", code: "FPT", name: "Food Processing Technology", status: "active" },
+  { id: "DEP_DT", code: "DT", name: "Dairy Technology", status: "active" },
+  { id: "DEP_CE", code: "CE", name: "Computer Engineering", status: "active" },
+  { id: "DEP_IT", code: "IT", name: "Information Technology", status: "active" },
+  { id: "DEP_AI", code: "AI", name: "AI & Data Science", status: "active" }
+];
+const DEFAULT_DEPARTMENTS = INITIAL_COLLEGE_DEPARTMENTS;
 const DEFAULT_FACULTIES = [];
 const DEFAULT_ALLOCATIONS = {};
 const DEFAULT_ELECTIVE_GROUPS = [];
@@ -242,7 +254,7 @@ const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
@@ -269,7 +281,7 @@ const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
   }
   if (localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) === null) {
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
   }
   if (localStorage.getItem(STORAGE_KEYS.ALLOCATIONS) === null) {
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
@@ -494,67 +506,121 @@ const getClassById = (classId) => {
   const classes = getClasses();
   return classes.find((c) => c.id === classId) || null;
 };
+const resolveDepartment = (query) => {
+  if (!query) return null;
+  const str = String(query).trim();
+  if (!str) return null;
+  const depts = getDepartments(true);
+  let found = depts.find((d) => d.id === str || d.id.toLowerCase() === str.toLowerCase());
+  if (found) return found;
+  found = depts.find((d) => d.code && d.code.toUpperCase() === str.toUpperCase());
+  if (found) return found;
+  found = depts.find((d) => d.name && d.name.toLowerCase() === str.toLowerCase());
+  if (found) return found;
+  const qLower = str.toLowerCase();
+  const keywordMap = [
+    { code: "AE", words: ["aeronautical", "automobile", "aero", "auto"] },
+    { code: "CL", words: ["civil", "civ"] },
+    { code: "EE", words: ["electrical", "elec"] },
+    { code: "EC", words: ["electronics", "communication", "ece"] },
+    { code: "ME", words: ["mechanical", "mech"] },
+    { code: "FPT", words: ["food processing", "food", "fpt"] },
+    { code: "DT", words: ["dairy technology", "dairy", "dt"] },
+    { code: "CE", words: ["computer engineering", "computer", "ce", "cp", "cse"] },
+    { code: "IT", words: ["information technology", "information", "it"] },
+    { code: "AI", words: ["artificial intelligence", "ai & ds", "ai-ds", "data science", "ai ds", "aids"] }
+  ];
+  for (const item of keywordMap) {
+    if (item.words.some((w) => qLower === w || qLower.includes(w) || w.includes(qLower))) {
+      found = depts.find((d) => d.code === item.code);
+      if (found) return found;
+    }
+  }
+  found = depts.find(
+    (d) => d.name && d.name.toLowerCase().includes(qLower) || d.name && qLower.includes(d.name.toLowerCase())
+  );
+  if (found) return found;
+  return null;
+};
+const isDepartmentMatch = (deptA, deptB) => {
+  if (!deptA || !deptB) return true;
+  if (deptA === deptB) return true;
+  const a = String(deptA).trim();
+  const b = String(deptB).trim();
+  if (a.toLowerCase() === b.toLowerCase()) return true;
+  if (a.toLowerCase() === "all" || b.toLowerCase() === "all") return true;
+  if (a.toLowerCase().includes("elective") || b.toLowerCase().includes("elective")) return true;
+  const da = resolveDepartment(a);
+  const db = resolveDepartment(b);
+  if (da && db) {
+    return da.id === db.id || da.code === db.code;
+  }
+  if (da) {
+    return da.name.toLowerCase() === b.toLowerCase() || da.code.toLowerCase() === b.toLowerCase() || da.id.toLowerCase() === b.toLowerCase();
+  }
+  if (db) {
+    return db.name.toLowerCase() === a.toLowerCase() || db.code.toLowerCase() === a.toLowerCase() || db.id.toLowerCase() === a.toLowerCase();
+  }
+  return a.toLowerCase().includes(b.toLowerCase()) || b.toLowerCase().includes(a.toLowerCase());
+};
 const findClassByCriteria = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const classes = getClasses();
   const normSem = normalizeSem(semester);
   const normDiv = normalizeDiv(division);
   const normYear = (academicYear || DEFAULT_ACADEMIC_YEAR).trim();
-  let targetDeptId = null;
-  let targetDeptName = null;
-  if (department) {
-    const dStr = String(department).trim().toLowerCase();
-    const depts = getDepartments();
-    const found = depts.find(
-      (d) => d.id && d.id.toLowerCase() === dStr || d.name && d.name.toLowerCase() === dStr || d.code && d.code.toLowerCase() === dStr || d.name && d.name.toLowerCase().includes(dStr) || d.name && dStr.includes(d.name.toLowerCase())
-    );
-    if (found) {
-      targetDeptId = found.id;
-      targetDeptName = found.name;
-    } else {
-      targetDeptName = department;
-    }
-  }
+  const isElective = !department || department === "Elective" || department === "Elective (No Department)" || department === "DEP_ELECTIVE";
+  const resolvedDept = !isElective ? resolveDepartment(department) : null;
   return classes.find((c) => {
     const semMatch = normalizeSem(c.semester) === normSem;
     const divMatch = normalizeDiv(c.division || c.name) === normDiv;
     const yearMatch = !c.academicYear || c.academicYear === normYear;
-    const cDeptName = c.departmentName || c.department || "";
-    const deptMatch = !department || targetDeptId && c.departmentId === targetDeptId || targetDeptName && cDeptName && cDeptName.toLowerCase().includes(targetDeptName.toLowerCase()) || cDeptName && cDeptName.toLowerCase().includes(String(department).toLowerCase());
+    if (isElective && c.isElective) {
+      return semMatch && divMatch && yearMatch;
+    }
+    if (c.isElective && !isElective) return false;
+    const deptMatch = !department || isDepartmentMatch(c.departmentName || c.departmentId || c.department, resolvedDept ? resolvedDept.name : department);
     return semMatch && divMatch && yearMatch && deptMatch;
   }) || null;
 };
 const getOrCreateClass = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const existing = findClassByCriteria(department, semester, division, academicYear);
   if (existing) return existing;
-  const depts = getDepartments();
-  let deptId = "DEP_AI";
-  let deptName = "AI & Data Science";
-  if (department) {
-    const dStr = String(department).toLowerCase();
-    const found = depts.find((d) => d.id.toLowerCase() === dStr || d.name.toLowerCase() === dStr || d.name.toLowerCase().includes(dStr));
-    if (found) {
-      deptId = found.id;
-      deptName = found.name;
+  const isElective = !department || department === "Elective" || department === "Elective (No Department)" || department === "DEP_ELECTIVE";
+  let deptId = null;
+  let deptName = null;
+  if (!isElective) {
+    const resolved = resolveDepartment(department);
+    if (resolved) {
+      deptId = resolved.id;
+      deptName = resolved.name;
     } else {
-      deptName = department;
+      deptName = String(department).trim();
+      deptId = "DEP_" + deptName.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     }
+  } else {
+    deptId = null;
+    deptName = "Elective (No Department)";
   }
   const normSem = normalizeSem(semester);
   const normDiv = normalizeDiv(division);
-  const normYear = academicYear || DEFAULT_ACADEMIC_YEAR;
+  const normYear = (academicYear || DEFAULT_ACADEMIC_YEAR).trim();
   const newClass = {
-    id: `CLASS_${deptId}_${normSem.replace(/[^0-9]/g, "")}_${normDiv.replace(/[^0-9]/g, "")}_${normYear.replace(/[^0-9]/g, "_")}`,
-    departmentId: deptId,
-    departmentName: deptName,
+    id: isElective ? `CLASS_ELECTIVE_${normSem.replace(/[^0-9]/g, "")}_${normDiv.replace(/[^0-9]/g, "")}_${normYear.replace(/[^0-9]/g, "_")}` : `CLASS_${deptId}_${normSem.replace(/[^0-9]/g, "")}_${normDiv.replace(/[^0-9]/g, "")}_${normYear.replace(/[^0-9]/g, "_")}`,
+    name: isElective ? normDiv : `${deptName} - ${normSem} - ${normDiv}`,
+    departmentId: isElective ? null : deptId,
+    departmentName: isElective ? "Elective (No Department)" : deptName,
     semester: normSem,
     division: normDiv,
+    batch: "ALL",
     academicYear: normYear,
+    isElective,
     createdAt: (/* @__PURE__ */ new Date()).toISOString(),
     status: "active"
   };
   saveClass(newClass);
   return newClass;
 };
+const addClass = (classData, userContext = null) => saveClass(classData, userContext);
 const saveClass = (classData, userContext = null) => {
   const user = userContext || getCurrentUser();
   if (user && user.role === "student") {
@@ -570,24 +636,17 @@ const saveClass = (classData, userContext = null) => {
   let deptId = null;
   let deptName = null;
   if (!isElective) {
-    const depts = getDepartments();
-    deptId = classData.departmentId;
-    deptName = classData.departmentName;
-    if (deptId && !deptName) {
-      const f = depts.find((d) => d.id === deptId);
-      if (f) deptName = f.name;
-    } else if (!deptId && deptName) {
-      const f = depts.find((d) => d.name.toLowerCase() === deptName.toLowerCase() || d.id === deptName);
-      if (f) {
-        deptId = f.id;
-        deptName = f.name;
-      }
+    const resolved = resolveDepartment(classData.departmentName || classData.departmentId);
+    if (resolved) {
+      deptId = resolved.id;
+      deptName = resolved.name;
+    } else {
+      deptName = classData.departmentName || "Engineering";
+      deptId = classData.departmentId || "DEP_" + deptName.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     }
-    if (!deptId) deptId = "DEP_AI";
-    if (!deptName) deptName = "AI & Data Science";
   } else {
     deptId = null;
-    deptName = classData.departmentName || "Elective (No Department)";
+    deptName = "Elective (No Department)";
   }
   const classes = getClasses();
   const duplicate = classes.find((c) => {
@@ -599,7 +658,7 @@ const saveClass = (classData, userContext = null) => {
       const sameDiv = (c.division || c.name || "").trim().toLowerCase() === normDiv.toLowerCase();
       return Boolean(c.isElective) && sameSubj && sameSem && sameDiv && sameYear;
     } else {
-      return !c.isElective && c.departmentId === deptId && sameSem && normalizeDiv(c.division) === normalizeDiv(normDiv) && sameYear;
+      return !c.isElective && (c.departmentId === deptId || isDepartmentMatch(c.departmentName || c.departmentId, deptName || deptId)) && sameSem && normalizeDiv(c.division) === normalizeDiv(normDiv) && sameYear;
     }
   });
   if (duplicate) {
@@ -695,7 +754,7 @@ const saveClass = (classData, userContext = null) => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-classes-updated"));
   }
-  return { success: true, class: savedClass, classes };
+  return { ...savedClass, success: true, class: savedClass, classes };
 };
 const deleteClass = (classId, deleteStudents = false, userContext = null) => {
   const user = userContext || getCurrentUser();
@@ -1189,7 +1248,11 @@ const canFacultyTeachClassAndSubject = (faculty, dept, sem, div, subjectId) => {
   const targetSem = sem ? normalizeSem(sem) : null;
   const targetDiv = div && div !== "ALL" ? normalizeDiv(div) : null;
   const targetSubj = subjectId ? String(subjectId).trim().toLowerCase() : null;
+  const isTargetElective = !dept || dept.toLowerCase().includes("elective");
   return assignments.some((a) => {
+    if (dept && !isTargetElective && a.department && !a.department.toLowerCase().includes("elective")) {
+      if (!isDepartmentMatch(a.department, dept)) return false;
+    }
     if (targetSem && a.semester && normalizeSem(a.semester) !== targetSem) return false;
     if (targetDiv && a.division && a.division !== "ALL" && normalizeDiv(a.division) !== targetDiv) return false;
     if (targetSubj) {
@@ -1208,26 +1271,55 @@ const getAuthorizedFacultyClasses = (facultyOrUser = null) => {
   }
   const assignments = getFacultyAuthorizedAssignments(user);
   if (assignments.some((a) => a.isUniversal)) return allClasses;
-  const authorizedMap = /* @__PURE__ */ new Set();
-  assignments.forEach((a) => {
-    authorizedMap.add(`${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`);
+  const facId = user.facultyId || user.id;
+  const facName = (user.name || "").trim().toLowerCase();
+  const matched = [];
+  const addedIds = /* @__PURE__ */ new Set();
+  allClasses.forEach((c) => {
+    const matchFac = c.facultyId && (c.facultyId === facId || c.facultyId === user.id) || c.facultyName && c.facultyName.trim().toLowerCase() === facName;
+    if (matchFac && !addedIds.has(c.id)) {
+      matched.push(c);
+      addedIds.add(c.id);
+    }
   });
-  const matched = allClasses.filter((c) => {
-    const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
-    return authorizedMap.has(key);
+  allClasses.forEach((c) => {
+    if (addedIds.has(c.id)) return;
+    const isMatch = assignments.some((a) => {
+      if (c.isElective) {
+        if (!a.department?.toLowerCase().includes("elective") && a.department !== "Elective (No Department)") {
+          return a.subjectId && (a.subjectId === c.subjectId || a.subjectName === c.subjectName) && normalizeSem(a.semester) === normalizeSem(c.semester);
+        }
+        return normalizeSem(a.semester) === normalizeSem(c.semester);
+      }
+      const deptOk = isDepartmentMatch(c.departmentName || c.departmentId, a.department);
+      const semOk = normalizeSem(c.semester) === normalizeSem(a.semester);
+      const divOk = normalizeDiv(c.division || c.name) === normalizeDiv(a.division);
+      return deptOk && semOk && divOk;
+    });
+    if (isMatch) {
+      matched.push(c);
+      addedIds.add(c.id);
+    }
   });
   assignments.forEach((a) => {
-    const key = `${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`;
-    if (!matched.some((c) => `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}` === key)) {
-      matched.push({
-        id: `CLASS_AUTH_${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`,
-        departmentName: a.department || user.dept || "Engineering",
-        departmentId: a.department || user.dept || "DEP",
-        semester: a.semester,
-        division: a.division,
-        batch: a.batch || "ALL",
-        academicYear: DEFAULT_ACADEMIC_YEAR
-      });
+    if (!a.semester || !a.division) return;
+    const isAlreadyCovered = matched.some(
+      (c) => isDepartmentMatch(c.departmentName || c.departmentId, a.department) && normalizeSem(c.semester) === normalizeSem(a.semester) && normalizeDiv(c.division || c.name) === normalizeDiv(a.division)
+    );
+    if (!isAlreadyCovered) {
+      const synthId = `CLASS_AUTH_${(a.department || user.dept || "DEP").replace(/[^A-Za-z0-9]/g, "")}_${normalizeSem(a.semester).replace(/[^0-9]/g, "")}_${normalizeDiv(a.division).replace(/[^0-9]/g, "")}`;
+      if (!addedIds.has(synthId)) {
+        matched.push({
+          id: synthId,
+          departmentName: a.department || user.dept || "Engineering",
+          departmentId: a.department || user.dept || "DEP",
+          semester: a.semester,
+          division: a.division,
+          batch: a.batch || "ALL",
+          academicYear: DEFAULT_ACADEMIC_YEAR
+        });
+        addedIds.add(synthId);
+      }
     }
   });
   return matched;
@@ -1971,7 +2063,7 @@ const deleteSession = (sessionId, userContext = null) => {
   return filtered;
 };
 const resetToDefault = () => {
-  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
@@ -2127,27 +2219,91 @@ const deleteFaculty = (facultyId, userContext = null) => {
   }
   return faculties;
 };
-const getDepartments = () => {
+const getDepartments = (includeInactive = true) => {
   initializeStorage();
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) || JSON.stringify(DEFAULT_DEPARTMENTS));
+  const raw = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
+  let list = [];
+  try {
+    list = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    list = [];
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    list = [...INITIAL_COLLEGE_DEPARTMENTS];
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(list));
+  } else {
+    let updated = false;
+    INITIAL_COLLEGE_DEPARTMENTS.forEach((initD) => {
+      const exists = list.some((d) => d.id === initD.id || d.code && d.code.toUpperCase() === initD.code.toUpperCase());
+      if (!exists) {
+        list.push({ ...initD });
+        updated = true;
+      }
+    });
+    if (updated) {
+      localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(list));
+    }
+  }
+  if (!includeInactive) {
+    return list.filter((d) => d.status !== "inactive");
+  }
+  return list;
+};
+const getActiveDepartments = () => {
+  return getDepartments(false);
 };
 const saveDepartment = (dept) => {
-  const depts = getDepartments();
-  if (dept.id) {
-    const idx = depts.findIndex((d) => d.id === dept.id);
-    if (idx !== -1) depts[idx] = dept;
-    else depts.push(dept);
+  const depts = getDepartments(true);
+  const code = (dept.code || "").trim().toUpperCase();
+  const name = (dept.name || "").trim();
+  const id = dept.id || (code ? `DEP_${code.replace(/[^A-Z0-9]/g, "")}` : `DEP_${Date.now().toString().slice(-4)}`);
+  const idx = depts.findIndex(
+    (d) => d.id === id || code && d.code && d.code.toUpperCase() === code || name && d.name && d.name.toLowerCase() === name.toLowerCase()
+  );
+  const updatedDept = {
+    ...dept,
+    id: idx !== -1 ? depts[idx].id : id,
+    code: code || (idx !== -1 ? depts[idx].code : id.replace("DEP_", "")),
+    name: name || (idx !== -1 ? depts[idx].name : code),
+    status: dept.status || (idx !== -1 && depts[idx].status ? depts[idx].status : "active")
+  };
+  if (idx !== -1) {
+    depts[idx] = { ...depts[idx], ...updatedDept };
   } else {
-    dept.id = "DEP_" + Date.now().toString().slice(-4);
-    depts.push(dept);
+    depts.push(updatedDept);
   }
   localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("adit-departments-updated"));
+  }
+  return depts;
+};
+const deactivateDepartment = (deptId) => {
+  const depts = getDepartments(true);
+  const dept = depts.find((d) => d.id === deptId || d.code === deptId || d.name === deptId);
+  if (dept) {
+    dept.status = "inactive";
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("adit-departments-updated"));
+    }
+  }
+  return depts;
+};
+const reactivateDepartment = (deptId) => {
+  const depts = getDepartments(true);
+  const dept = depts.find((d) => d.id === deptId || d.code === deptId || d.name === deptId);
+  if (dept) {
+    dept.status = "active";
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("adit-departments-updated"));
+    }
+  }
   return depts;
 };
 const deleteDepartment = (deptId) => {
-  const depts = getDepartments().filter((d) => d.id !== deptId);
-  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
-  return depts;
+  return deactivateDepartment(deptId);
 };
 const getAllocations = () => {
   initializeStorage();
@@ -2568,16 +2724,18 @@ const promoteStudentsSemester = ({
       student.previousSemester = prevSem;
       student.lastPromotedAt = (/* @__PURE__ */ new Date()).toISOString();
       student.lastPromotionCycle = academicCycle;
-      const studentDept = student.department || student.dept || "AI & Data Science";
+      const studentDept = student.department || student.dept || "Engineering";
       const studentDiv = student.division || "Div 1";
       const studentYear = student.academicYear || academicCycle;
+      const resolvedPromoteDept = resolveDepartment(studentDept);
+      const studentDeptId = student.departmentId || resolvedPromoteDept?.id || "DEP_" + studentDept.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
       let targetClass = findClassByCriteria(studentDept, targetSem, studentDiv, studentYear);
       if (!targetClass) {
-        const newClassId = `CLASS_${student.departmentId || "DEP_AI"}_${targetSem.replace(/[^0-9]/g, "")}_${studentDiv.replace(/[^0-9]/g, "")}_${studentYear}`;
+        const newClassId = `CLASS_${studentDeptId}_${targetSem.replace(/[^0-9]/g, "")}_${studentDiv.replace(/[^0-9]/g, "")}_${studentYear}`;
         targetClass = {
           id: newClassId,
-          departmentId: student.departmentId || "DEP_AI",
-          departmentName: studentDept,
+          departmentId: studentDeptId,
+          departmentName: resolvedPromoteDept ? resolvedPromoteDept.name : studentDept,
           semester: targetSem,
           division: studentDiv,
           academicYear: studentYear,
@@ -2939,12 +3097,8 @@ const bulkRegisterStudents = (studentRows, defaultAcademicYear = DEFAULT_ACADEMI
     }
     let targetClass = findClassByCriteria(dept, sem, div, defaultAcademicYear);
     if (!targetClass) {
-      let deptId = "DEP_AI";
-      if (dept.toLowerCase().includes("comp")) deptId = "DEP_CP";
-      else if (dept.toLowerCase().includes("info")) deptId = "DEP_IT";
-      else if (dept.toLowerCase().includes("elec") || dept.toLowerCase().includes("ec")) deptId = "DEP_EC";
-      else if (dept.toLowerCase().includes("mech")) deptId = "DEP_ME";
-      else if (dept.toLowerCase().includes("civil")) deptId = "DEP_CL";
+      const resolvedD = resolveDepartment(dept);
+      let deptId = resolvedD ? resolvedD.id : "DEP_" + dept.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
       targetClass = {
         id: `CLASS_${deptId}_${sem.replace(/[^0-9]/g, "")}_${div.replace(/[^0-9]/g, "")}_${defaultAcademicYear}`,
         departmentId: deptId,
@@ -3860,6 +4014,31 @@ if (typeof window !== "undefined") {
   window.getStudentEnrolledSubjects = getStudentEnrolledSubjects;
   window.getStudentOverallAttendance = getStudentOverallAttendance;
   window.getSubjectAttendanceDetails = getSubjectAttendanceDetails;
+}
+const getClassesForFaculty = (facultyIdOrObj) => {
+  if (!facultyIdOrObj) return [];
+  if (typeof facultyIdOrObj === "object") return getAuthorizedFacultyClasses(facultyIdOrObj);
+  const allFac = getFaculties();
+  const found = allFac.find((f) => f.id === facultyIdOrObj || f.name.toLowerCase() === String(facultyIdOrObj).toLowerCase());
+  return getAuthorizedFacultyClasses(found || { id: facultyIdOrObj });
+};
+if (typeof window !== "undefined") {
+  window.getDepartments = getDepartments;
+  window.saveDepartment = saveDepartment;
+  window.deleteDepartment = deleteDepartment;
+  window.bulkRegisterStudents = bulkRegisterStudents;
+  window.findClassByCriteria = findClassByCriteria;
+  window.getOrCreateClass = getOrCreateClass;
+  window.canFacultyTeachClassAndSubject = canFacultyTeachClassAndSubject;
+  window.getAuthorizedFacultyClasses = getAuthorizedFacultyClasses;
+  window.getAuthorizedFacultySubjects = getAuthorizedFacultySubjects;
+  window.resolveDepartment = resolveDepartment;
+  window.isDepartmentMatch = isDepartmentMatch;
+  window.getActiveDepartments = getActiveDepartments;
+  window.deactivateDepartment = deactivateDepartment;
+  window.reactivateDepartment = reactivateDepartment;
+  window.getClassesForFaculty = getClassesForFaculty;
+  window.addClass = addClass;
 }
 const TT_STORAGE_KEYS = {
   TIMETABLE: "adit_attendance_timetable",
@@ -5005,12 +5184,8 @@ const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
   } catch (e) {
   }
   const facultyName = faculty?.name || FACULTY_NAMES[facultyId] || "Faculty";
-  let facultyDeptId = "DEP_AI";
-  if (faculty?.dept) {
-    if (faculty.dept.includes("IT") || faculty.dept.includes("Information")) facultyDeptId = "DEP_IT";
-    else if (faculty.dept.includes("Computer")) facultyDeptId = "DEP_CP";
-    else if (faculty.dept.includes("AI") || faculty.dept.includes("Data")) facultyDeptId = "DEP_AI";
-  }
+  const resolvedFacDept = resolveDepartment(faculty?.dept);
+  let facultyDeptId = resolvedFacDept ? resolvedFacDept.id : "DEP_AI";
   TIMETABLE_DAYS.forEach((day) => {
     const daySlots = newTimetable[day] || {};
     Object.entries(daySlots).forEach(([timeSlot, slot]) => {
@@ -5058,13 +5233,8 @@ const applyUploadedClassTimetable = (sem, div, newTimetable, deptNameOrId = null
   const normDiv = normalizeDiv(div);
   let targetDeptId = null;
   if (deptNameOrId) {
-    if (deptNameOrId.startsWith("DEP_")) targetDeptId = deptNameOrId;
-    else if (deptNameOrId.includes("IT") || deptNameOrId.includes("Information")) targetDeptId = "DEP_IT";
-    else if (deptNameOrId.includes("Computer")) targetDeptId = "DEP_CP";
-    else if (deptNameOrId.includes("Mechanical")) targetDeptId = "DEP_ME";
-    else if (deptNameOrId.includes("Civil")) targetDeptId = "DEP_CL";
-    else if (deptNameOrId.includes("Electronics")) targetDeptId = "DEP_EC";
-    else targetDeptId = "DEP_AI";
+    const resolved = resolveDepartment(deptNameOrId);
+    targetDeptId = resolved ? resolved.id : deptNameOrId;
   }
   const filtered = entries.filter((e) => {
     const semMatch = normalizeSem(e.semId || e.sem) === normSem;
@@ -5302,15 +5472,23 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
       break;
     }
   }
+  const deptsList = getDepartments(true);
   const deptCodeMap = {
-    "AI": "DEP_AI",
-    "IT": "DEP_IT",
-    "CP": "DEP_CP",
-    "CE": "DEP_CP",
+    "AE": "DEP_AE",
+    "CL": "DEP_CL",
+    "EE": "DEP_EE",
     "EC": "DEP_EC",
     "ME": "DEP_ME",
-    "CL": "DEP_CL"
+    "FPT": "DEP_FPT",
+    "DT": "DEP_DT",
+    "CE": "DEP_CE",
+    "CP": "DEP_CE",
+    "IT": "DEP_IT",
+    "AI": "DEP_AI"
   };
+  deptsList.forEach((d) => {
+    if (d.code) deptCodeMap[d.code.toUpperCase()] = d.id;
+  });
   for (const line of lines) {
     const pMatch = line.match(/\((\d{2,4})\)/);
     if (pMatch) {
@@ -5324,7 +5502,9 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     }
   }
   for (const line of lines) {
-    const tokenMatch = line.match(/\b([1-8])\s*(AI|IT|CP|CE|ME|EC|CL|PG)(\d?)\b/i);
+    const validCodes = Object.keys(deptCodeMap).join("|");
+    const tokenRegex = new RegExp(`\\b([1-8])\\s*(${validCodes}|PG)(\\d?)\\b`, "i");
+    const tokenMatch = line.match(tokenRegex);
     if (tokenMatch) {
       const sNum = tokenMatch[1];
       const dCode = tokenMatch[2].toUpperCase();
@@ -5637,6 +5817,18 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
         continue;
       }
+      const isRowElective = /elective/i.test(rawSubj) || /elective/i.test(rawDept);
+      let resolvedDept = null;
+      if (rawDept && !isRowElective) {
+        resolvedDept = resolveDepartment(rawDept);
+        if (!resolvedDept) {
+          const errStr = `Row ${rowNum}: Department "${rawDept}" is not recognized or registered in the system.`;
+          errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
+          continue;
+        }
+      }
+      const finalDeptId = isRowElective ? "DEP_ELECTIVE" : resolvedDept ? resolvedDept.id : defaultDeptId || "DEP_AI";
+      const finalDeptName = isRowElective ? "Elective (No Department)" : resolvedDept ? resolvedDept.name : rawDept || defaultDeptId;
       const covered = getCoveredConsecutiveSlots(rawTime);
       if (covered.length === 2) {
         const [slot1, slot2] = covered;
@@ -5655,8 +5847,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           sem: normalizeSem(rawSem),
           div: normalizeDiv(rawDiv),
           batch: rawBatch,
-          department: rawDept || defaultDeptId,
-          departmentId: defaultDeptId,
+          department: finalDeptName,
+          departmentId: finalDeptId,
           facultyId: targetFacultyId || "FAC_PS",
           facultyName: rawFacName || "Faculty",
           type,
@@ -5679,8 +5871,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           sem: normalizeSem(rawSem),
           div: normalizeDiv(rawDiv),
           batch: rawBatch,
-          department: rawDept || defaultDeptId,
-          departmentId: defaultDeptId,
+          department: finalDeptName,
+          departmentId: finalDeptId,
           facultyId: targetFacultyId || "FAC_PS",
           facultyName: rawFacName || "Faculty",
           type,
@@ -5784,8 +5976,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         sem: semNorm,
         div: divNorm,
         batch: rawBatch,
-        department: rawDept || defaultDeptId,
-        departmentId: defaultDeptId,
+        department: finalDeptName,
+        departmentId: finalDeptId,
         facultyId: assignedFacId,
         facultyName: assignedFacName,
         type: rawType || (rawSubj.toLowerCase().includes("lab") ? "Lab" : "Lecture"),
@@ -5890,16 +6082,16 @@ const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, divFilt
   if (!rows || rows.length < 2) throw new Error("Spreadsheet appears to be empty.");
   let defaultDeptId = "DEP_AI";
   if (deptNameOrId) {
-    if (deptNameOrId.startsWith("DEP_")) defaultDeptId = deptNameOrId;
-    else if (deptNameOrId.includes("IT") || deptNameOrId.includes("Information")) defaultDeptId = "DEP_IT";
-    else if (deptNameOrId.includes("Computer")) defaultDeptId = "DEP_CP";
+    const res = resolveDepartment(deptNameOrId);
+    if (res) defaultDeptId = res.id;
+    else if (deptNameOrId.startsWith("DEP_")) defaultDeptId = deptNameOrId;
   } else if (facultyId) {
     try {
       const facs = getFaculties();
       const f = facs.find((fac) => fac.id === facultyId);
       if (f && f.dept) {
-        if (f.dept.includes("IT") || f.dept.includes("Information")) defaultDeptId = "DEP_IT";
-        else if (f.dept.includes("Computer")) defaultDeptId = "DEP_CP";
+        const res = resolveDepartment(f.dept);
+        if (res) defaultDeptId = res.id;
       }
     } catch (e) {
     }
@@ -7051,6 +7243,71 @@ if (typeof window !== "undefined") {
   window.applyUploadedClassTimetable = applyUploadedClassTimetable;
   window.parseExcelTimetableForFaculty = parseExcelTimetableForFaculty;
   window.parseExcelTimetableForClass = parseExcelTimetableForClass;
+}
+const downloadColumnarTimetableTemplate = (deptName = "Aeronautical Engineering") => {
+  const wb = XLSX.utils.book_new();
+  const headers = [
+    "Faculty ID",
+    "Faculty Name",
+    "Department",
+    "Semester",
+    "Division",
+    "Batch",
+    "Subject",
+    "Day",
+    "Start Time",
+    "End Time",
+    "Room",
+    "Type"
+  ];
+  const sampleRows = [
+    headers,
+    ["FAC_PS", "Prof. Priya Shah", deptName, "3rd Sem", "Div 1", "ALL", "DBMS", "Monday", "10:00 AM", "10:50 AM", "Room 201", "Lecture"],
+    ["FAC_PS", "Prof. Priya Shah", deptName, "3rd Sem", "Div 1", "Batch A", "DBMS Lab", "Monday", "10:55 AM", "12:40 PM", "Lab 201", "Lab"],
+    ["FAC_PS", "Prof. Priya Shah", deptName, "3rd Sem", "Div 1", "ALL", "Python", "Tuesday", "9:05 AM", "9:55 AM", "Room 201", "Lecture"],
+    ["FAC_PS", "Prof. Priya Shah", "Elective (No Department)", "5th Sem", "Elective Class A", "ALL", "Cyber Security", "Wednesday", "1:25 PM", "2:15 PM", "Room 302", "Lecture"]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sampleRows);
+  ws["!cols"] = [
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 25 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 12 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, "Timetable Template");
+  const depts = getDepartments(true);
+  const guideRows = [
+    ["ADIT COLLEGE-WIDE TIMETABLE IMPORT GUIDELINES", ""],
+    ["", ""],
+    ["FIELD", "ACCEPTED VALUES & INSTRUCTIONS"],
+    ["Faculty ID / Faculty Name", "Registered faculty ID (e.g. FAC_PS) or faculty member full name."],
+    ["Department", "Accepted: " + depts.map((d) => `${d.name} (${d.code})`).join(", ") + '. For Elective subjects, leave empty or use "Elective".'],
+    ["Semester", "1st Sem to 8th Sem."],
+    ["Division", "Div 1, Div 2, Div 3, or section identifier."],
+    ["Batch", "ALL, Batch A, Batch B, Batch C."],
+    ["Subject", "Course subject code or name."],
+    ["Day", "Monday, Tuesday, Wednesday, Thursday, Friday, Saturday."],
+    ["Time / Duration", "Start and End time (e.g. 10:00 AM - 10:50 AM). For 2-Hour Labs, cover 2 consecutive periods (e.g. 10:55 AM - 12:40 PM)."],
+    ["Room", "Classroom or Lab code (e.g. Room 201, Lab 301)."],
+    ["Type", "Lecture or Lab / Practical."]
+  ];
+  const guideWs = XLSX.utils.aoa_to_sheet(guideRows);
+  guideWs["!cols"] = [{ wch: 25 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, guideWs, "Instructions");
+  XLSX.writeFile(wb, `ADIT_Timetable_Import_Template_${deptName.replace(/[^A-Za-z0-9]/g, "_")}.xlsx`);
+};
+if (typeof window !== "undefined") {
+  window.downloadColumnarTimetableTemplate = downloadColumnarTimetableTemplate;
+  window.resolveDepartment = resolveDepartment;
+  window.isDepartmentMatch = isDepartmentMatch;
 }
 function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockToggle }) {
   const facultyName = getFacultyName();
@@ -11670,12 +11927,12 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
     try {
       const isElective = Boolean(classForm.isElective);
       let subjName = classForm.subjectName;
-      if (isElective && classForm.subjectId && !subjName) {
+      if (classForm.subjectId && !subjName) {
         const sub = allSubjects.find((s) => s.id === classForm.subjectId || s.code === classForm.subjectId);
         if (sub) subjName = sub.name;
       }
       let facName = classForm.facultyName;
-      if (isElective && classForm.facultyId && !facName) {
+      if (classForm.facultyId && !facName) {
         const fac = allFaculties.find((f) => f.id === classForm.facultyId);
         if (fac) facName = fac.name;
       }
@@ -11683,14 +11940,16 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         ...editingClass ? { id: editingClass.id } : {},
         isElective,
         departmentName: isElective ? null : classForm.departmentName,
+        departmentId: isElective ? null : classForm.departmentId,
         semester: classForm.semester,
         division: classForm.division,
+        batch: classForm.batch || "ALL",
         name: classForm.division,
         academicYear: classForm.academicYear,
-        subjectId: isElective ? classForm.subjectId : void 0,
-        subjectName: isElective ? subjName || classForm.subjectId : void 0,
-        facultyId: isElective ? classForm.facultyId : void 0,
-        facultyName: isElective ? facName : void 0,
+        subjectId: classForm.subjectId || void 0,
+        subjectName: subjName || classForm.subjectName || void 0,
+        facultyId: classForm.facultyId || void 0,
+        facultyName: facName || void 0,
         studentEnrollmentNos: classForm.excelStats ? classForm.excelStats.matchedEnrollmentNos : editingClass?.studentEnrollmentNos || [],
         studentIds: classForm.excelStats ? classForm.excelStats.matchedStudentIds : editingClass?.studentIds || []
       });
@@ -12898,16 +13157,55 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         }
       },
       "\u26A1 Elective Class (No Department)"
-    )), !classForm.isElective ? /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Department *"), /* @__PURE__ */ React.createElement(
+    )), !classForm.isElective ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Department *"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        id: "select-class-department",
+        className: "form-control",
+        value: classForm.departmentName,
+        onChange: (e) => {
+          const dName = e.target.value;
+          const dObj = departments.find((d) => d.name === dName || d.id === dName);
+          setClassForm((prev) => ({
+            ...prev,
+            departmentName: dName,
+            departmentId: dObj ? dObj.id : prev.departmentId
+          }));
+        },
+        required: true
+      },
+      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code || d.id, ")"))
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Subject (Optional)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        className: "form-control",
+        placeholder: "e.g. DBMS, Python, Mechanics",
+        value: classForm.subjectName || classForm.subjectId,
+        onChange: (e) => {
+          const val = e.target.value;
+          setClassForm((prev) => ({ ...prev, subjectId: val, subjectName: val }));
+        },
+        list: "regular-subject-options"
+      }
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "regular-subject-options" }, allSubjects.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.name }, s.code ? `(${s.code}) ` : "", s.name)))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Assigned Faculty (Cross-Dept Allowed)"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "form-control",
-        value: classForm.departmentName,
-        onChange: (e) => setClassForm((prev) => ({ ...prev, departmentName: e.target.value })),
-        required: true
+        value: classForm.facultyId,
+        onChange: (e) => {
+          const fId = e.target.value;
+          const fac = allFaculties.find((f) => f.id === fId);
+          setClassForm((prev) => ({
+            ...prev,
+            facultyId: fId,
+            facultyName: fac ? fac.name : ""
+          }));
+        }
       },
-      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
-    )) : /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", backgroundColor: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "12.5px", color: "#6d28d9" } }, "\u26A1 ", /* @__PURE__ */ React.createElement("strong", null, "Elective Class:"), " No department required. Students from any department in this semester can enroll."), classForm.isElective && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Elective Subject *"), /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Optional: Assign Faculty --"),
+      allFaculties.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id }, f.name, " (", f.dept || "ADIT", ")"))
+    )))) : /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", backgroundColor: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "12.5px", color: "#6d28d9" } }, "\u26A1 ", /* @__PURE__ */ React.createElement("strong", null, "Elective Class:"), " No department required. Students from any department in this semester can enroll."), classForm.isElective && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Elective Subject *"), /* @__PURE__ */ React.createElement(
       "input",
       {
         id: "input-elective-subject",
@@ -12974,7 +13272,18 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       /* @__PURE__ */ React.createElement("option", { value: "Div 2" }, "Division 2 (Div 2)"),
       /* @__PURE__ */ React.createElement("option", { value: "Div 3" }, "Division 3 (Div 3)"),
       /* @__PURE__ */ React.createElement("option", { value: "Div 4" }, "Division 4 (Div 4)")
-    ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Academic Year *"), /* @__PURE__ */ React.createElement(
+    ))), !classForm.isElective && /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Batch (Where Applicable)"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "form-control",
+        value: classForm.batch || "ALL",
+        onChange: (e) => setClassForm((prev) => ({ ...prev, batch: e.target.value }))
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Batches (Entire Class)"),
+      /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
+      /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
+      /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C")
+    )), /* @__PURE__ */ React.createElement("div", { style: { display: "none" } }), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Academic Year *"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "form-control",
@@ -13407,6 +13716,19 @@ function DepartmentAdminPanel({
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+  const [showEditFacultyModal, setShowEditFacultyModal] = useState(false);
+  const [editingFacultyForm, setEditingFacultyForm] = useState(null);
+  const [newDeptForm, setNewDeptForm] = useState({
+    code: "",
+    name: "",
+    fullName: "",
+    hod: "",
+    hodEmail: "",
+    hodPhone: "",
+    cabin: "",
+    established: "2026"
+  });
   const [showReplaceModal, setShowReplaceModal] = useState(false);
   const [facultyToReplace, setFacultyToReplace] = useState(null);
   const [targetReplacementFacultyId, setTargetReplacementFacultyId] = useState("");
@@ -13466,7 +13788,7 @@ function DepartmentAdminPanel({
   }, [departments, selectedDeptName]);
   const deptFaculties = useMemo(() => {
     return faculties.filter((f) => {
-      const matchDept = !f.dept || f.dept.toLowerCase().includes(currentDept.name.toLowerCase().slice(0, 4));
+      const matchDept = !f.dept || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
       const matchQuery = !q || f.name.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.designation && f.designation.toLowerCase().includes(q);
       return matchDept && matchQuery;
@@ -13474,7 +13796,7 @@ function DepartmentAdminPanel({
   }, [faculties, currentDept, facultySearch]);
   const deptSubjects = useMemo(() => {
     return subjects.filter((s) => {
-      return !s.dept || s.dept.toLowerCase().includes(currentDept.name.toLowerCase().slice(0, 4));
+      return !s.dept || isDepartmentMatch(s.dept, currentDept.name);
     });
   }, [subjects, currentDept]);
   const allTimetables = useMemo(() => {
@@ -13535,6 +13857,62 @@ function DepartmentAdminPanel({
       divisions: currentDept.divisions || []
     });
     setShowEditDeptModal(true);
+  };
+  const handleToggleDepartmentStatus = () => {
+    const isInactive = currentDept.status === "inactive";
+    if (isInactive) {
+      const updated = reactivateDepartment(currentDept.id);
+      setDepartments([...updated]);
+      if (showToast) showToast(`Department "${currentDept.name}" reactivated!`);
+    } else {
+      if (window.confirm(`Are you sure you want to deactivate ${currentDept.name}? Historical attendance records and data will be fully preserved.`)) {
+        const updated = deactivateDepartment(currentDept.id);
+        setDepartments([...updated]);
+        if (showToast) showToast(`Department "${currentDept.name}" deactivated. Historical records preserved.`);
+      }
+    }
+  };
+  const handleSaveNewDepartment = (e) => {
+    e.preventDefault();
+    if (!newDeptForm.code || !newDeptForm.name) {
+      alert("Department Code and Name are required");
+      return;
+    }
+    const updated = saveDepartment({
+      ...newDeptForm,
+      status: "active"
+    });
+    setDepartments([...updated]);
+    setSelectedDeptName(newDeptForm.name);
+    setShowAddDeptModal(false);
+    setNewDeptForm({ code: "", name: "", fullName: "", hod: "", hodEmail: "", hodPhone: "", cabin: "", established: "2026" });
+    if (showToast) showToast(`Department "${newDeptForm.name}" created!`);
+  };
+  const handleOpenEditFaculty = (fac) => {
+    setEditingFacultyForm({
+      id: fac.id,
+      name: fac.name || "",
+      dept: fac.dept || currentDept.name,
+      designation: fac.designation || "Assistant Professor",
+      email: fac.email || "",
+      phone: fac.phone || "",
+      subjects: fac.subjects || "",
+      password: fac.password || "faculty123"
+    });
+    setShowEditFacultyModal(true);
+  };
+  const handleSaveFacultyEdit = (e) => {
+    e.preventDefault();
+    if (!editingFacultyForm.name.trim()) {
+      alert("Faculty name is required");
+      return;
+    }
+    const updated = saveFaculty(editingFacultyForm);
+    notifyTimetableSync();
+    setFaculties([...updated]);
+    setShowEditFacultyModal(false);
+    if (showToast) showToast(`Faculty details updated for ${editingFacultyForm.name}!`);
+    window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
   };
   const handleSaveDeptEdit = (e) => {
     e.preventDefault();
@@ -13744,6 +14122,7 @@ function DepartmentAdminPanel({
     } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", color: "#64748b", fontWeight: "600", marginRight: "8px" } }, "Department Admin:"), /* @__PURE__ */ React.createElement(
       "select",
       {
+        id: "select-active-department",
         value: selectedDeptName,
         onChange: (e) => setSelectedDeptName(e.target.value),
         style: {
@@ -13756,8 +14135,35 @@ function DepartmentAdminPanel({
           outline: "none"
         }
       },
-      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")"))
-    )), /* @__PURE__ */ React.createElement("div", { style: {
+      departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")", d.status === "inactive" ? " [Deactivated]" : ""))
+    )), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        onClick: () => setShowAddDeptModal(true),
+        style: { display: "flex", alignItems: "center", gap: "5px", fontWeight: "700" }
+      },
+      /* @__PURE__ */ React.createElement(Plus, { size: 14 }),
+      " Add Department"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-sm",
+        onClick: handleToggleDepartmentStatus,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "5px",
+          fontWeight: "700",
+          backgroundColor: currentDept.status === "inactive" ? "#ecfdf5" : "#fff1f2",
+          color: currentDept.status === "inactive" ? "#059669" : "#e11d48",
+          border: `1px solid ${currentDept.status === "inactive" ? "#a7f3d0" : "#fecdd3"}`
+        }
+      },
+      currentDept.status === "inactive" ? "Reactivate Department" : "Deactivate Department"
+    ), /* @__PURE__ */ React.createElement("div", { style: {
       display: "flex",
       alignItems: "center",
       backgroundColor: "white",
@@ -13999,6 +14405,27 @@ function DepartmentAdminPanel({
       load.totalLectures,
       " Lectures/wk"
     )), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", fontWeight: "700", color: "#475569" } }, load.activeDays, " Days"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "right", whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "8px" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-secondary btn-sm",
+        title: "Edit Faculty Profile & Home Department",
+        onClick: () => handleOpenEditFaculty(fac),
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "5px",
+          padding: "5px 10px",
+          fontSize: "12px",
+          fontWeight: "700",
+          color: "#0f172a",
+          backgroundColor: "#f1f5f9",
+          border: "1px solid #cbd5e1"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Edit3, { size: 13 }),
+      /* @__PURE__ */ React.createElement("span", null, "Edit")
+    ), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -14407,7 +14834,117 @@ function DepartmentAdminPanel({
       /* @__PURE__ */ React.createElement(Trash2, { size: 16 }),
       /* @__PURE__ */ React.createElement("span", null, "Confirm & Remove Faculty")
     ))));
-  })());
+  })(), showEditFacultyModal && editingFacultyForm && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "500px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(Edit3, { size: 18 }), "Edit Faculty: ", editingFacultyForm.name), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowEditFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveFacultyEdit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty Name *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editingFacultyForm.name,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, name: e.target.value }),
+      required: true
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty ID"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editingFacultyForm.id,
+      disabled: true,
+      style: { backgroundColor: "#f8fafc", color: "#64748b" }
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: editingFacultyForm.dept,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, dept: e.target.value }),
+      required: true
+    },
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")"))
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Identifies home department. Faculty can be assigned to teach classes in any department.")), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Designation"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: editingFacultyForm.designation,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, designation: e.target.value })
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "Professor & HOD" }, "Professor & HOD"),
+    /* @__PURE__ */ React.createElement("option", { value: "Professor" }, "Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Associate Professor" }, "Associate Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Assistant Professor" }, "Assistant Professor"),
+    /* @__PURE__ */ React.createElement("option", { value: "Visiting Faculty" }, "Visiting Faculty")
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Official Email"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "email",
+      className: "form-control",
+      value: editingFacultyForm.email,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, email: e.target.value })
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Contact Phone"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editingFacultyForm.phone,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, phone: e.target.value })
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Subjects Handled"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      value: editingFacultyForm.subjects,
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, subjects: e.target.value })
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowEditFacultyModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Faculty Details"))))), showAddDeptModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(Building2, { size: 18 }), "Create New Academic Department"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowAddDeptModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveNewDepartment }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Code *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. ME, EE, IT",
+      value: newDeptForm.code,
+      onChange: (e) => setNewDeptForm({ ...newDeptForm, code: e.target.value }),
+      required: true
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Department Name *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. Mechanical Engineering",
+      value: newDeptForm.name,
+      onChange: (e) => setNewDeptForm({ ...newDeptForm, name: e.target.value }),
+      required: true
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "HOD Name"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. Prof. R. K. Patel",
+      value: newDeptForm.hod,
+      onChange: (e) => setNewDeptForm({ ...newDeptForm, hod: e.target.value })
+    }
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "HOD Email"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "email",
+      className: "form-control",
+      placeholder: "hod@adit.ac.in",
+      value: newDeptForm.hodEmail,
+      onChange: (e) => setNewDeptForm({ ...newDeptForm, hodEmail: e.target.value })
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Contact Phone"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "+91 98250 11111",
+      value: newDeptForm.hodPhone,
+      onChange: (e) => setNewDeptForm({ ...newDeptForm, hodPhone: e.target.value })
+    }
+  )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowAddDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Create Department"))))));
 }
 const SettingsIcon = typeof Settings !== "undefined" ? Settings : typeof LucideIcons !== "undefined" ? LucideIcons.Settings : null;
 const adminMenuItems = [
@@ -15455,32 +15992,29 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     return getEntriesByFaculty(currentFaculty.id);
   }, [currentFaculty.id, timetableSyncTick]);
   const facultyClasses = useMemo(() => {
-    const taughtMap = /* @__PURE__ */ new Set();
-    facultyEntries.forEach((e) => {
-      taughtMap.add(`${normalizeSem(e.semId || e.sem)}_${normalizeDiv(e.divId || e.div)}`);
-    });
-    const list = allClasses.filter((c) => {
-      const isDept = c.departmentName?.toLowerCase() === currentFaculty.dept?.toLowerCase() || c.departmentId === currentFaculty.deptId;
-      const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
-      return taughtMap.has(key) || isDept;
-    });
-    return list.length > 0 ? list : allClasses;
-  }, [allClasses, facultyEntries, currentFaculty]);
+    if (currentFaculty.role === "admin" || currentFaculty.id === "FAC_ADMIN") {
+      return allClasses;
+    }
+    return authorizedClasses && authorizedClasses.length > 0 ? authorizedClasses : [];
+  }, [allClasses, authorizedClasses, currentFaculty]);
   const [regClassId, setRegClassId] = useState("CLASS_DEP_AI_3_1_2026-27");
   const selectedRegClass = useMemo(() => {
     return allClasses.find((c) => c.id === regClassId) || facultyClasses.find((c) => c.id === regClassId) || facultyClasses[0] || allClasses[0] || null;
   }, [allClasses, facultyClasses, regClassId]);
   const facultySubjects = useMemo(() => {
+    if (currentFaculty.role === "admin" || currentFaculty.id === "FAC_ADMIN") {
+      return allSubjects;
+    }
     const list = allSubjects.filter((s) => {
-      const isAssigned = s.faculty && s.faculty.toLowerCase() === currentFaculty.name.toLowerCase();
+      const isAssigned = s.facultyId && s.facultyId === currentFaculty.id || s.faculty && s.faculty.trim().toLowerCase() === (currentFaculty.name || "").trim().toLowerCase();
       const inTimetable = facultyEntries.some(
         (e) => e.subjectId === s.id || e.subjectId === s.shortName || e.subjectName === s.shortName || e.subjectFullName === s.name
       );
-      const isDept = s.dept && currentFaculty.dept && (s.dept.toLowerCase().includes(currentFaculty.dept.toLowerCase()) || currentFaculty.dept.toLowerCase().includes(s.dept.toLowerCase()));
-      return isAssigned || inTimetable || isDept;
+      const inAuthorized = authorizedSubjects.some((as) => as.id === s.id || as.code === s.code);
+      return isAssigned || inTimetable || inAuthorized;
     });
-    return list.length > 0 ? list : allSubjects;
-  }, [allSubjects, currentFaculty, facultyEntries]);
+    return list.length > 0 ? list : authorizedSubjects;
+  }, [allSubjects, currentFaculty, facultyEntries, authorizedSubjects]);
   const [regSubjectId, setRegSubjectId] = useState("SUB_AI_DBMS");
   const selectedRegSubject = useMemo(() => {
     return allSubjects.find((s) => s.id === regSubjectId) || facultySubjects.find((s) => s.id === regSubjectId) || facultySubjects[0] || allSubjects[0] || null;
@@ -16687,7 +17221,8 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     color: "#713f12"
   }, className: "no-print" }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", marginBottom: "4px" } }, "\u{1F4A1} How to use (Official Faculty Timetable):"), /* @__PURE__ */ React.createElement("ul", { style: { margin: 0, paddingLeft: "20px", lineHeight: "1.6" } }, /* @__PURE__ */ React.createElement("li", null, "Fill only the cream-coloured cells (faculty details, timetable grid, L and P/T hours, subjects)."), /* @__PURE__ */ React.createElement("li", null, "In each grid cell type: Class/Batch, Subject and Room, e.g. ", /* @__PURE__ */ React.createElement("code", null, "5IT1 / DBMS / IT-5"), " (use Alt+Enter for a new line)."), /* @__PURE__ */ React.createElement("li", null, "Total Load per row and the TOTAL TEACHING LOAD row are calculated automatically (Load = L + P/T)."), /* @__PURE__ */ React.createElement("li", null, "Click on any lecture card in the timetable to immediately start taking attendance.")))), selectedLectureDetail && (() => {
     const { slot, day, time } = selectedLectureDetail;
-    const roster = getStudentsForClassCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+    const slotDept = slot.department || slot.departmentName || slot.dept || currentFaculty.dept;
+    const roster = getStudentsForClassCriteria(slot.sem, slot.div, slotDept);
     const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const recordedSession = allSessions.find(
       (s) => s.date === todayStr && s.subjectId === slot.subject && normalizeSem(s.sem) === normalizeSem(slot.sem) && normalizeDiv(s.div) === normalizeDiv(slot.div)
@@ -16718,10 +17253,11 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         type: "button",
         className: "btn btn-secondary",
         onClick: () => {
-          const targetClass = findClassByCriteria(slot.sem, slot.div, slot.dept || currentFaculty.dept);
+          const slotDept2 = slot.department || slot.departmentName || slot.dept || currentFaculty.dept;
+          const targetClass = findClassByCriteria(slotDept2, slot.sem, slot.div);
           if (targetClass?.id) setRegClassId(targetClass.id);
           if (slot.subject) setRegSubjectId(slot.subject);
-          if (slot.dept || currentFaculty.dept) setRegNavDept(slot.dept || currentFaculty.dept);
+          if (slotDept2) setRegNavDept(slotDept2);
           if (slot.sem) setRegNavSem(slot.sem);
           if (slot.div) setRegNavDiv(slot.div);
           if (slot.batch) setRegNavBatch(slot.batch);

@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { getSubjects, getFaculties, getCurrentUser, getDepartments } from './attendanceStorage';
+import { getSubjects, getFaculties, getCurrentUser, getDepartments, resolveDepartment, isDepartmentMatch } from './attendanceStorage';
 
 export const TT_STORAGE_KEYS = {
   TIMETABLE: 'adit_attendance_timetable',
@@ -1366,12 +1366,8 @@ export const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
   } catch(e) {}
 
   const facultyName = faculty?.name || FACULTY_NAMES[facultyId] || 'Faculty';
-  let facultyDeptId = 'DEP_AI';
-  if (faculty?.dept) {
-    if (faculty.dept.includes('IT') || faculty.dept.includes('Information')) facultyDeptId = 'DEP_IT';
-    else if (faculty.dept.includes('Computer')) facultyDeptId = 'DEP_CP';
-    else if (faculty.dept.includes('AI') || faculty.dept.includes('Data')) facultyDeptId = 'DEP_AI';
-  }
+  const resolvedFacDept = resolveDepartment(faculty?.dept);
+  let facultyDeptId = resolvedFacDept ? resolvedFacDept.id : 'DEP_AI';
 
   TIMETABLE_DAYS.forEach(day => {
     const daySlots = newTimetable[day] || {};
@@ -1424,13 +1420,8 @@ export const applyUploadedClassTimetable = (sem, div, newTimetable, deptNameOrId
 
   let targetDeptId = null;
   if (deptNameOrId) {
-    if (deptNameOrId.startsWith('DEP_')) targetDeptId = deptNameOrId;
-    else if (deptNameOrId.includes('IT') || deptNameOrId.includes('Information')) targetDeptId = 'DEP_IT';
-    else if (deptNameOrId.includes('Computer')) targetDeptId = 'DEP_CP';
-    else if (deptNameOrId.includes('Mechanical')) targetDeptId = 'DEP_ME';
-    else if (deptNameOrId.includes('Civil')) targetDeptId = 'DEP_CL';
-    else if (deptNameOrId.includes('Electronics')) targetDeptId = 'DEP_EC';
-    else targetDeptId = 'DEP_AI';
+    const resolved = resolveDepartment(deptNameOrId);
+    targetDeptId = resolved ? resolved.id : deptNameOrId;
   }
   
   const filtered = entries.filter(e => {
@@ -1720,15 +1711,23 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     }
   }
 
+  const deptsList = getDepartments(true);
   const deptCodeMap = {
-    'AI': 'DEP_AI',
-    'IT': 'DEP_IT',
-    'CP': 'DEP_CP',
-    'CE': 'DEP_CP',
+    'AE': 'DEP_AE',
+    'CL': 'DEP_CL',
+    'EE': 'DEP_EE',
     'EC': 'DEP_EC',
     'ME': 'DEP_ME',
-    'CL': 'DEP_CL'
+    'FPT': 'DEP_FPT',
+    'DT': 'DEP_DT',
+    'CE': 'DEP_CE',
+    'CP': 'DEP_CE',
+    'IT': 'DEP_IT',
+    'AI': 'DEP_AI'
   };
+  deptsList.forEach(d => {
+    if (d.code) deptCodeMap[d.code.toUpperCase()] = d.id;
+  });
 
   // 1. Room extraction
   // Pure parenthesised room number: (141), (211), (313), (321), etc.
@@ -1749,7 +1748,9 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
   // 2. Semester, Department & Division extraction
   // Look for tokens like 7IT1, 7IT2, 5AI, 7AI, 3PG, 1AI, etc.
   for (const line of lines) {
-    const tokenMatch = line.match(/\b([1-8])\s*(AI|IT|CP|CE|ME|EC|CL|PG)(\d?)\b/i);
+    const validCodes = Object.keys(deptCodeMap).join('|');
+    const tokenRegex = new RegExp(`\\b([1-8])\\s*(${validCodes}|PG)(\\d?)\\b`, 'i');
+    const tokenMatch = line.match(tokenRegex);
     if (tokenMatch) {
       const sNum = tokenMatch[1];
       const dCode = tokenMatch[2].toUpperCase();
@@ -2112,6 +2113,20 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         continue;
       }
 
+      // Validate Department against database
+      const isRowElective = /elective/i.test(rawSubj) || /elective/i.test(rawDept);
+      let resolvedDept = null;
+      if (rawDept && !isRowElective) {
+        resolvedDept = resolveDepartment(rawDept);
+        if (!resolvedDept) {
+          const errStr = `Row ${rowNum}: Department "${rawDept}" is not recognized or registered in the system.`;
+          errorRows.push({ row: rowNum, error: errStr, reason: errStr, message: errStr });
+          continue;
+        }
+      }
+      const finalDeptId = isRowElective ? 'DEP_ELECTIVE' : (resolvedDept ? resolvedDept.id : (defaultDeptId || 'DEP_AI'));
+      const finalDeptName = isRowElective ? 'Elective (No Department)' : (resolvedDept ? resolvedDept.name : (rawDept || defaultDeptId));
+
       // Check if time spans 2 consecutive slots (e.g. 10:55 AM–12:40 PM or 10:55 - 12:40)
       const covered = getCoveredConsecutiveSlots(rawTime);
       if (covered.length === 2) {
@@ -2132,8 +2147,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           sem: normalizeSem(rawSem),
           div: normalizeDiv(rawDiv),
           batch: rawBatch,
-          department: rawDept || defaultDeptId,
-          departmentId: defaultDeptId,
+          department: finalDeptName,
+          departmentId: finalDeptId,
           facultyId: targetFacultyId || 'FAC_PS',
           facultyName: rawFacName || 'Faculty',
           type,
@@ -2157,8 +2172,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           sem: normalizeSem(rawSem),
           div: normalizeDiv(rawDiv),
           batch: rawBatch,
-          department: rawDept || defaultDeptId,
-          departmentId: defaultDeptId,
+          department: finalDeptName,
+          departmentId: finalDeptId,
           facultyId: targetFacultyId || 'FAC_PS',
           facultyName: rawFacName || 'Faculty',
           type,
@@ -2297,8 +2312,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         sem: semNorm,
         div: divNorm,
         batch: rawBatch,
-        department: rawDept || defaultDeptId,
-        departmentId: defaultDeptId,
+        department: finalDeptName,
+        departmentId: finalDeptId,
         facultyId: assignedFacId,
         facultyName: assignedFacName,
         type: rawType || (rawSubj.toLowerCase().includes('lab') ? 'Lab' : 'Lecture'),
@@ -2408,16 +2423,16 @@ export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, 
   if (!rows || rows.length < 2) throw new Error('Spreadsheet appears to be empty.');
   let defaultDeptId = 'DEP_AI';
   if (deptNameOrId) {
-    if (deptNameOrId.startsWith('DEP_')) defaultDeptId = deptNameOrId;
-    else if (deptNameOrId.includes('IT') || deptNameOrId.includes('Information')) defaultDeptId = 'DEP_IT';
-    else if (deptNameOrId.includes('Computer')) defaultDeptId = 'DEP_CP';
+    const res = resolveDepartment(deptNameOrId);
+    if (res) defaultDeptId = res.id;
+    else if (deptNameOrId.startsWith('DEP_')) defaultDeptId = deptNameOrId;
   } else if (facultyId) {
     try {
       const facs = getFaculties();
       const f = facs.find(fac => fac.id === facultyId);
       if (f && f.dept) {
-        if (f.dept.includes('IT') || f.dept.includes('Information')) defaultDeptId = 'DEP_IT';
-        else if (f.dept.includes('Computer')) defaultDeptId = 'DEP_CP';
+        const res = resolveDepartment(f.dept);
+        if (res) defaultDeptId = res.id;
       }
     } catch(e) {}
   }
@@ -3695,3 +3710,75 @@ if (typeof window !== 'undefined') {
   window.parseExcelTimetableForClass = parseExcelTimetableForClass;
 }
 
+
+// Download Columnar Timetable Template (Excel & CSV) with Department column
+export const downloadColumnarTimetableTemplate = (deptName = 'Aeronautical Engineering') => {
+  const wb = XLSX.utils.book_new();
+  const headers = [
+    'Faculty ID',
+    'Faculty Name',
+    'Department',
+    'Semester',
+    'Division',
+    'Batch',
+    'Subject',
+    'Day',
+    'Start Time',
+    'End Time',
+    'Room',
+    'Type'
+  ];
+
+  const sampleRows = [
+    headers,
+    ['FAC_PS', 'Prof. Priya Shah', deptName, '3rd Sem', 'Div 1', 'ALL', 'DBMS', 'Monday', '10:00 AM', '10:50 AM', 'Room 201', 'Lecture'],
+    ['FAC_PS', 'Prof. Priya Shah', deptName, '3rd Sem', 'Div 1', 'Batch A', 'DBMS Lab', 'Monday', '10:55 AM', '12:40 PM', 'Lab 201', 'Lab'],
+    ['FAC_PS', 'Prof. Priya Shah', deptName, '3rd Sem', 'Div 1', 'ALL', 'Python', 'Tuesday', '9:05 AM', '9:55 AM', 'Room 201', 'Lecture'],
+    ['FAC_PS', 'Prof. Priya Shah', 'Elective (No Department)', '5th Sem', 'Elective Class A', 'ALL', 'Cyber Security', 'Wednesday', '1:25 PM', '2:15 PM', 'Room 302', 'Lecture']
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(sampleRows);
+  ws['!cols'] = [
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 25 },
+    { wch: 12 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 12 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Timetable Template');
+
+  const depts = getDepartments(true);
+  const guideRows = [
+    ['ADIT COLLEGE-WIDE TIMETABLE IMPORT GUIDELINES', ''],
+    ['', ''],
+    ['FIELD', 'ACCEPTED VALUES & INSTRUCTIONS'],
+    ['Faculty ID / Faculty Name', 'Registered faculty ID (e.g. FAC_PS) or faculty member full name.'],
+    ['Department', 'Accepted: ' + depts.map(d => `${d.name} (${d.code})`).join(', ') + '. For Elective subjects, leave empty or use "Elective".'],
+    ['Semester', '1st Sem to 8th Sem.'],
+    ['Division', 'Div 1, Div 2, Div 3, or section identifier.'],
+    ['Batch', 'ALL, Batch A, Batch B, Batch C.'],
+    ['Subject', 'Course subject code or name.'],
+    ['Day', 'Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.'],
+    ['Time / Duration', 'Start and End time (e.g. 10:00 AM - 10:50 AM). For 2-Hour Labs, cover 2 consecutive periods (e.g. 10:55 AM - 12:40 PM).'],
+    ['Room', 'Classroom or Lab code (e.g. Room 201, Lab 301).'],
+    ['Type', 'Lecture or Lab / Practical.']
+  ];
+  const guideWs = XLSX.utils.aoa_to_sheet(guideRows);
+  guideWs['!cols'] = [{ wch: 25 }, { wch: 80 }];
+  XLSX.utils.book_append_sheet(wb, guideWs, 'Instructions');
+
+  XLSX.writeFile(wb, `ADIT_Timetable_Import_Template_${deptName.replace(/[^A-Za-z0-9]/g, '_')}.xlsx`);
+};
+
+if (typeof window !== 'undefined') {
+  window.downloadColumnarTimetableTemplate = downloadColumnarTimetableTemplate;
+  window.resolveDepartment = resolveDepartment;
+  window.isDepartmentMatch = isDepartmentMatch;
+}

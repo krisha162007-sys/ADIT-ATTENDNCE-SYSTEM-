@@ -57,7 +57,22 @@ export const SEMESTERS = [
 ];
 
 // Departments Master
-export const DEFAULT_DEPARTMENTS = [];
+// College Departments Master (College-Wide Academic Units)
+export const INITIAL_COLLEGE_DEPARTMENTS = [
+  { id: 'DEP_AE', code: 'AE', name: 'Aeronautical Engineering', status: 'active' },
+  { id: 'DEP_CL', code: 'CL', name: 'Civil Engineering', status: 'active' },
+  { id: 'DEP_EE', code: 'EE', name: 'Electrical Engineering', status: 'active' },
+  { id: 'DEP_EC', code: 'EC', name: 'Electronics & Communication Engineering', status: 'active' },
+  { id: 'DEP_ME', code: 'ME', name: 'Mechanical Engineering', status: 'active' },
+  { id: 'DEP_FPT', code: 'FPT', name: 'Food Processing Technology', status: 'active' },
+  { id: 'DEP_DT', code: 'DT', name: 'Dairy Technology', status: 'active' },
+  { id: 'DEP_CE', code: 'CE', name: 'Computer Engineering', status: 'active' },
+  { id: 'DEP_IT', code: 'IT', name: 'Information Technology', status: 'active' },
+  { id: 'DEP_AI', code: 'AI', name: 'AI & Data Science', status: 'active' }
+];
+
+// Departments Master
+export const DEFAULT_DEPARTMENTS = INITIAL_COLLEGE_DEPARTMENTS;
 
 // Faculty Master List
 export const DEFAULT_FACULTIES = [];
@@ -297,7 +312,7 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
     localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
@@ -326,7 +341,7 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
   }
   if (localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) === null) {
-    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
   }
   if (localStorage.getItem(STORAGE_KEYS.ALLOCATIONS) === null) {
     localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
@@ -600,41 +615,106 @@ export const getClassById = (classId) => {
   return classes.find(c => c.id === classId) || null;
 };
 
+// Robust Department Resolver & Normalizer
+export const resolveDepartment = (query) => {
+  if (!query) return null;
+  const str = String(query).trim();
+  if (!str) return null;
+  const depts = getDepartments(true);
+
+  // 1. Exact ID match (e.g. DEP_CE, DEP_IT)
+  let found = depts.find(d => d.id === str || d.id.toLowerCase() === str.toLowerCase());
+  if (found) return found;
+
+  // 2. Exact Code match (e.g. AE, CL, EE, EC, ME, FPT, DT, CE, IT, AI)
+  found = depts.find(d => d.code && d.code.toUpperCase() === str.toUpperCase());
+  if (found) return found;
+
+  // 3. Exact Name match
+  found = depts.find(d => d.name && d.name.toLowerCase() === str.toLowerCase());
+  if (found) return found;
+
+  // 4. Common keywords and canonical abbreviations
+  const qLower = str.toLowerCase();
+  const keywordMap = [
+    { code: 'AE', words: ['aeronautical', 'automobile', 'aero', 'auto'] },
+    { code: 'CL', words: ['civil', 'civ'] },
+    { code: 'EE', words: ['electrical', 'elec'] },
+    { code: 'EC', words: ['electronics', 'communication', 'ece'] },
+    { code: 'ME', words: ['mechanical', 'mech'] },
+    { code: 'FPT', words: ['food processing', 'food', 'fpt'] },
+    { code: 'DT', words: ['dairy technology', 'dairy', 'dt'] },
+    { code: 'CE', words: ['computer engineering', 'computer', 'ce', 'cp', 'cse'] },
+    { code: 'IT', words: ['information technology', 'information', 'it'] },
+    { code: 'AI', words: ['artificial intelligence', 'ai & ds', 'ai-ds', 'data science', 'ai ds', 'aids'] }
+  ];
+
+  for (const item of keywordMap) {
+    if (item.words.some(w => qLower === w || qLower.includes(w) || w.includes(qLower))) {
+      found = depts.find(d => d.code === item.code);
+      if (found) return found;
+    }
+  }
+
+  // 5. Partial substring match in department names
+  found = depts.find(d => 
+    (d.name && d.name.toLowerCase().includes(qLower)) ||
+    (d.name && qLower.includes(d.name.toLowerCase()))
+  );
+  if (found) return found;
+
+  return null;
+};
+
+// Check if two department identifiers refer to the same department
+export const isDepartmentMatch = (deptA, deptB) => {
+  if (!deptA || !deptB) return true;
+  if (deptA === deptB) return true;
+  const a = String(deptA).trim();
+  const b = String(deptB).trim();
+  if (a.toLowerCase() === b.toLowerCase()) return true;
+  if (a.toLowerCase() === 'all' || b.toLowerCase() === 'all') return true;
+  if (a.toLowerCase().includes('elective') || b.toLowerCase().includes('elective')) return true;
+
+  const da = resolveDepartment(a);
+  const db = resolveDepartment(b);
+  if (da && db) {
+    return da.id === db.id || da.code === db.code;
+  }
+  if (da) {
+    return da.name.toLowerCase() === b.toLowerCase() || 
+           da.code.toLowerCase() === b.toLowerCase() || 
+           da.id.toLowerCase() === b.toLowerCase();
+  }
+  if (db) {
+    return db.name.toLowerCase() === a.toLowerCase() || 
+           db.code.toLowerCase() === a.toLowerCase() || 
+           db.id.toLowerCase() === a.toLowerCase();
+  }
+  return a.toLowerCase().includes(b.toLowerCase()) || b.toLowerCase().includes(a.toLowerCase());
+};
+
 export const findClassByCriteria = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const classes = getClasses();
   const normSem = normalizeSem(semester);
   const normDiv = normalizeDiv(division);
   const normYear = (academicYear || DEFAULT_ACADEMIC_YEAR).trim();
 
-  let targetDeptId = null;
-  let targetDeptName = null;
-  if (department) {
-    const dStr = String(department).trim().toLowerCase();
-    const depts = getDepartments();
-    const found = depts.find(d => 
-      (d.id && d.id.toLowerCase() === dStr) ||
-      (d.name && d.name.toLowerCase() === dStr) ||
-      (d.code && d.code.toLowerCase() === dStr) ||
-      (d.name && d.name.toLowerCase().includes(dStr)) ||
-      (d.name && dStr.includes(d.name.toLowerCase()))
-    );
-    if (found) {
-      targetDeptId = found.id;
-      targetDeptName = found.name;
-    } else {
-      targetDeptName = department;
-    }
-  }
+  const isElective = !department || 
+    department === 'Elective' || 
+    department === 'Elective (No Department)' || 
+    department === 'DEP_ELECTIVE';
+  const resolvedDept = !isElective ? resolveDepartment(department) : null;
 
   return classes.find(c => {
     const semMatch = normalizeSem(c.semester) === normSem;
     const divMatch = normalizeDiv(c.division || c.name) === normDiv;
     const yearMatch = !c.academicYear || c.academicYear === normYear;
-    const cDeptName = c.departmentName || c.department || '';
-    const deptMatch = !department || 
-      (targetDeptId && c.departmentId === targetDeptId) || 
-      (targetDeptName && cDeptName && cDeptName.toLowerCase().includes(targetDeptName.toLowerCase())) ||
-      (cDeptName && cDeptName.toLowerCase().includes(String(department).toLowerCase()));
+    if (isElective && c.isElective) {
+      return semMatch && divMatch && yearMatch;
+    }
+    if (c.isElective && !isElective) return false;
+    const deptMatch = !department || isDepartmentMatch(c.departmentName || c.departmentId || c.department, resolvedDept ? resolvedDept.name : department);
     return semMatch && divMatch && yearMatch && deptMatch;
   }) || null;
 };
@@ -643,31 +723,43 @@ export const getOrCreateClass = (department, semester, division, academicYear = 
   const existing = findClassByCriteria(department, semester, division, academicYear);
   if (existing) return existing;
 
-  const depts = getDepartments();
-  let deptId = 'DEP_AI';
-  let deptName = 'AI & Data Science';
-  if (department) {
-    const dStr = String(department).toLowerCase();
-    const found = depts.find(d => d.id.toLowerCase() === dStr || d.name.toLowerCase() === dStr || d.name.toLowerCase().includes(dStr));
-    if (found) {
-      deptId = found.id;
-      deptName = found.name;
+  const isElective = !department || 
+    department === 'Elective' || 
+    department === 'Elective (No Department)' || 
+    department === 'DEP_ELECTIVE';
+
+  let deptId = null;
+  let deptName = null;
+  if (!isElective) {
+    const resolved = resolveDepartment(department);
+    if (resolved) {
+      deptId = resolved.id;
+      deptName = resolved.name;
     } else {
-      deptName = department;
+      deptName = String(department).trim();
+      deptId = 'DEP_' + deptName.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     }
+  } else {
+    deptId = null;
+    deptName = 'Elective (No Department)';
   }
 
   const normSem = normalizeSem(semester);
   const normDiv = normalizeDiv(division);
-  const normYear = academicYear || DEFAULT_ACADEMIC_YEAR;
+  const normYear = (academicYear || DEFAULT_ACADEMIC_YEAR).trim();
 
   const newClass = {
-    id: `CLASS_${deptId}_${normSem.replace(/[^0-9]/g, '')}_${normDiv.replace(/[^0-9]/g, '')}_${normYear.replace(/[^0-9]/g, '_')}`,
-    departmentId: deptId,
-    departmentName: deptName,
+    id: isElective
+      ? `CLASS_ELECTIVE_${normSem.replace(/[^0-9]/g, '')}_${normDiv.replace(/[^0-9]/g, '')}_${normYear.replace(/[^0-9]/g, '_')}`
+      : `CLASS_${deptId}_${normSem.replace(/[^0-9]/g, '')}_${normDiv.replace(/[^0-9]/g, '')}_${normYear.replace(/[^0-9]/g, '_')}`,
+    name: isElective ? normDiv : `${deptName} - ${normSem} - ${normDiv}`,
+    departmentId: isElective ? null : deptId,
+    departmentName: isElective ? 'Elective (No Department)' : deptName,
     semester: normSem,
     division: normDiv,
+    batch: 'ALL',
     academicYear: normYear,
+    isElective,
     createdAt: new Date().toISOString(),
     status: 'active'
   };
@@ -676,6 +768,7 @@ export const getOrCreateClass = (department, semester, division, academicYear = 
   return newClass;
 };
 
+export const addClass = (classData, userContext = null) => saveClass(classData, userContext);
 export const saveClass = (classData, userContext = null) => {
   const user = userContext || getCurrentUser();
   if (user && user.role === 'student') {
@@ -694,24 +787,17 @@ export const saveClass = (classData, userContext = null) => {
   let deptName = null;
 
   if (!isElective) {
-    const depts = getDepartments();
-    deptId = classData.departmentId;
-    deptName = classData.departmentName;
-    if (deptId && !deptName) {
-      const f = depts.find(d => d.id === deptId);
-      if (f) deptName = f.name;
-    } else if (!deptId && deptName) {
-      const f = depts.find(d => d.name.toLowerCase() === deptName.toLowerCase() || d.id === deptName);
-      if (f) {
-        deptId = f.id;
-        deptName = f.name;
-      }
+    const resolved = resolveDepartment(classData.departmentName || classData.departmentId);
+    if (resolved) {
+      deptId = resolved.id;
+      deptName = resolved.name;
+    } else {
+      deptName = classData.departmentName || 'Engineering';
+      deptId = classData.departmentId || ('DEP_' + deptName.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
     }
-    if (!deptId) deptId = 'DEP_AI';
-    if (!deptName) deptName = 'AI & Data Science';
   } else {
     deptId = null;
-    deptName = classData.departmentName || 'Elective (No Department)';
+    deptName = 'Elective (No Department)';
   }
 
   const classes = getClasses();
@@ -729,7 +815,7 @@ export const saveClass = (classData, userContext = null) => {
       return Boolean(c.isElective) && sameSubj && sameSem && sameDiv && sameYear;
     } else {
       return !c.isElective &&
-             c.departmentId === deptId &&
+             (c.departmentId === deptId || isDepartmentMatch(c.departmentName || c.departmentId, deptName || deptId)) &&
              sameSem &&
              normalizeDiv(c.division) === normalizeDiv(normDiv) &&
              sameYear;
@@ -834,7 +920,7 @@ export const saveClass = (classData, userContext = null) => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-classes-updated'));
   }
-  return { success: true, class: savedClass, classes };
+  return { ...savedClass, success: true, class: savedClass, classes };
 };
 
 export const deleteClass = (classId, deleteStudents = false, userContext = null) => {
@@ -1413,7 +1499,14 @@ export const canFacultyTeachClassAndSubject = (faculty, dept, sem, div, subjectI
   const targetDiv = div && div !== 'ALL' ? normalizeDiv(div) : null;
   const targetSubj = subjectId ? String(subjectId).trim().toLowerCase() : null;
 
+  const isTargetElective = !dept || dept.toLowerCase().includes('elective');
+
   return assignments.some(a => {
+    // Check Department (unless elective class or universal)
+    if (dept && !isTargetElective && a.department && !a.department.toLowerCase().includes('elective')) {
+      if (!isDepartmentMatch(a.department, dept)) return false;
+    }
+
     // Check Semester
     if (targetSem && a.semester && normalizeSem(a.semester) !== targetSem) return false;
 
@@ -1448,29 +1541,65 @@ export const getAuthorizedFacultyClasses = (facultyOrUser = null) => {
   const assignments = getFacultyAuthorizedAssignments(user);
   if (assignments.some(a => a.isUniversal)) return allClasses;
 
-  const authorizedMap = new Set();
-  assignments.forEach(a => {
-    authorizedMap.add(`${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`);
+  const facId = user.facultyId || user.id;
+  const facName = (user.name || '').trim().toLowerCase();
+  const matched = [];
+  const addedIds = new Set();
+
+  // 1. Direct class assignments
+  allClasses.forEach(c => {
+    const matchFac = (c.facultyId && (c.facultyId === facId || c.facultyId === user.id)) ||
+      (c.facultyName && c.facultyName.trim().toLowerCase() === facName);
+    if (matchFac && !addedIds.has(c.id)) {
+      matched.push(c);
+      addedIds.add(c.id);
+    }
   });
 
-  const matched = allClasses.filter(c => {
-    const key = `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}`;
-    return authorizedMap.has(key);
+  // 2. Classes matching authorized teaching assignments
+  allClasses.forEach(c => {
+    if (addedIds.has(c.id)) return;
+    const isMatch = assignments.some(a => {
+      if (c.isElective) {
+        if (!a.department?.toLowerCase().includes('elective') && a.department !== 'Elective (No Department)') {
+          return (a.subjectId && (a.subjectId === c.subjectId || a.subjectName === c.subjectName)) &&
+                 normalizeSem(a.semester) === normalizeSem(c.semester);
+        }
+        return normalizeSem(a.semester) === normalizeSem(c.semester);
+      }
+      const deptOk = isDepartmentMatch(c.departmentName || c.departmentId, a.department);
+      const semOk = normalizeSem(c.semester) === normalizeSem(a.semester);
+      const divOk = normalizeDiv(c.division || c.name) === normalizeDiv(a.division);
+      return deptOk && semOk && divOk;
+    });
+    if (isMatch) {
+      matched.push(c);
+      addedIds.add(c.id);
+    }
   });
 
-  // Synthesize class entries for any assignments not in default classes table
+  // 3. Synthesize class entries for any assignments not yet in classes master table
   assignments.forEach(a => {
-    const key = `${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`;
-    if (!matched.some(c => `${normalizeSem(c.semester)}_${normalizeDiv(c.division)}` === key)) {
-      matched.push({
-        id: `CLASS_AUTH_${normalizeSem(a.semester)}_${normalizeDiv(a.division)}`,
-        departmentName: a.department || user.dept || 'Engineering',
-        departmentId: a.department || user.dept || 'DEP',
-        semester: a.semester,
-        division: a.division,
-        batch: a.batch || 'ALL',
-        academicYear: DEFAULT_ACADEMIC_YEAR
-      });
+    if (!a.semester || !a.division) return;
+    const isAlreadyCovered = matched.some(c => 
+      isDepartmentMatch(c.departmentName || c.departmentId, a.department) &&
+      normalizeSem(c.semester) === normalizeSem(a.semester) &&
+      normalizeDiv(c.division || c.name) === normalizeDiv(a.division)
+    );
+    if (!isAlreadyCovered) {
+      const synthId = `CLASS_AUTH_${(a.department || user.dept || 'DEP').replace(/[^A-Za-z0-9]/g, '')}_${normalizeSem(a.semester).replace(/[^0-9]/g, '')}_${normalizeDiv(a.division).replace(/[^0-9]/g, '')}`;
+      if (!addedIds.has(synthId)) {
+        matched.push({
+          id: synthId,
+          departmentName: a.department || user.dept || 'Engineering',
+          departmentId: a.department || user.dept || 'DEP',
+          semester: a.semester,
+          division: a.division,
+          batch: a.batch || 'ALL',
+          academicYear: DEFAULT_ACADEMIC_YEAR
+        });
+        addedIds.add(synthId);
+      }
     }
   });
 
@@ -2392,7 +2521,7 @@ export const deleteSession = (sessionId, userContext = null) => {
 };
 
 export const resetToDefault = () => {
-  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
@@ -2574,30 +2703,105 @@ export const deleteFaculty = (facultyId, userContext = null) => {
   return faculties;
 };
 
-// Departments API
-export const getDepartments = () => {
+// Departments API (Centralized College-Wide Departments)
+export const getDepartments = (includeInactive = true) => {
   initializeStorage();
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.DEPARTMENTS) || JSON.stringify(DEFAULT_DEPARTMENTS));
+  const raw = localStorage.getItem(STORAGE_KEYS.DEPARTMENTS);
+  let list = [];
+  try {
+    list = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    list = [];
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    list = [...INITIAL_COLLEGE_DEPARTMENTS];
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(list));
+  } else {
+    let updated = false;
+    INITIAL_COLLEGE_DEPARTMENTS.forEach(initD => {
+      const exists = list.some(d => d.id === initD.id || (d.code && d.code.toUpperCase() === initD.code.toUpperCase()));
+      if (!exists) {
+        list.push({ ...initD });
+        updated = true;
+      }
+    });
+    if (updated) {
+      localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(list));
+    }
+  }
+  if (!includeInactive) {
+    return list.filter(d => d.status !== 'inactive');
+  }
+  return list;
+};
+
+export const getActiveDepartments = () => {
+  return getDepartments(false);
 };
 
 export const saveDepartment = (dept) => {
-  const depts = getDepartments();
-  if (dept.id) {
-    const idx = depts.findIndex(d => d.id === dept.id);
-    if (idx !== -1) depts[idx] = dept;
-    else depts.push(dept);
+  const depts = getDepartments(true);
+  const code = (dept.code || '').trim().toUpperCase();
+  const name = (dept.name || '').trim();
+  const id = dept.id || (code ? `DEP_${code.replace(/[^A-Z0-9]/g, '')}` : `DEP_${Date.now().toString().slice(-4)}`);
+
+  // Avoid duplicates: match by ID, Code, or Name
+  const idx = depts.findIndex(d => 
+    d.id === id || 
+    (code && d.code && d.code.toUpperCase() === code) ||
+    (name && d.name && d.name.toLowerCase() === name.toLowerCase())
+  );
+
+  const updatedDept = {
+    ...dept,
+    id: idx !== -1 ? depts[idx].id : id,
+    code: code || (idx !== -1 ? depts[idx].code : id.replace('DEP_', '')),
+    name: name || (idx !== -1 ? depts[idx].name : code),
+    status: dept.status || (idx !== -1 && depts[idx].status ? depts[idx].status : 'active')
+  };
+
+  if (idx !== -1) {
+    depts[idx] = { ...depts[idx], ...updatedDept };
   } else {
-    dept.id = 'DEP_' + Date.now().toString().slice(-4);
-    depts.push(dept);
+    depts.push(updatedDept);
   }
+
   localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('adit-departments-updated'));
+  }
+  return depts;
+};
+
+export const deactivateDepartment = (deptId) => {
+  const depts = getDepartments(true);
+  const dept = depts.find(d => d.id === deptId || d.code === deptId || d.name === deptId);
+  if (dept) {
+    dept.status = 'inactive';
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adit-departments-updated'));
+    }
+  }
+  return depts;
+};
+
+export const reactivateDepartment = (deptId) => {
+  const depts = getDepartments(true);
+  const dept = depts.find(d => d.id === deptId || d.code === deptId || d.name === deptId);
+  if (dept) {
+    dept.status = 'active';
+    localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adit-departments-updated'));
+    }
+  }
   return depts;
 };
 
 export const deleteDepartment = (deptId) => {
-  const depts = getDepartments().filter(d => d.id !== deptId);
-  localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
-  return depts;
+  // Soft deactivate so historical attendance records are never deleted or broken
+  return deactivateDepartment(deptId);
 };
 
 // Subject Allocations API (Division count 1, 2, or 3 & Faculty per Division)
@@ -3120,18 +3324,20 @@ export const promoteStudentsSemester = ({
       student.lastPromotionCycle = academicCycle;
 
       // Ensure / assign to target class in the system
-      const studentDept = student.department || student.dept || 'AI & Data Science';
+      const studentDept = student.department || student.dept || 'Engineering';
       const studentDiv = student.division || 'Div 1';
       const studentYear = student.academicYear || academicCycle;
+      const resolvedPromoteDept = resolveDepartment(studentDept);
+      const studentDeptId = student.departmentId || resolvedPromoteDept?.id || ('DEP_' + studentDept.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
 
       let targetClass = findClassByCriteria(studentDept, targetSem, studentDiv, studentYear);
       if (!targetClass) {
         // Auto-create corresponding target class if it does not yet exist
-        const newClassId = `CLASS_${student.departmentId || 'DEP_AI'}_${targetSem.replace(/[^0-9]/g, '')}_${studentDiv.replace(/[^0-9]/g, '')}_${studentYear}`;
+        const newClassId = `CLASS_${studentDeptId}_${targetSem.replace(/[^0-9]/g, '')}_${studentDiv.replace(/[^0-9]/g, '')}_${studentYear}`;
         targetClass = {
           id: newClassId,
-          departmentId: student.departmentId || 'DEP_AI',
-          departmentName: studentDept,
+          departmentId: studentDeptId,
+          departmentName: resolvedPromoteDept ? resolvedPromoteDept.name : studentDept,
           semester: targetSem,
           division: studentDiv,
           academicYear: studentYear,
@@ -3600,12 +3806,8 @@ export const bulkRegisterStudents = (studentRows, defaultAcademicYear = DEFAULT_
     // Resolve or create class
     let targetClass = findClassByCriteria(dept, sem, div, defaultAcademicYear);
     if (!targetClass) {
-      let deptId = 'DEP_AI';
-      if (dept.toLowerCase().includes('comp')) deptId = 'DEP_CP';
-      else if (dept.toLowerCase().includes('info')) deptId = 'DEP_IT';
-      else if (dept.toLowerCase().includes('elec') || dept.toLowerCase().includes('ec')) deptId = 'DEP_EC';
-      else if (dept.toLowerCase().includes('mech')) deptId = 'DEP_ME';
-      else if (dept.toLowerCase().includes('civil')) deptId = 'DEP_CL';
+      const resolvedD = resolveDepartment(dept);
+      let deptId = resolvedD ? resolvedD.id : ('DEP_' + dept.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
 
       targetClass = {
         id: `CLASS_${deptId}_${sem.replace(/[^0-9]/g, '')}_${div.replace(/[^0-9]/g, '')}_${defaultAcademicYear}`,
@@ -4737,4 +4939,33 @@ if (typeof window !== 'undefined') {
   window.getStudentEnrolledSubjects = getStudentEnrolledSubjects;
   window.getStudentOverallAttendance = getStudentOverallAttendance;
   window.getSubjectAttendanceDetails = getSubjectAttendanceDetails;
+}
+
+
+// Returns all authorized classes for a specified faculty member (by ID or object)
+export const getClassesForFaculty = (facultyIdOrObj) => {
+  if (!facultyIdOrObj) return [];
+  if (typeof facultyIdOrObj === 'object') return getAuthorizedFacultyClasses(facultyIdOrObj);
+  const allFac = getFaculties();
+  const found = allFac.find(f => f.id === facultyIdOrObj || f.name.toLowerCase() === String(facultyIdOrObj).toLowerCase());
+  return getAuthorizedFacultyClasses(found || { id: facultyIdOrObj });
+};
+
+if (typeof window !== 'undefined') {
+  window.getDepartments = getDepartments;
+  window.saveDepartment = saveDepartment;
+  window.deleteDepartment = deleteDepartment;
+  window.bulkRegisterStudents = bulkRegisterStudents;
+  window.findClassByCriteria = findClassByCriteria;
+  window.getOrCreateClass = getOrCreateClass;
+  window.canFacultyTeachClassAndSubject = canFacultyTeachClassAndSubject;
+  window.getAuthorizedFacultyClasses = getAuthorizedFacultyClasses;
+  window.getAuthorizedFacultySubjects = getAuthorizedFacultySubjects;
+  window.resolveDepartment = resolveDepartment;
+  window.isDepartmentMatch = isDepartmentMatch;
+  window.getActiveDepartments = getActiveDepartments;
+  window.deactivateDepartment = deactivateDepartment;
+  window.reactivateDepartment = reactivateDepartment;
+  window.getClassesForFaculty = getClassesForFaculty;
+  window.addClass = addClass;
 }
