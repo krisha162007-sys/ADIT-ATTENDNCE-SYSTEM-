@@ -92,7 +92,9 @@ import {
   resolveDepartment,
   isDepartmentMatch,
   normalizeBatch,
-  isBatchMatch
+  isBatchMatch,
+  canonicalizeBatch,
+  getBatchesForClass
 } from '../services/attendanceStorage';
 import AttendanceSheetView from './AttendanceSheetView';
 import { 
@@ -418,34 +420,45 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     return Array.from(divSet).sort();
   }, [authorizedClasses, currentFaculty, attDiv]);
 
+  // Resolve Class entity for current Take Attendance selection
+  const activeClass = useMemo(() => {
+    const classes = getClasses();
+    const electiveCls = classes.find(c => c.isElective && 
+      (c.subjectId === attSubjectId || c.subjectName === attSubjectName || c.division === attDiv || c.name === attDiv) &&
+      (!attSem || normalizeSem(c.semester) === normalizeSem(attSem))
+    );
+    if (electiveCls) return electiveCls;
+
+    return findClassByCriteria(attDept, attSem, attDiv, attYear) || 
+           getOrCreateClass(attDept, attSem, attDiv, attYear);
+  }, [attDept, attSem, attDiv, attYear, attSubjectId, attSubjectName]);
+
   const takeAvailableBatches = useMemo(() => {
-    const classStudentsList = getStudents().filter(s => {
-      const matchDept = !attDept || attDept === 'ALL' || isDepartmentMatch(s.department || s.dept || s.departmentId, attDept);
-      const matchSem = !attSem || normalizeSem(s.semester || s.sem) === normalizeSem(attSem);
-      const matchDiv = !attDiv || attDiv === 'ALL' || normalizeDiv(s.division || s.class) === normalizeDiv(attDiv);
-      return matchDept && matchSem && matchDiv;
+    return getBatchesForClass({
+      department: attDept,
+      semester: attSem,
+      division: attDiv,
+      academicYear: attYear,
+      classId: activeClass?.id
     });
-    const foundBatches = new Set();
-    classStudentsList.forEach(s => {
-      if (s.batch && s.batch.trim() && s.batch.toUpperCase() !== 'ALL') {
-        foundBatches.add(s.batch.trim());
+  }, [attDept, attSem, attDiv, attYear, activeClass?.id, studentsTick]);
+
+  // Synchronize attBatch strictly against available batches for the selected class
+  useEffect(() => {
+    if (takeAvailableBatches.length > 0) {
+      const validValues = takeAvailableBatches.map(b => b.value);
+      const isCurrentValid = validValues.includes(attBatch) || 
+        validValues.some(v => isBatchMatch(attBatch, v) && normalizeBatch(attBatch) === normalizeBatch(v));
+      if (!isCurrentValid) {
+        setAttBatch('ALL');
+      } else {
+        const matching = takeAvailableBatches.find(b => isBatchMatch(attBatch, b.value) && normalizeBatch(attBatch) === normalizeBatch(b.value));
+        if (matching && matching.value !== attBatch) {
+          setAttBatch(matching.value);
+        }
       }
-    });
-    ['Batch A', 'Batch B', 'Batch C', 'Batch D'].forEach(b => foundBatches.add(b));
-    if (attBatch && attBatch !== 'ALL') {
-      foundBatches.add(attBatch);
     }
-    const sortedBatches = Array.from(foundBatches).sort((a, b) => {
-      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-    });
-    return [
-      { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
-      ...sortedBatches.map(b => ({
-        value: b,
-        label: `${b.toLowerCase().startsWith('batch') ? b : `Batch ${b}`} (Lab / Practical)`
-      }))
-    ];
-  }, [attDept, attSem, attDiv, attBatch, studentsTick]);
+  }, [takeAvailableBatches, attBatch]);
 
   const [attTopic, setAttTopic] = useState('');
   const [attRecords, setAttRecords] = useState({});
@@ -541,7 +554,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     // 5. Resolve Semester, Division, Batch
     const resolvedSem = normalizeSem(lec.sem || '3rd Sem');
     const resolvedDiv = normalizeDiv(lec.div || 'Div 1');
-    const resolvedBatch = lec.batch || 'ALL';
+    const resolvedBatch = canonicalizeBatch(lec.batch || 'ALL');
     setAttSem(resolvedSem);
     setAttDiv(resolvedDiv);
     setAttBatch(resolvedBatch);
@@ -609,18 +622,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   };
 
 
-  // Resolve Class entity for current Take Attendance selection
-  const activeClass = useMemo(() => {
-    const classes = getClasses();
-    const electiveCls = classes.find(c => c.isElective && 
-      (c.subjectId === attSubjectId || c.subjectName === attSubjectName || c.division === attDiv || c.name === attDiv) &&
-      (!attSem || normalizeSem(c.semester) === normalizeSem(attSem))
-    );
-    if (electiveCls) return electiveCls;
 
-    return findClassByCriteria(attDept, attSem, attDiv, attYear) || 
-           getOrCreateClass(attDept, attSem, attDiv, attYear);
-  }, [attDept, attSem, attDiv, attYear, attSubjectId, attSubjectName]);
 
   // Handle Loading Students for Step 2
   const handleLoadStudents = (e) => {

@@ -301,6 +301,7 @@ const initializeStorage = () => {
   if (localStorage.getItem(STORAGE_KEYS.SECURITY) === null) {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
+  cleanupBatchDefinitions();
 };
 const verifyAdminPin = (inputPin) => {
   initializeStorage();
@@ -583,6 +584,19 @@ const isBatchMatch = (studentBatch, filterBatch) => {
   }
   return normStudent === normFilter;
 };
+const canonicalizeBatch = (b) => {
+  if (!b) return "";
+  const s = String(b).trim();
+  if (!s) return "";
+  const norm = normalizeBatch(s);
+  if (!norm || norm === "ALL") {
+    return "ALL";
+  }
+  if (/^[A-Za-z0-9]+$/.test(norm)) {
+    return `Batch ${norm.toUpperCase()}`;
+  }
+  return s.toLowerCase().startsWith("batch") ? s : `Batch ${s}`;
+};
 const findClassByCriteria = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const classes = getClasses();
   const normSem = normalizeSem(semester);
@@ -824,6 +838,12 @@ const getStudents = () => {
         st.batch = idx % 3 === 0 ? "Batch A" : idx % 3 === 1 ? "Batch B" : "Batch C";
       }
       modified = true;
+    } else {
+      const canon = canonicalizeBatch(st.batch);
+      if (canon && canon !== "ALL" && canon !== st.batch) {
+        st.batch = canon;
+        modified = true;
+      }
     }
     if (!st.classId) {
       const cls = findClassByCriteria(
@@ -909,6 +929,136 @@ const getStudentsForClassCriteria = (dept, sem, div, academicYear = DEFAULT_ACAD
     const targetDept = String(dept || "").toLowerCase();
     return sSem === normSem && sDiv === normDiv && (!dept || sDept.includes(targetDept) || targetDept.includes(sDept));
   });
+};
+const getBatchesForClass = (classOrCriteria) => {
+  if (!classOrCriteria) {
+    return [
+      { value: "ALL", label: "All Batches (Whole Class / Theory)" },
+      { value: "Batch A", label: "Batch A (Lab / Practical)" },
+      { value: "Batch B", label: "Batch B (Lab / Practical)" },
+      { value: "Batch C", label: "Batch C (Lab / Practical)" },
+      { value: "Batch D", label: "Batch D (Lab / Practical)" }
+    ];
+  }
+  let cls = null;
+  if (typeof classOrCriteria === "string") {
+    cls = getClassById(classOrCriteria);
+  } else if (classOrCriteria.id) {
+    cls = getClassById(classOrCriteria.id) || classOrCriteria;
+  } else if (classOrCriteria.classId && classOrCriteria.classId !== "ALL") {
+    cls = getClassById(classOrCriteria.classId);
+  }
+  if (!cls && typeof classOrCriteria === "object") {
+    const dept = classOrCriteria.department || classOrCriteria.dept || classOrCriteria.departmentId;
+    const sem = classOrCriteria.semester || classOrCriteria.sem;
+    const div = classOrCriteria.division || classOrCriteria.div || classOrCriteria.class;
+    const year = classOrCriteria.academicYear;
+    if (dept && sem && div) {
+      cls = findClassByCriteria(dept, sem, div, year) || getOrCreateClass(dept, sem, div, year);
+    }
+  }
+  if (cls && cls.isElective && (!cls.batches || cls.batches.length === 0)) {
+    return [{ value: "ALL", label: "All Batches (Whole Class / Theory)" }];
+  }
+  const canonicalMap = /* @__PURE__ */ new Map();
+  if (cls && Array.isArray(cls.batches) && cls.batches.length > 0) {
+    cls.batches.forEach((b) => {
+      const norm = normalizeBatch(b);
+      if (norm && norm !== "ALL") {
+        canonicalMap.set(norm, canonicalizeBatch(b));
+      }
+    });
+  }
+  let classStudents = [];
+  if (cls && cls.id) {
+    classStudents = getStudentsByClassId(cls.id);
+  }
+  if ((!classStudents || classStudents.length === 0) && classOrCriteria && typeof classOrCriteria === "object") {
+    const dept = cls?.departmentName || cls?.departmentId || classOrCriteria.department || classOrCriteria.dept || classOrCriteria.departmentId;
+    const sem = cls?.semester || classOrCriteria.semester || classOrCriteria.sem;
+    const div = cls?.division || classOrCriteria.division || classOrCriteria.div || classOrCriteria.class;
+    const year = cls?.academicYear || classOrCriteria.academicYear;
+    if (dept && sem && div) {
+      classStudents = getStudentsForClassCriteria(dept, sem, div, year);
+    }
+  }
+  if (classStudents && classStudents.length > 0) {
+    classStudents.forEach((s) => {
+      if (s.batch && String(s.batch).trim()) {
+        const norm = normalizeBatch(s.batch);
+        if (norm && norm !== "ALL") {
+          if (!canonicalMap.has(norm)) {
+            canonicalMap.set(norm, canonicalizeBatch(s.batch));
+          }
+        }
+      }
+    });
+  }
+  if (canonicalMap.size === 0 && (!cls || !cls.isElective)) {
+    ["Batch A", "Batch B", "Batch C", "Batch D"].forEach((b) => {
+      canonicalMap.set(normalizeBatch(b), b);
+    });
+  }
+  const sortedBatches = Array.from(canonicalMap.values()).sort((a, b) => {
+    return a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" });
+  });
+  return [
+    { value: "ALL", label: "All Batches (Whole Class / Theory)" },
+    ...sortedBatches.map((b) => ({
+      value: b,
+      label: `${b.toLowerCase().startsWith("batch") ? b : `Batch ${b}`} (Lab / Practical)`
+    }))
+  ];
+};
+const cleanupBatchDefinitions = () => {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const rawSt = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    if (rawSt) {
+      const students = JSON.parse(rawSt);
+      let stChanged = false;
+      students.forEach((st) => {
+        if (st.batch) {
+          const canon = canonicalizeBatch(st.batch);
+          if (canon && canon !== "ALL" && canon !== st.batch) {
+            st.batch = canon;
+            stChanged = true;
+          }
+        }
+      });
+      if (stChanged) {
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+      }
+    }
+    const rawCls = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (rawCls) {
+      const classes = JSON.parse(rawCls);
+      let clsChanged = false;
+      classes.forEach((c) => {
+        if (Array.isArray(c.batches)) {
+          const seen = /* @__PURE__ */ new Set();
+          const cleanBatches = [];
+          c.batches.forEach((b) => {
+            const norm = normalizeBatch(b);
+            const canon = canonicalizeBatch(b);
+            if (norm && norm !== "ALL" && !seen.has(norm)) {
+              seen.add(norm);
+              cleanBatches.push(canon);
+            }
+          });
+          if (cleanBatches.length !== c.batches.length || cleanBatches.some((b, i) => b !== c.batches[i])) {
+            c.batches = cleanBatches;
+            clsChanged = true;
+          }
+        }
+      });
+      if (clsChanged) {
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      }
+    }
+  } catch (err) {
+    console.warn("Batch definition cleanup warning:", err);
+  }
 };
 const parseAndValidateElectiveStudentList = (rows, allExistingStudents = null) => {
   const allStudents = allExistingStudents || getStudents();
@@ -1553,7 +1703,7 @@ const saveStudent = (studentData, userContext = null) => {
   const div = resolvedClass ? resolvedClass.division : normalizeDiv(studentData.division || studentData.class || "Div 1");
   const year = resolvedClass ? resolvedClass.academicYear : studentData.academicYear || DEFAULT_ACADEMIC_YEAR;
   let saved;
-  const batchVal = studentData.batch ? String(studentData.batch).trim() : "Batch A";
+  const batchVal = studentData.batch ? canonicalizeBatch(studentData.batch) : "Batch A";
   if (studentData.id) {
     const idx = students.findIndex((s) => s.id === studentData.id);
     if (idx !== -1) {
@@ -1657,7 +1807,8 @@ const bulkImportStudentsToClass = (classId, studentRows, options = { moveExistin
     const enrollmentNo = String(row.enrollmentNo || "").trim();
     const rollNo = String(row.rollNo || "").trim();
     const email = String(row.email || "").trim();
-    const batch = String(row.batch || row.Batch || row["Student Batch"] || "").trim() || "Batch A";
+    const rawBatch = String(row.batch || row.Batch || row["Student Batch"] || "").trim();
+    const batch = rawBatch ? canonicalizeBatch(rawBatch) : "Batch A";
     if (!name || !enrollmentNo) {
       errors.push(`Row ${rowNum}: Name and Enrollment Number are required.`);
       return;
@@ -1765,7 +1916,7 @@ const updateStudentBatch = (studentId, newBatch) => {
   const students = getStudents();
   const st = students.find((s) => s.id === studentId);
   if (!st) throw new Error("Student not found.");
-  st.batch = String(newBatch).trim() || "Batch A";
+  st.batch = canonicalizeBatch(newBatch || "Batch A");
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-students-updated"));
@@ -3125,7 +3276,7 @@ const bulkRegisterStudents = (studentRows, defaultAcademicYear = DEFAULT_ACADEMI
     const dept = String(row.department || row.Department || row.dept || "AI & Data Science").trim();
     const sem = normalizeSem(row.semester || row.Semester || row.sem || "1st Sem");
     const div = normalizeDiv(row.division || row.Division || row.class || "Div 1");
-    const batch = String(row.batch || row.Batch || "Batch A").trim();
+    const batch = canonicalizeBatch(row.batch || row.Batch || "Batch A");
     const email = String(row.email || row.Email || "").trim();
     const rollNo = String(row.rollNo || row["Roll Number"] || row.RollNo || "").trim();
     if (!name || !enrollmentNo) {
@@ -4097,6 +4248,9 @@ if (typeof window !== "undefined") {
   window.isBatchMatch = isBatchMatch;
   window.normalizeSem = normalizeSem;
   window.normalizeDiv = normalizeDiv;
+  window.canonicalizeBatch = canonicalizeBatch;
+  window.getBatchesForClass = getBatchesForClass;
+  window.cleanupBatchDefinitions = cleanupBatchDefinitions;
 }
 const TT_STORAGE_KEYS = {
   TIMETABLE: "adit_attendance_timetable",
@@ -7891,7 +8045,8 @@ function EnterAttendance({ onSaved, showToast }) {
     /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Batches"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
-    /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C")
+    /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C"),
+    /* @__PURE__ */ React.createElement("option", { value: "Batch D" }, "Batch D")
   )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "#2563eb" } }), /* @__PURE__ */ React.createElement("span", null, "Subject / Course")), /* @__PURE__ */ React.createElement(
     "select",
     {
@@ -9726,7 +9881,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
     /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch D" }, "Batch D"),
-    batch && !["All", "ALL", "Batch A", "Batch B", "Batch C", "Batch D"].includes(batch) && /* @__PURE__ */ React.createElement("option", { value: batch }, batch)
+    batch && !["All", "ALL", "Batch A", "Batch B", "Batch C", "Batch D"].includes(String(batch).trim().replace(/^([A-D])$/i, "Batch $1")) && /* @__PURE__ */ React.createElement("option", { value: batch }, batch)
   ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Assign Faculty"), /* @__PURE__ */ React.createElement(
     "select",
     {
@@ -16001,34 +16156,37 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     if (divSet.size === 0) divSet.add("Div 1");
     return Array.from(divSet).sort();
   }, [authorizedClasses, currentFaculty, attDiv]);
+  const activeClass = useMemo(() => {
+    const classes = getClasses();
+    const electiveCls = classes.find(
+      (c) => c.isElective && (c.subjectId === attSubjectId || c.subjectName === attSubjectName || c.division === attDiv || c.name === attDiv) && (!attSem || normalizeSem(c.semester) === normalizeSem(attSem))
+    );
+    if (electiveCls) return electiveCls;
+    return findClassByCriteria(attDept, attSem, attDiv, attYear) || getOrCreateClass(attDept, attSem, attDiv, attYear);
+  }, [attDept, attSem, attDiv, attYear, attSubjectId, attSubjectName]);
   const takeAvailableBatches = useMemo(() => {
-    const classStudentsList = getStudents().filter((s) => {
-      const matchDept = !attDept || attDept === "ALL" || isDepartmentMatch(s.department || s.dept || s.departmentId, attDept);
-      const matchSem = !attSem || normalizeSem(s.semester || s.sem) === normalizeSem(attSem);
-      const matchDiv = !attDiv || attDiv === "ALL" || normalizeDiv(s.division || s.class) === normalizeDiv(attDiv);
-      return matchDept && matchSem && matchDiv;
+    return getBatchesForClass({
+      department: attDept,
+      semester: attSem,
+      division: attDiv,
+      academicYear: attYear,
+      classId: activeClass?.id
     });
-    const foundBatches = /* @__PURE__ */ new Set();
-    classStudentsList.forEach((s) => {
-      if (s.batch && s.batch.trim() && s.batch.toUpperCase() !== "ALL") {
-        foundBatches.add(s.batch.trim());
+  }, [attDept, attSem, attDiv, attYear, activeClass?.id, studentsTick]);
+  useEffect(() => {
+    if (takeAvailableBatches.length > 0) {
+      const validValues = takeAvailableBatches.map((b) => b.value);
+      const isCurrentValid = validValues.includes(attBatch) || validValues.some((v) => isBatchMatch(attBatch, v) && normalizeBatch(attBatch) === normalizeBatch(v));
+      if (!isCurrentValid) {
+        setAttBatch("ALL");
+      } else {
+        const matching = takeAvailableBatches.find((b) => isBatchMatch(attBatch, b.value) && normalizeBatch(attBatch) === normalizeBatch(b.value));
+        if (matching && matching.value !== attBatch) {
+          setAttBatch(matching.value);
+        }
       }
-    });
-    ["Batch A", "Batch B", "Batch C", "Batch D"].forEach((b) => foundBatches.add(b));
-    if (attBatch && attBatch !== "ALL") {
-      foundBatches.add(attBatch);
     }
-    const sortedBatches = Array.from(foundBatches).sort((a, b) => {
-      return a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" });
-    });
-    return [
-      { value: "ALL", label: "All Batches (Whole Class / Theory)" },
-      ...sortedBatches.map((b) => ({
-        value: b,
-        label: `${b.toLowerCase().startsWith("batch") ? b : `Batch ${b}`} (Lab / Practical)`
-      }))
-    ];
-  }, [attDept, attSem, attDiv, attBatch, studentsTick]);
+  }, [takeAvailableBatches, attBatch]);
   const [attTopic, setAttTopic] = useState("");
   const [attRecords, setAttRecords] = useState({});
   const [attRemarks, setAttRemarks] = useState({});
@@ -16105,7 +16263,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     setAttDept(resolvedDept);
     const resolvedSem = normalizeSem(lec.sem || "3rd Sem");
     const resolvedDiv = normalizeDiv(lec.div || "Div 1");
-    const resolvedBatch = lec.batch || "ALL";
+    const resolvedBatch = canonicalizeBatch(lec.batch || "ALL");
     setAttSem(resolvedSem);
     setAttDiv(resolvedDiv);
     setAttBatch(resolvedBatch);
@@ -16163,14 +16321,6 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       showToast(`Selected: ${resolvedSubjectName} (${sTime} - ${eTime}). ${students.length} student(s) loaded.`);
     }
   };
-  const activeClass = useMemo(() => {
-    const classes = getClasses();
-    const electiveCls = classes.find(
-      (c) => c.isElective && (c.subjectId === attSubjectId || c.subjectName === attSubjectName || c.division === attDiv || c.name === attDiv) && (!attSem || normalizeSem(c.semester) === normalizeSem(attSem))
-    );
-    if (electiveCls) return electiveCls;
-    return findClassByCriteria(attDept, attSem, attDiv, attYear) || getOrCreateClass(attDept, attSem, attDiv, attYear);
-  }, [attDept, attSem, attDiv, attYear, attSubjectId, attSubjectName]);
   const handleLoadStudents = (e) => {
     if (e) e.preventDefault();
     if (!attSubjectId) {

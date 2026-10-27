@@ -384,7 +384,7 @@ export default function SlotEditModal({
                   <option value="Batch B">Batch B</option>
                   <option value="Batch C">Batch C</option>
                   <option value="Batch D">Batch D</option>
-                  {batch && !['All', 'ALL', 'Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(batch) && (
+                  {batch && !['All', 'ALL', 'Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(String(batch).trim().replace(/^([A-D])$/i, 'Batch $1')) && (
                     <option value={batch}>{batch}</option>
                   )}
                 </select>

@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>No Duplicate Batches Test Suite</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background: #f8fafc; }
+    .test-card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .pass { color: #16a34a; font-weight: 700; }
+    .fail { color: #dc2626; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>No Duplicate Batches in Take Attendance - Test Suite</h1>
+  <div id="results">Running tests...</div>
+  <div id="render-mount" style="position: absolute; left: -9999px; top: -9999px; width: 1280px; min-height: 800px; background: white;"></div>
+
+  <!-- Vendors -->
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen','File','Blob',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props = {}) => {
+          const { size = 18, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            if (!node || !Array.isArray(node)) return null;
+            const [tag, attrs, children] = node;
+            const reactAttrs = { key };
+            if (attrs) {
+              Object.keys(attrs).forEach(k => {
+                const rk = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                reactAttrs[rk] = attrs[k];
+              });
+            }
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState = React.useState;
+    window.useEffect = React.useEffect;
+    window.useMemo = React.useMemo;
+    window.useRef = React.useRef;
+    window.useCallback = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext = React.useContext;
+    window.useReducer = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=no_dup_batch_1"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const results = [];
+      function assert(name, condition, extra = '') {
+        results.push({ name, pass: Boolean(condition), extra });
+        console.log((condition ? 'PASS: ' : 'FAIL: ') + name + (extra ? ' - ' + extra : ''));
+      }
+
+      try {
+        const {
+          initializeStorage,
+          getDepartments,
+          saveDepartment,
+          getClasses,
+          saveClass,
+          getStudents,
+          saveStudent,
+          bulkImportStudentsToClass,
+          getStudentsForAcademicGroup,
+          getStudentsByClassId,
+          normalizeBatch,
+          canonicalizeBatch,
+          isBatchMatch,
+          getBatchesForClass,
+          cleanupBatchDefinitions,
+          normalizeSem,
+          normalizeDiv,
+          saveSession,
+          getSessions,
+          saveFaculty
+        } = window;
+
+        // Initialize clean storage
+        initializeStorage();
+
+        // Ensure IT Department exists
+        let itDept = getDepartments().find(d => d.id === 'DEP_IT' || d.code === 'IT');
+        if (!itDept) {
+          itDept = saveDepartment({ id: 'DEP_IT', code: 'IT', name: 'Information Technology', status: 'active' });
+        }
+
+        // Create IT 1st Sem Div 1 Class
+        const itClass = saveClass({
+          id: 'CLASS_DEP_IT_1_1_2026-27',
+          departmentId: 'DEP_IT',
+          departmentName: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          academicYear: '2026-27'
+        });
+
+        // Seed students with mixed batch representations (some 'A', some 'Batch A', etc.)
+        // This simulates legacy database data that previously triggered duplicates
+        const mixedStudents = [
+          { rollNo: '1', enrollmentNo: '26IT001', name: 'Aarav Patel', batch: 'A', email: 'aarav@adit.ac.in' },
+          { rollNo: '2', enrollmentNo: '26IT002', name: 'Ananya Sharma', batch: 'Batch A', email: 'ananya@adit.ac.in' },
+          { rollNo: '3', enrollmentNo: '26IT003', name: 'Bhavya Shah', batch: 'B', email: 'bhavya@adit.ac.in' },
+          { rollNo: '4', enrollmentNo: '26IT004', name: 'Chirag Dave', batch: 'Batch B', email: 'chirag@adit.ac.in' },
+          { rollNo: '5', enrollmentNo: '26IT005', name: 'Drashti Joshi', batch: 'C', email: 'drashti@adit.ac.in' },
+          { rollNo: '6', enrollmentNo: '26IT006', name: 'Eshaan Mehta', batch: 'Batch C', email: 'eshaan@adit.ac.in' },
+          { rollNo: '7', enrollmentNo: '26IT007', name: 'Falguni Rana', batch: 'D', email: 'falguni@adit.ac.in' },
+          { rollNo: '8', enrollmentNo: '26IT008', name: 'Gaurav Modi', batch: 'Batch D', email: 'gaurav@adit.ac.in' }
+        ];
+
+        bulkImportStudentsToClass('CLASS_DEP_IT_1_1_2026-27', mixedStudents);
+
+        // =====================================================================
+        // TEST GROUP 1: Canonical Batch Normalization & Deduplication Logic
+        // =====================================================================
+        assert('canonicalizeBatch("A") returns "Batch A"', canonicalizeBatch('A') === 'Batch A');
+        assert('canonicalizeBatch("Batch A") returns "Batch A"', canonicalizeBatch('Batch A') === 'Batch A');
+        assert('canonicalizeBatch("batch a") returns "Batch A"', canonicalizeBatch('batch a') === 'Batch A');
+        assert('canonicalizeBatch("Batch-B") returns "Batch B"', canonicalizeBatch('Batch-B') === 'Batch B');
+        assert('canonicalizeBatch("b") returns "Batch B"', canonicalizeBatch('b') === 'Batch B');
+        assert('canonicalizeBatch("C") returns "Batch C"', canonicalizeBatch('C') === 'Batch C');
+        assert('canonicalizeBatch("Batch D") returns "Batch D"', canonicalizeBatch('Batch D') === 'Batch D');
+        assert('canonicalizeBatch("ALL") returns "ALL"', canonicalizeBatch('ALL') === 'ALL');
+        assert('canonicalizeBatch("All Batches") returns "ALL"', canonicalizeBatch('All Batches') === 'ALL');
+
+        // =====================================================================
+        // TEST GROUP 2: getBatchesForClass Authoritative Generation
+        // =====================================================================
+        const derivedBatches = getBatchesForClass({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          classId: 'CLASS_DEP_IT_1_1_2026-27'
+        });
+
+        assert('getBatchesForClass returns array', Array.isArray(derivedBatches));
+        assert('getBatchesForClass returns exactly 5 options (ALL + 4 batches)', derivedBatches.length === 5, `got ${derivedBatches.length}`);
+
+        const derivedLabels = derivedBatches.map(b => b.label);
+        const derivedValues = derivedBatches.map(b => b.value);
+
+        assert('Option 1 is All Batches (Whole Class / Theory)', derivedLabels[0] === 'All Batches (Whole Class / Theory)' && derivedValues[0] === 'ALL');
+        assert('Option 2 is Batch A (Lab / Practical)', derivedLabels[1] === 'Batch A (Lab / Practical)' && derivedValues[1] === 'Batch A');
+        assert('Option 3 is Batch B (Lab / Practical)', derivedLabels[2] === 'Batch B (Lab / Practical)' && derivedValues[2] === 'Batch B');
+        assert('Option 4 is Batch C (Lab / Practical)', derivedLabels[3] === 'Batch C (Lab / Practical)' && derivedValues[3] === 'Batch C');
+        assert('Option 5 is Batch D (Lab / Practical)', derivedLabels[4] === 'Batch D (Lab / Practical)' && derivedValues[4] === 'Batch D');
+
+        // Verify zero duplicate labels and values
+        const uniqueLabels = new Set(derivedLabels);
+        const uniqueValues = new Set(derivedValues);
+        assert('No duplicate labels exist in derived batches', uniqueLabels.size === derivedLabels.length, `unique ${uniqueLabels.size} vs total ${derivedLabels.length}`);
+        assert('No duplicate values exist in derived batches', uniqueValues.size === derivedValues.length, `unique ${uniqueValues.size} vs total ${derivedValues.length}`);
+
+        // =====================================================================
+        // TEST GROUP 3: Database Cleanup of Redundant Batch Definitions
+        // =====================================================================
+        cleanupBatchDefinitions();
+        const cleanedStudents = getStudentsByClassId('CLASS_DEP_IT_1_1_2026-27');
+        const allCanonical = cleanedStudents.every(s => ['Batch A', 'Batch B', 'Batch C', 'Batch D'].includes(s.batch));
+        assert('cleanupBatchDefinitions standardized all student batches to canonical "Batch X"', allCanonical);
+        assert('No students deleted during batch definition cleanup (count: 8)', cleanedStudents.length === 8);
+
+        // =====================================================================
+        // TEST GROUP 4: DOM UI Verification - Opening Take Attendance
+        // =====================================================================
+        const facultyContext = {
+          id: 'FAC_IT_DR_PATEL',
+          name: 'Dr. Patel',
+          email: 'patel@adit.ac.in',
+          role: 'faculty',
+          dept: 'Information Technology',
+          department: 'Information Technology',
+          teachingAssignments: [
+            { department: 'Information Technology', semester: '1st Sem', division: 'Div 1', subjectId: 'SUB_CPC', subjectName: 'Programming' }
+          ],
+          assignedClasses: [
+            { department: 'Information Technology', semester: '1st Sem', division: 'Div 1', subjectId: 'SUB_CPC', subjectName: 'Programming' }
+          ]
+        };
+        saveFaculty(facultyContext);
+
+        const mountEl = document.getElementById('render-mount');
+        ReactDOM.unmountComponentAtNode(mountEl);
+
+        const FacultyPanel = window.FacultyPanel;
+        assert('FacultyPanel component is available', Boolean(FacultyPanel));
+
+        ReactDOM.render(
+          React.createElement(FacultyPanel, {
+            currentUser: facultyContext,
+            currentFaculty: facultyContext,
+            initialTab: 'take'
+          }),
+          mountEl
+        );
+
+        await new Promise(r => setTimeout(r, 600));
+
+        // Locate Batch dropdown in Take Attendance form
+        function getBatchSelect() {
+          const selects = Array.from(mountEl.querySelectorAll('select'));
+          return selects.find(s => {
+            const opts = Array.from(s.options).map(o => o.text);
+            return opts.some(t => t.includes('All Batches') || t.includes('Batch A'));
+          });
+        }
+
+        let batchSelect = getBatchSelect();
+        assert('Batch dropdown found in Take Attendance form', Boolean(batchSelect));
+
+        if (batchSelect) {
+          const domLabels = Array.from(batchSelect.options).map(o => o.text.trim());
+          const domValues = Array.from(batchSelect.options).map(o => o.value.trim());
+
+          assert('Take Attendance batch dropdown has exactly 5 options', domLabels.length === 5, `found: ${domLabels.join(' | ')}`);
+          assert('All Batches (Whole Class / Theory) appears exactly once', domLabels.filter(l => l.includes('All Batches')).length === 1);
+          assert('Batch A (Lab / Practical) appears exactly once', domLabels.filter(l => l.includes('Batch A')).length === 1);
+          assert('Batch B (Lab / Practical) appears exactly once', domLabels.filter(l => l.includes('Batch B')).length === 1);
+          assert('Batch C (Lab / Practical) appears exactly once', domLabels.filter(l => l.includes('Batch C')).length === 1);
+          assert('Batch D (Lab / Practical) appears exactly once', domLabels.filter(l => l.includes('Batch D')).length === 1);
+
+          const uniqueDomLabels = new Set(domLabels);
+          assert('Zero duplicate option labels in DOM dropdown', uniqueDomLabels.size === domLabels.length);
+        }
+
+        // =====================================================================
+        // TEST GROUP 5: Preserving Attendance Behavior for Each Batch
+        // =====================================================================
+        // 5A. Select Batch A -> Loads exactly 2 students
+        const batchAStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch A',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+        assert('Selecting Batch A loads exactly 2 students', batchAStudents.length === 2, `got ${batchAStudents.length}`);
+        assert('Batch A contains Aarav Patel', batchAStudents.some(s => s.name === 'Aarav Patel'));
+        assert('Batch A does NOT contain Bhavya Shah', !batchAStudents.some(s => s.name === 'Bhavya Shah'));
+
+        // 5B. Select Batch B -> Loads exactly 2 students
+        const batchBStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'Batch B',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+        assert('Selecting Batch B loads exactly 2 students', batchBStudents.length === 2, `got ${batchBStudents.length}`);
+        assert('Batch B contains Bhavya Shah', batchBStudents.some(s => s.name === 'Bhavya Shah'));
+        assert('Batch B contains Chirag Dave', batchBStudents.some(s => s.name === 'Chirag Dave'));
+        assert('Batch B does NOT contain Aarav Patel', !batchBStudents.some(s => s.name === 'Aarav Patel'));
+
+        // 5C. Select ALL -> Loads all 8 students in this class only
+        const allStudents = getStudentsForAcademicGroup({
+          department: 'Information Technology',
+          semester: '1st Sem',
+          division: 'Div 1',
+          batch: 'ALL',
+          subjectId: 'SUB_CPC'
+        }, facultyContext);
+        assert('Selecting ALL loads all 8 students of this division', allStudents.length === 8, `got ${allStudents.length}`);
+
+        // =====================================================================
+        // TEST GROUP 6: Lifecycle Verification (Changing Sem/Div, Navigating, Re-rendering)
+        // =====================================================================
+        // 6A. Create a second class with configured 2 batches only (Batch A, Batch B)
+        const aeroClass = saveClass({
+          id: 'CLASS_DEP_AE_3_1_2026-27',
+          departmentId: 'DEP_AE',
+          departmentName: 'Aeronautical Engineering',
+          semester: '3rd Sem',
+          division: 'Div 1',
+          academicYear: '2026-27',
+          batches: ['Batch A', 'Batch B']
+        });
+
+        const aeroBatches = getBatchesForClass(aeroClass);
+        assert('Class with configured 2 batches returns exactly 3 options (ALL, A, B)', aeroBatches.length === 3, `got ${aeroBatches.length}`);
+        assert('Aero class has ALL', aeroBatches.some(b => b.value === 'ALL'));
+        assert('Aero class has Batch A', aeroBatches.some(b => b.value === 'Batch A'));
+        assert('Aero class has Batch B', aeroBatches.some(b => b.value === 'Batch B'));
+        assert('Aero class does NOT contain Batch C or D', !aeroBatches.some(b => b.value === 'Batch C' || b.value === 'Batch D'));
+
+        // 6B. Elective class returns only ALL
+        const electiveClass = saveClass({
+          id: 'CLASS_ELECTIVE_ML_5_1_2026-27',
+          isElective: true,
+          semester: '5th Sem',
+          division: 'ML Group A',
+          name: 'Machine Learning Group A',
+          academicYear: '2026-27'
+        });
+        const electiveBatches = getBatchesForClass(electiveClass);
+        assert('Elective class returns exactly 1 option (ALL)', electiveBatches.length === 1 && electiveBatches[0].value === 'ALL');
+
+        // 6C. Re-rendering / Refreshing component maintains deduplication
+        ReactDOM.unmountComponentAtNode(mountEl);
+        ReactDOM.render(
+          React.createElement(FacultyPanel, {
+            currentUser: facultyContext,
+            currentFaculty: facultyContext,
+            initialTab: 'take'
+          }),
+          mountEl
+        );
+        await new Promise(r => setTimeout(r, 600));
+
+        batchSelect = getBatchSelect();
+        assert('Re-rendered component maintains Batch dropdown without duplicates', Boolean(batchSelect));
+        if (batchSelect) {
+          const reLabels = Array.from(batchSelect.options).map(o => o.text.trim());
+          const reUnique = new Set(reLabels);
+          assert('Re-rendered options are completely deduplicated', reUnique.size === reLabels.length && reLabels.length === 5);
+        }
+
+        // Post Results
+        const allPassed = results.every(r => r.pass);
+        const summary = `Total Tests: ${results.length} | Passed: ${results.filter(r => r.pass).length} | Failed: ${results.filter(r => !r.pass).length}`;
+        console.log(summary);
+
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results, allPassed, summary })
+        });
+
+      } catch (err) {
+        console.error('Test execution error:', err);
+        fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: err.message,
+            stack: err.stack,
+            results,
+            allPassed: false,
+            summary: `Execution halted with fatal error: ${err.message}`
+          })
+        });
+      }
+    });
+  </script>
+</body>
+</html>

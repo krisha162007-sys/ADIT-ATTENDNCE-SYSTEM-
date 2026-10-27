@@ -361,6 +361,7 @@ export const initializeStorage = () => {
   if (localStorage.getItem(STORAGE_KEYS.SECURITY) === null) {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
+  cleanupBatchDefinitions();
 };
 
 // Security PIN Verification
@@ -724,6 +725,23 @@ export const isBatchMatch = (studentBatch, filterBatch) => {
   return normStudent === normFilter;
 };
 
+/**
+ * Converts a batch input into its clean canonical representation (e.g., 'A' -> 'Batch A', 'batch b' -> 'Batch B', 'ALL' -> 'ALL')
+ */
+export const canonicalizeBatch = (b) => {
+  if (!b) return '';
+  const s = String(b).trim();
+  if (!s) return '';
+  const norm = normalizeBatch(s);
+  if (!norm || norm === 'ALL') {
+    return 'ALL';
+  }
+  if (/^[A-Za-z0-9]+$/.test(norm)) {
+    return `Batch ${norm.toUpperCase()}`;
+  }
+  return s.toLowerCase().startsWith('batch') ? s : `Batch ${s}`;
+};
+
 export const findClassByCriteria = (department, semester, division, academicYear = DEFAULT_ACADEMIC_YEAR) => {
   const classes = getClasses();
   const normSem = normalizeSem(semester);
@@ -1011,6 +1029,12 @@ export const getStudents = () => {
         st.batch = (idx % 3 === 0) ? 'Batch A' : (idx % 3 === 1) ? 'Batch B' : 'Batch C';
       }
       modified = true;
+    } else {
+      const canon = canonicalizeBatch(st.batch);
+      if (canon && canon !== 'ALL' && canon !== st.batch) {
+        st.batch = canon;
+        modified = true;
+      }
     }
     if (!st.classId) {
       const cls = findClassByCriteria(
@@ -1107,6 +1131,174 @@ export const getStudentsForClassCriteria = (dept, sem, div, academicYear = DEFAU
     const targetDept = String(dept || '').toLowerCase();
     return sSem === normSem && sDiv === normDiv && (!dept || sDept.includes(targetDept) || targetDept.includes(sDept));
   });
+};
+
+/**
+ * Authoritatively derives the deduplicated list of available batches for a specified class.
+ * Ensures:
+ * 1. Each valid batch appears exactly once.
+ * 2. 'ALL' (Whole Class / Theory) is always the first option.
+ * 3. Batches are derived from the class configuration or enrolled students.
+ * 4. Falls back to standard college batches (Batch A, B, C, D) for regular classes if unpopulated.
+ * 5. Returns only 'ALL' for elective classes unless lab batches are specifically configured.
+ */
+export const getBatchesForClass = (classOrCriteria) => {
+  if (!classOrCriteria) {
+    return [
+      { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
+      { value: 'Batch A', label: 'Batch A (Lab / Practical)' },
+      { value: 'Batch B', label: 'Batch B (Lab / Practical)' },
+      { value: 'Batch C', label: 'Batch C (Lab / Practical)' },
+      { value: 'Batch D', label: 'Batch D (Lab / Practical)' }
+    ];
+  }
+
+  // 1. Resolve authoritative class entity
+  let cls = null;
+  if (typeof classOrCriteria === 'string') {
+    cls = getClassById(classOrCriteria);
+  } else if (classOrCriteria.id) {
+    cls = getClassById(classOrCriteria.id) || classOrCriteria;
+  } else if (classOrCriteria.classId && classOrCriteria.classId !== 'ALL') {
+    cls = getClassById(classOrCriteria.classId);
+  }
+
+  if (!cls && typeof classOrCriteria === 'object') {
+    const dept = classOrCriteria.department || classOrCriteria.dept || classOrCriteria.departmentId;
+    const sem = classOrCriteria.semester || classOrCriteria.sem;
+    const div = classOrCriteria.division || classOrCriteria.div || classOrCriteria.class;
+    const year = classOrCriteria.academicYear;
+    if (dept && sem && div) {
+      cls = findClassByCriteria(dept, sem, div, year) || getOrCreateClass(dept, sem, div, year);
+    }
+  }
+
+  // Elective class with no configured laboratory batches: Whole-class theory attendance only
+  if (cls && cls.isElective && (!cls.batches || cls.batches.length === 0)) {
+    return [{ value: 'ALL', label: 'All Batches (Whole Class / Theory)' }];
+  }
+
+  // 2. Map of normalized batch code -> canonical display value (Strict deduplication)
+  const canonicalMap = new Map();
+
+  // A. Configured batches from class entity
+  if (cls && Array.isArray(cls.batches) && cls.batches.length > 0) {
+    cls.batches.forEach(b => {
+      const norm = normalizeBatch(b);
+      if (norm && norm !== 'ALL') {
+        canonicalMap.set(norm, canonicalizeBatch(b));
+      }
+    });
+  }
+
+  // B. Batches from enrolled students in this class
+  let classStudents = [];
+  if (cls && cls.id) {
+    classStudents = getStudentsByClassId(cls.id);
+  }
+  if ((!classStudents || classStudents.length === 0) && classOrCriteria && typeof classOrCriteria === 'object') {
+    const dept = cls?.departmentName || cls?.departmentId || classOrCriteria.department || classOrCriteria.dept || classOrCriteria.departmentId;
+    const sem = cls?.semester || classOrCriteria.semester || classOrCriteria.sem;
+    const div = cls?.division || classOrCriteria.division || classOrCriteria.div || classOrCriteria.class;
+    const year = cls?.academicYear || classOrCriteria.academicYear;
+    if (dept && sem && div) {
+      classStudents = getStudentsForClassCriteria(dept, sem, div, year);
+    }
+  }
+
+  if (classStudents && classStudents.length > 0) {
+    classStudents.forEach(s => {
+      if (s.batch && String(s.batch).trim()) {
+        const norm = normalizeBatch(s.batch);
+        if (norm && norm !== 'ALL') {
+          if (!canonicalMap.has(norm)) {
+            canonicalMap.set(norm, canonicalizeBatch(s.batch));
+          }
+        }
+      }
+    });
+  }
+
+  // C. Fallback: If no custom batches are configured and no students enrolled yet in regular class,
+  // provide standard college laboratory batches (A, B, C, D)
+  if (canonicalMap.size === 0 && (!cls || !cls.isElective)) {
+    ['Batch A', 'Batch B', 'Batch C', 'Batch D'].forEach(b => {
+      canonicalMap.set(normalizeBatch(b), b);
+    });
+  }
+
+  // 3. Sort batches in natural order (A, B, C, D, ...)
+  const sortedBatches = Array.from(canonicalMap.values()).sort((a, b) => {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  // 4. Return options array with 'ALL' as the first option
+  return [
+    { value: 'ALL', label: 'All Batches (Whole Class / Theory)' },
+    ...sortedBatches.map(b => ({
+      value: b,
+      label: `${b.toLowerCase().startsWith('batch') ? b : `Batch ${b}`} (Lab / Practical)`
+    }))
+  ];
+};
+
+/**
+ * Scans localStorage and safely standardizes student and class batch definitions.
+ * Eliminates root cause where some records stored 'A' while others stored 'Batch A'.
+ * Preserves all student records, classes, attendance sessions, and histories intact.
+ */
+export const cleanupBatchDefinitions = () => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    // 1. Standardize student batch records
+    const rawSt = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    if (rawSt) {
+      const students = JSON.parse(rawSt);
+      let stChanged = false;
+      students.forEach(st => {
+        if (st.batch) {
+          const canon = canonicalizeBatch(st.batch);
+          if (canon && canon !== 'ALL' && canon !== st.batch) {
+            st.batch = canon;
+            stChanged = true;
+          }
+        }
+      });
+      if (stChanged) {
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+      }
+    }
+
+    // 2. Standardize class batches configuration
+    const rawCls = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (rawCls) {
+      const classes = JSON.parse(rawCls);
+      let clsChanged = false;
+      classes.forEach(c => {
+        if (Array.isArray(c.batches)) {
+          const seen = new Set();
+          const cleanBatches = [];
+          c.batches.forEach(b => {
+            const norm = normalizeBatch(b);
+            const canon = canonicalizeBatch(b);
+            if (norm && norm !== 'ALL' && !seen.has(norm)) {
+              seen.add(norm);
+              cleanBatches.push(canon);
+            }
+          });
+          if (cleanBatches.length !== c.batches.length || cleanBatches.some((b, i) => b !== c.batches[i])) {
+            c.batches = cleanBatches;
+            clsChanged = true;
+          }
+        }
+      });
+      if (clsChanged) {
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      }
+    }
+  } catch (err) {
+    console.warn('Batch definition cleanup warning:', err);
+  }
 };
 
 /**
@@ -1911,7 +2103,7 @@ export const saveStudent = (studentData, userContext = null) => {
   const year = resolvedClass ? resolvedClass.academicYear : (studentData.academicYear || DEFAULT_ACADEMIC_YEAR);
 
   let saved;
-  const batchVal = studentData.batch ? String(studentData.batch).trim() : 'Batch A';
+  const batchVal = studentData.batch ? canonicalizeBatch(studentData.batch) : 'Batch A';
 
   if (studentData.id) {
     const idx = students.findIndex(s => s.id === studentData.id);
@@ -2024,7 +2216,8 @@ export const bulkImportStudentsToClass = (classId, studentRows, options = { move
     const enrollmentNo = String(row.enrollmentNo || '').trim();
     const rollNo = String(row.rollNo || '').trim();
     const email = String(row.email || '').trim();
-    const batch = String(row.batch || row.Batch || row['Student Batch'] || '').trim() || 'Batch A';
+    const rawBatch = String(row.batch || row.Batch || row['Student Batch'] || '').trim();
+    const batch = rawBatch ? canonicalizeBatch(rawBatch) : 'Batch A';
 
     if (!name || !enrollmentNo) {
       errors.push(`Row ${rowNum}: Name and Enrollment Number are required.`);
@@ -2141,7 +2334,7 @@ export const updateStudentBatch = (studentId, newBatch) => {
   const students = getStudents();
   const st = students.find(s => s.id === studentId);
   if (!st) throw new Error('Student not found.');
-  st.batch = String(newBatch).trim() || 'Batch A';
+  st.batch = canonicalizeBatch(newBatch || 'Batch A');
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-students-updated'));
@@ -3839,7 +4032,7 @@ export const bulkRegisterStudents = (studentRows, defaultAcademicYear = DEFAULT_
     const dept = String(row.department || row.Department || row.dept || 'AI & Data Science').trim();
     const sem = normalizeSem(row.semester || row.Semester || row.sem || '1st Sem');
     const div = normalizeDiv(row.division || row.Division || row.class || 'Div 1');
-    const batch = String(row.batch || row.Batch || 'Batch A').trim();
+    const batch = canonicalizeBatch(row.batch || row.Batch || 'Batch A');
     const email = String(row.email || row.Email || '').trim();
     const rollNo = String(row.rollNo || row['Roll Number'] || row.RollNo || '').trim();
 
@@ -5039,4 +5232,7 @@ if (typeof window !== 'undefined') {
   window.isBatchMatch = isBatchMatch;
   window.normalizeSem = normalizeSem;
   window.normalizeDiv = normalizeDiv;
+  window.canonicalizeBatch = canonicalizeBatch;
+  window.getBatchesForClass = getBatchesForClass;
+  window.cleanupBatchDefinitions = cleanupBatchDefinitions;
 }

@@ -395,6 +395,7 @@ export default function EnterAttendance({ onSaved, showToast }) {
               <option value="Batch A">Batch A</option>
               <option value="Batch B">Batch B</option>
               <option value="Batch C">Batch C</option>
+              <option value="Batch D">Batch D</option>
             </select>
           </div>
 
