@@ -334,7 +334,7 @@ export default function DepartmentAdminPanel({
     }
     const newFac = {
       ...facultyForm,
-      dept: currentDept.name
+      dept: facultyForm.dept || currentDept.name
     };
     const updated = saveFaculty(newFac);
     notifyTimetableSync();
@@ -1029,7 +1029,19 @@ export default function DepartmentAdminPanel({
                                     </span>
                                   )}
                                 </div>
-                                <div style={{ fontSize: '11.5px', color: '#64748b' }}>{fac.id}</div>
+                                <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+                                  <span>{fac.id}</span>
+                                  <span style={{
+                                    fontSize: '10px',
+                                    fontWeight: '800',
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#e0f2fe',
+                                    color: '#0369a1'
+                                  }}>
+                                    {fac.dept || currentDept.name}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1453,6 +1465,25 @@ export default function DepartmentAdminPanel({
                     onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Home Department / Category *</label>
+                  <select
+                    className="form-control"
+                    value={facultyForm.dept || currentDept.name}
+                    onChange={(e) => setFacultyForm({ ...facultyForm, dept: e.target.value })}
+                    required
+                  >
+                    {departments.map(d => (
+                      <option key={d.id || d.name} value={d.name}>
+                        {d.name} ({d.code})
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                    Organizational category. Faculty can be assigned to teach classes across all departments.
+                  </span>
                 </div>
 
                 <div className="form-group">

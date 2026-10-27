@@ -1443,7 +1443,7 @@ const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null) => {
     if (targetDept) {
       const sDept = String(s.department || s.dept || "").trim().toLowerCase();
       const sDeptId = String(s.departmentId || "").trim().toLowerCase();
-      const matchesDept = sDept === targetDept || sDept.includes(targetDept) || targetDept.includes(sDept) || targetDept.includes("cp") && (sDeptId.includes("cp") || sDept.includes("computer")) || targetDept.includes("computer") && (sDept.includes("cp") || sDept.includes("computer")) || targetDept.includes("ai") && (sDept.includes("ai") || sDept.includes("data science")) || targetDept.includes("it") && (sDept.includes("it") || sDept.includes("information")) || targetDept.includes("ec") && (sDept.includes("ec") || sDept.includes("electronics")) || targetDept.includes("me") && (sDept.includes("me") || sDept.includes("mechanical")) || targetDept.includes("cl") && (sDept.includes("cl") || sDept.includes("civil"));
+      const matchesDept = isDepartmentMatch(s.department || s.dept || s.departmentId, targetDept) || sDept === targetDept || sDept.includes(targetDept) || targetDept.includes(sDept) || targetDept.includes("cp") && (sDeptId.includes("cp") || sDept.includes("computer")) || targetDept.includes("computer") && (sDept.includes("cp") || sDept.includes("computer")) || targetDept.includes("ai") && (sDept.includes("ai") || sDept.includes("data science")) || targetDept.includes("it") && (sDept.includes("it") || sDept.includes("information")) || targetDept.includes("ec") && (sDept.includes("ec") || sDept.includes("electronics")) || targetDept.includes("me") && (sDept.includes("me") || sDept.includes("mechanical")) || targetDept.includes("cl") && (sDept.includes("cl") || sDept.includes("civil"));
       if (!matchesDept) return false;
     }
     if (normSem) {
@@ -1454,8 +1454,10 @@ const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null) => {
       const sDiv = normalizeDiv(s.division || s.class);
       if (sDiv !== normDiv) return false;
     }
-    if (batch && batch !== "ALL") {
-      if (s.batch !== batch) return false;
+    if (batch && batch !== "ALL" && String(batch).toUpperCase() !== "ALL") {
+      const sBatchNorm = String(s.batch || "").trim().toUpperCase();
+      const batchNorm = String(batch).trim().toUpperCase();
+      if (sBatchNorm !== "ALL" && sBatchNorm !== batchNorm) return false;
     }
     if (academicYear) {
       if (s.academicYear && s.academicYear !== academicYear) return false;
@@ -4981,6 +4983,9 @@ const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) =>
     return true;
   });
   const sessionId = targetSessionId || "sess_lab_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+  const finalDeptId = slotData.departmentId || slotData.deptId || deptId;
+  const resolvedDept = resolveDepartment(finalDeptId);
+  const finalDeptName = slotData.department || slotData.dept || resolvedDept?.name || finalDeptId;
   const baseEntry = {
     facultyId,
     facultyName: slotData.facultyName || "Faculty",
@@ -4991,7 +4996,10 @@ const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) =>
     divId: normalizeDiv(slotData.div || "Div 1"),
     sem: normalizeSem(slotData.sem || "3rd Sem"),
     div: normalizeDiv(slotData.div || "Div 1"),
-    departmentId: deptId,
+    departmentId: finalDeptId,
+    department: finalDeptName,
+    deptId: finalDeptId,
+    dept: finalDeptName,
     room: slotData.room || (isLab ? "Lab 1" : "Room 201"),
     color: slotData.color,
     type: isLab ? "Lab" : slotData.type || "Lecture",
@@ -5199,12 +5207,17 @@ const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
       if (!slot || !slot.subject) return;
       const sem = normalizeSem(slot.sem || "3rd Sem");
       const div = normalizeDiv(slot.div || "Div 1");
-      const deptId = slot.departmentId || facultyDeptId;
+      const deptId = slot.departmentId || slot.deptId || facultyDeptId;
+      const resolvedClassDept = resolveDepartment(deptId);
+      const classDeptName = slot.department || slot.dept || resolvedClassDept?.name || deptId;
       filtered.push({
         id: generateId(),
         facultyId,
         facultyName,
         departmentId: deptId,
+        department: classDeptName,
+        deptId,
+        dept: classDeptName,
         subjectId: slot.subjectId || slot.subject,
         subjectName: slot.subject,
         subjectFullName: slot.name || slot.subject,
@@ -5550,6 +5563,8 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
   }
   if (!subject) return null;
   const isLab = /lab/i.test(raw) || /practical|pract|\bpr\b/i.test(raw) || /\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(raw) || /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room) || batch && batch !== "ALL" && !batch.startsWith("DIV");
+  const hasExplicitDept = Boolean(deptId);
+  const resolvedDept = resolveDepartment(deptId || defaultDeptId);
   return {
     subject,
     name: subject,
@@ -5557,6 +5572,9 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     div: div || normalizeDiv(defaultDiv),
     batch: batch || "ALL",
     deptId: deptId || defaultDeptId,
+    departmentId: deptId || defaultDeptId,
+    department: resolvedDept?.name || defaultDeptId,
+    isAmbiguousDept: !hasExplicitDept,
     room,
     type: isLab ? "Lab" : "Lecture"
   };
@@ -5641,6 +5659,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           const room = parsed.room || "Room 201";
           const type = parsed.type || (isLabSession(parsed) ? "Lab" : "Lecture");
           const sessionId = "sess_lab_xl_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+          const classDeptName = resolveDepartment(deptId)?.name || deptId;
+          const isAmbiguous = Boolean(parsed.isAmbiguousDept);
           timetable[day][slot1] = {
             subject: parsed.subject,
             name: parsed.subject,
@@ -5648,6 +5668,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
             div,
             batch: parsed.batch || "ALL",
             departmentId: deptId,
+            department: classDeptName,
+            isAmbiguousDept: isAmbiguous,
             room,
             type,
             color: getSubjectColor(parsed.subject),
@@ -5683,6 +5705,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
             div,
             batch: parsed.batch || "ALL",
             departmentId: deptId,
+            department: classDeptName,
+            isAmbiguousDept: isAmbiguous,
             status: "valid",
             span: 2,
             duration: "2 Hours",
@@ -5750,6 +5774,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         const deptId = parsed.deptId || defaultDeptId || "DEP_AI";
         const room = parsed.room || "Room 201";
         const type = parsed.type || "Lecture";
+        const classDeptName = resolveDepartment(deptId)?.name || deptId;
+        const isAmbiguous = Boolean(parsed.isAmbiguousDept);
         timetable[day][timeSlot] = {
           subject: parsed.subject,
           name: parsed.subject,
@@ -5757,6 +5783,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           div,
           batch: parsed.batch || "ALL",
           departmentId: deptId,
+          department: classDeptName,
+          isAmbiguousDept: isAmbiguous,
           room,
           type,
           color: getSubjectColor(parsed.subject)
@@ -5770,6 +5798,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           div,
           batch: parsed.batch || "ALL",
           departmentId: deptId,
+          department: classDeptName,
+          isAmbiguousDept: isAmbiguous,
           status: "valid"
         };
         previewLectures.push(lec);
@@ -6342,14 +6372,25 @@ const commitUploadedTimetable = (targetScope, targetId, timetableData, options =
       facultiesInUpload.add(targetId);
     }
     let updatedEntries = existingEntries.filter((e) => !facultiesInUpload.has(e.facultyId));
-    timetableData.validLectures.forEach((lec) => {
+    timetableData.validLectures.forEach((lec, idx) => {
       const facId = lec.facultyId || targetId || "FAC_PS";
       const facName = lec.facultyName || "Faculty";
+      const matchingPreview = timetableData.previewLectures?.find(
+        (p) => p.id && p.id === lec.id || p.subject === lec.subject && p.day === lec.day && (p.time === lec.timeSlot || p.timeSlot === lec.timeSlot || p.time === lec.time)
+      ) || timetableData.previewLectures?.[idx];
+      const deptIdToUse = matchingPreview?.departmentId || lec.departmentId || lec.deptId;
+      const deptNameToUse = matchingPreview?.department || lec.department || lec.dept;
+      const resolvedClassDept = resolveDepartment(deptIdToUse || deptNameToUse);
+      const finalDeptId = deptIdToUse || (resolvedClassDept ? resolvedClassDept.id : "DEP_AI");
+      const finalDeptName = deptNameToUse || (resolvedClassDept ? resolvedClassDept.name : finalDeptId);
       updatedEntries.push({
         id: generateId(),
         facultyId: facId,
         facultyName: facName,
-        departmentId: lec.departmentId || "DEP_AI",
+        departmentId: finalDeptId,
+        department: finalDeptName,
+        deptId: finalDeptId,
+        dept: finalDeptName,
         subjectId: lec.subject,
         subjectName: lec.subject,
         subjectFullName: lec.name || lec.subject,
@@ -9308,11 +9349,12 @@ function ManageMaster({ showToast }) {
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Save, { size: 16 }), " Save Subject"))))));
 }
-function FacultyEditModal({ faculty, departments, onClose, onSave, showToast }) {
+function FacultyEditModal({ faculty, departments: propDepts, onClose, onSave, showToast }) {
+  const departments = propDepts && propDepts.length > 0 ? propDepts : getDepartments();
   const [formData, setFormData] = useState({
     id: faculty?.id || "",
     name: faculty?.name || "",
-    dept: faculty?.dept || (departments[0]?.name || "AI & Data Science"),
+    dept: faculty?.dept || (departments[0]?.name || "Information Technology"),
     designation: faculty?.designation || "Associate Professor",
     email: faculty?.email || "",
     phone: faculty?.phone || "",
@@ -9338,15 +9380,15 @@ function FacultyEditModal({ faculty, departments, onClose, onSave, showToast }) 
       onChange: (e) => setFormData({ ...formData, name: e.target.value }),
       required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Department"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Department / Home Category *"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: formData.dept,
       onChange: (e) => setFormData({ ...formData, dept: e.target.value })
     },
-    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Briefcase, { size: 14, style: { color: "var(--blue-primary)" } }), "Designation"), /* @__PURE__ */ React.createElement(
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")"))
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Organizational category only; faculty can teach across any department.")), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Briefcase, { size: 14, style: { color: "var(--blue-primary)" } }), "Designation"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -9393,6 +9435,7 @@ function SlotEditModal({
   existingSlot,
   availableSubjects,
   availableFaculties = [],
+  departments: propDepts,
   departmentName,
   semesterName,
   divisionName,
@@ -9401,12 +9444,22 @@ function SlotEditModal({
   onClear,
   showToast
 }) {
+  const departments = propDepts && propDepts.length > 0 ? propDepts : getDepartments();
   const [day, setDay] = useState(initialDay || "Monday");
   const [timeSlot, setTimeSlot] = useState(initialTimeSlot || "9:00 - 9:55");
   const _existingSubject = existingSlot?.subject || existingSlot?.subjectName || existingSlot?.subjectId || "";
   const _existingName = existingSlot?.name || existingSlot?.subjectFullName || existingSlot?.subjectName || "";
   const [subject, setSubject] = useState(_existingSubject || (availableSubjects[0]?.shortName || availableSubjects[0]?.name || ""));
   const [fullName, setFullName] = useState(_existingName || (availableSubjects[0]?.name || ""));
+  const [classDeptId, setClassDeptId] = useState(() => {
+    if (existingSlot?.departmentId) return existingSlot.departmentId;
+    if (existingSlot?.department) {
+      const match = departments.find((d) => d.name === existingSlot.department || d.code === existingSlot.department);
+      if (match) return match.id;
+    }
+    const dMatch = departments.find((d) => d.name === departmentName || d.id === departmentName);
+    return dMatch ? dMatch.id : departments[0]?.id || "DEP_AE";
+  });
   const [sem, setSem] = useState(existingSlot?.sem || existingSlot?.semId || semesterName || "3rd Sem");
   const [div, setDiv] = useState(existingSlot?.div || existingSlot?.divId || divisionName || "Div 1");
   const [batch, setBatch] = useState(existingSlot?.batch || "All");
@@ -9453,6 +9506,7 @@ function SlotEditModal({
     }
     const facObj = availableFaculties.find((f) => f.id === selectedFacultyId);
     const facultyName = facObj?.name || selectedFacultyId || "Faculty Assigned";
+    const selectedDeptObj = departments.find((d) => d.id === classDeptId) || { id: classDeptId, name: classDeptId };
     const slotData = {
       subject: subject.trim(),
       name: fullName || subject.trim(),
@@ -9464,6 +9518,10 @@ function SlotEditModal({
       color: color || getSubjectColor(subject),
       facultyId: selectedFacultyId || existingSlot?.facultyId,
       facultyName,
+      departmentId: selectedDeptObj.id,
+      department: selectedDeptObj.name,
+      deptId: selectedDeptObj.id,
+      dept: selectedDeptObj.name,
       span: isLab ? 2 : 1,
       duration: isLab ? "2 Hours" : "1 Hour",
       combinedTimeSlot: isLab ? combinedTime : timeSlot,
@@ -9502,7 +9560,6 @@ function SlotEditModal({
   const handleClear = () => {
     const isMultiSession = existingSlot?.span > 1 || existingSlot?.sessionId || existingSlot?.type === "Lab";
     const confirmMsg = isMultiSession ? `Clear this 2-hour laboratory session on ${day} (${existingSlot?.combinedTimeSlot || timeSlot})?
-
 Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${timeSlot})?`;
     if (window.confirm(confirmMsg)) {
       onClear(day, timeSlot, existingSlot?.sessionId);
@@ -9510,7 +9567,8 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
       onClose();
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "490px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(Clock, { size: 20 }), existingSlot ? "Edit Timetable Slot" : "Add Timetable Lecture"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "var(--text-muted)" } }, "Department: ", departmentName, " \u2022 ", semesterName)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSave }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 14, style: { color: "var(--blue-primary)" } }), "Day"), /* @__PURE__ */ React.createElement(
+  const selectedClassDeptName = departments.find((d) => d.id === classDeptId)?.name || departmentName;
+  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "500px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(Clock, { size: 20 }), existingSlot ? "Edit Timetable Slot" : "Add Timetable Lecture"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: "var(--text-muted)" } }, "Class: ", selectedClassDeptName, " \u2022 ", sem, " \u2022 ", div)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSave }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Calendar, { size: 14, style: { color: "var(--blue-primary)" } }), "Day"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -9526,7 +9584,30 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
       onChange: (e) => setTimeSlot(e.target.value)
     },
     TIME_SLOTS.filter((s) => s !== "12:40 - 1:25").map((slot) => /* @__PURE__ */ React.createElement("option", { key: slot, value: slot }, slot))
-  ))), isLab && nextSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(FlaskConical, { size: 20, style: { color: "#059669", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#065f46" } }, "2-Hour Laboratory Session (2 Consecutive Slots)"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#047857", marginTop: "2px" } }, "Allocates ", /* @__PURE__ */ React.createElement("b", null, timeSlot), " and ", /* @__PURE__ */ React.createElement("b", null, nextSlot), " (", combinedTime, ") \u2022 Merges into 1 continuous cell automatically"))), isInvalidLabSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 20, style: { color: "#dc2626", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#991b1b" } }, "Cannot Allocate 2-Hour Laboratory"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#b91c1c", marginTop: "2px" } }, timeSlot.startsWith("11:50") ? "Crosses lunch recess (12:40 - 1:25). Please select an earlier or post-lunch time slot." : "Exceeds timetable hours. Please select an earlier time slot."))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "var(--blue-primary)" } }), "Subject"), /* @__PURE__ */ React.createElement(
+  ))), isLab && nextSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(FlaskConical, { size: 20, style: { color: "#059669", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#065f46" } }, "2-Hour Laboratory Session (2 Consecutive Slots)"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#047857", marginTop: "2px" } }, "Allocates ", /* @__PURE__ */ React.createElement("b", null, timeSlot), " and ", /* @__PURE__ */ React.createElement("b", null, nextSlot), " (", combinedTime, ") \u2022 Merges into 1 continuous cell automatically"))), isInvalidLabSlot && /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 12px", display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 20, style: { color: "#dc2626", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", fontWeight: "800", color: "#991b1b" } }, "Cannot Allocate 2-Hour Laboratory"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#b91c1c", marginTop: "2px" } }, timeSlot.startsWith("11:50") ? "Crosses lunch recess (12:40 - 1:25). Please select an earlier or post-lunch time slot." : "Exceeds timetable hours. Please select an earlier time slot."))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Class Department *"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: classDeptId,
+      onChange: (e) => setClassDeptId(e.target.value)
+    },
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.id }, d.name, " (", d.code, ")"))
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Department of class/students being taught")), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Semester"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: sem,
+      onChange: (e) => setSem(e.target.value)
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "1st Sem" }, "1st Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "2nd Sem" }, "2nd Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "3rd Sem" }, "3rd Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "4th Sem" }, "4th Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "5th Sem" }, "5th Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "6th Sem" }, "6th Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "7th Sem" }, "7th Sem"),
+    /* @__PURE__ */ React.createElement("option", { value: "8th Sem" }, "8th Sem")
+  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 14, style: { color: "var(--blue-primary)" } }), "Subject"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -9562,22 +9643,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
       value: fullName,
       onChange: (e) => setFullName(e.target.value)
     }
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Semester"), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "form-control",
-      value: sem,
-      onChange: (e) => setSem(e.target.value)
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "1st Sem" }, "1st Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "2nd Sem" }, "2nd Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "3rd Sem" }, "3rd Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "4th Sem" }, "4th Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "5th Sem" }, "5th Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "6th Sem" }, "6th Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "7th Sem" }, "7th Sem"),
-    /* @__PURE__ */ React.createElement("option", { value: "8th Sem" }, "8th Sem")
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Layers, { size: 14, style: { color: "var(--blue-primary)" } }), "Division"), /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Layers, { size: 14, style: { color: "var(--blue-primary)" } }), "Division"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -9588,6 +9654,17 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
     /* @__PURE__ */ React.createElement("option", { value: "Div 2" }, "Div 2"),
     /* @__PURE__ */ React.createElement("option", { value: "Div 3" }, "Div 3"),
     /* @__PURE__ */ React.createElement("option", { value: "All Div" }, "All Divisions")
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Student Batch"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: batch,
+      onChange: (e) => setBatch(e.target.value)
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Batches (Entire Class)"),
+    /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
+    /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
+    /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C")
   ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Assign Faculty"), /* @__PURE__ */ React.createElement(
     "select",
     {
@@ -9596,7 +9673,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
       onChange: (e) => setSelectedFacultyId(e.target.value)
     },
     /* @__PURE__ */ React.createElement("option", { value: "" }, "-- Faculty (Optional) --"),
-    availableFaculties.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id }, f.name))
+    availableFaculties.map((f) => /* @__PURE__ */ React.createElement("option", { key: f.id, value: f.id }, f.name, " (", f.dept || "ADIT", ")"))
   )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(MapPin, { size: 14, style: { color: "var(--blue-primary)" } }), "Classroom / Lab"), /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -9606,7 +9683,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
       value: room,
       onChange: (e) => setRoom(e.target.value)
     }
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Slot Type"), /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Slot Type"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -9623,18 +9700,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
     /* @__PURE__ */ React.createElement("option", { value: "Lab" }, "Laboratory (2 Slots / 2 Hours)"),
     /* @__PURE__ */ React.createElement("option", { value: "Seminar" }, "Seminar"),
     /* @__PURE__ */ React.createElement("option", { value: "Tutorial" }, "Tutorial")
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "13px" } }, "Student Batch"), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      className: "form-control",
-      value: batch,
-      onChange: (e) => setBatch(e.target.value)
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "All" }, "All Batches (Entire Class)"),
-    /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
-    /* @__PURE__ */ React.createElement("option", { value: "Batch B" }, "Batch B"),
-    /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C")
-  ))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "12px", display: "block", marginBottom: "6px" } }, "Badge Theme"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontWeight: "700", fontSize: "12px", display: "block", marginBottom: "6px" } }, "Badge Theme"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, [
     { id: "purple", label: "Purple (DBMS)", bg: "#f3e8ff", border: "#d8b4fe", text: "#6b21a8" },
     { id: "green", label: "Green (DS)", bg: "#dcfce7", border: "#86efac", text: "#15803d" },
     { id: "coral", label: "Coral (Python)", bg: "#ffe4e6", border: "#fecdd3", text: "#be123c" },
@@ -9676,6 +9742,7 @@ Both consecutive slots will be freed.` : `Clear this lecture slot on ${day} (${t
 function TimetableUploadModal({
   selectedFaculty: initialFaculty,
   departmentName = "AI & Data Science",
+  departments: propDepts,
   semesterName = "3rd Semester",
   divisionName = "Div 1",
   initialScope = "faculty",
@@ -9683,6 +9750,7 @@ function TimetableUploadModal({
   onTimetableUpdated,
   showToast
 }) {
+  const departments = propDepts && propDepts.length > 0 ? propDepts : getDepartments();
   const [targetScope, setTargetScope] = useState(initialScope);
   const [selectedFaculty, setSelectedFaculty] = useState(initialFaculty || { id: "FAC_PS", name: "Prof. Priya Shah" });
   const [selectedSem, setSelectedSem] = useState(semesterName);
@@ -10016,7 +10084,66 @@ function TimetableUploadModal({
     border: "1px solid #e2e8f0",
     borderRadius: "8px",
     backgroundColor: "white"
-  } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", fontSize: "11.5px", borderCollapse: "collapse" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0 } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Day"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Time"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Subject"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Room"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, targetScope === "faculty" ? "Class \u2022 Batch" : "Faculty"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Status"))), /* @__PURE__ */ React.createElement("tbody", null, previewData.previewLectures.map((lec, i) => /* @__PURE__ */ React.createElement("tr", { key: i, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", fontWeight: "700" } }, lec.day), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#64748b" } }, lec.time), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "700" } }, lec.subject)), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#64748b" } }, lec.room), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#334155", fontWeight: "600" } }, targetScope === "faculty" ? `${lec.sem} ${lec.div}${lec.batch && lec.batch !== "All" ? ` (${lec.batch})` : ""}` : lec.facultyName || "Assigned"), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px" } }, lec.status === "conflict" ? /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px" } }, "Conflict") : lec.status === "duplicate" ? /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f3e8ff", color: "#7e22ce", fontSize: "10px" } }, "Duplicate") : /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#dcfce7", color: "#15803d", fontSize: "10px" } }, "Ready")))))))), /* @__PURE__ */ React.createElement("div", { style: {
+  } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", fontSize: "11.5px", borderCollapse: "collapse" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0 } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Day"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Time"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Subject"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Room"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Class Department"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, targetScope === "faculty" ? "Class \u2022 Batch" : "Faculty"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Status"))), /* @__PURE__ */ React.createElement("tbody", null, previewData.previewLectures.map((lec, i) => /* @__PURE__ */ React.createElement("tr", { key: i, style: { borderBottom: "1px solid #f1f5f9" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", fontWeight: "700" } }, lec.day), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#64748b" } }, lec.time), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px" } }, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#eff6ff", color: "#2563eb", fontWeight: "700" } }, lec.subject)), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#64748b" } }, lec.room), /* @__PURE__ */ React.createElement("td", { style: { padding: "4px 8px" } }, /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: (() => {
+        if (lec.departmentId) return lec.departmentId;
+        const d = departments.find((dep) => dep.name === lec.department || dep.code === lec.department);
+        return d ? d.id : departments[0]?.id || "DEP_AE";
+      })(),
+      onChange: (e) => {
+        const newDeptId = e.target.value;
+        const newDeptObj = departments.find((d) => d.id === newDeptId) || { id: newDeptId, name: newDeptId };
+        const updatedPreview = [...previewData.previewLectures];
+        updatedPreview[i] = {
+          ...updatedPreview[i],
+          departmentId: newDeptId,
+          department: newDeptObj.name,
+          isAmbiguousDept: false
+        };
+        const updatedTimetable = { ...previewData.timetable };
+        if (updatedTimetable[lec.day]) {
+          Object.keys(updatedTimetable[lec.day]).forEach((k) => {
+            const s = updatedTimetable[lec.day][k];
+            if (s && (k === lec.time || k === lec.timeSlot || lec.sessionId && s.sessionId === lec.sessionId)) {
+              updatedTimetable[lec.day][k] = {
+                ...s,
+                departmentId: newDeptId,
+                department: newDeptObj.name
+              };
+            }
+          });
+        }
+        let updatedValid = previewData.validLectures;
+        if (Array.isArray(updatedValid)) {
+          updatedValid = updatedValid.map((v) => {
+            if (v.day === lec.day && (v.time === lec.time || v.timeSlot === lec.time || lec.sessionId && v.sessionId === lec.sessionId)) {
+              return { ...v, departmentId: newDeptId, department: newDeptObj.name };
+            }
+            return v;
+          });
+        }
+        setPreviewData({
+          ...previewData,
+          previewLectures: updatedPreview,
+          timetable: updatedTimetable,
+          validLectures: updatedValid
+        });
+      },
+      style: {
+        fontSize: "11px",
+        padding: "3px 6px",
+        borderRadius: "4px",
+        border: lec.isAmbiguousDept ? "1.5px solid #f59e0b" : "1px solid #cbd5e1",
+        backgroundColor: lec.isAmbiguousDept ? "#fffbeb" : "white",
+        color: "#0f172a",
+        fontWeight: "600"
+      },
+      title: lec.isAmbiguousDept ? "Department was ambiguous in uploaded file. Please confirm." : "Class Department"
+    },
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id, value: d.id }, d.name, " (", d.code, ")"))
+  ), lec.isAmbiguousDept && /* @__PURE__ */ React.createElement("span", { style: { display: "block", fontSize: "9.5px", color: "#b45309", fontWeight: "700", marginTop: "1px" } }, "\u26A0\uFE0F Confirm Dept")), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px", color: "#334155", fontWeight: "600" } }, targetScope === "faculty" ? `${lec.sem} ${lec.div}${lec.batch && lec.batch !== "All" ? ` (${lec.batch})` : ""}` : lec.facultyName || "Assigned"), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 10px" } }, lec.status === "conflict" ? /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px" } }, "Conflict") : lec.status === "duplicate" ? /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f3e8ff", color: "#7e22ce", fontSize: "10px" } }, "Duplicate") : /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#dcfce7", color: "#15803d", fontSize: "10px" } }, "Ready")))))))), /* @__PURE__ */ React.createElement("div", { style: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -10048,18 +10175,25 @@ function TimetableUploadModal({
   ))));
 }
 function FacultyTimetablePanel({
-  departments,
-  faculties,
-  subjects,
+  departments = [],
+  faculties = [],
+  subjects = [],
+  selectedFacultyId: propFacultyId,
+  selectedDept: propSelectedDept,
   onSaveFaculty,
   onSwitchToClassTimetable,
   showToast
 }) {
-  const [selectedDept, setSelectedDept] = useState("AI & Data Science");
+  const [selectedDept, setSelectedDept] = useState(propSelectedDept || "ALL");
   const [selectedSem, setSelectedSem] = useState("3rd Semester");
   const [selectedWeek, setSelectedWeek] = useState("Current Week");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFacultyId, setSelectedFacultyId] = useState("FAC_PS");
+  const [selectedFacultyId, setSelectedFacultyId] = useState(propFacultyId || "FAC_PS");
+  React.useEffect(() => {
+    if (propFacultyId && propFacultyId !== selectedFacultyId) {
+      setSelectedFacultyId(propFacultyId);
+    }
+  }, [propFacultyId]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditFacultyModal, setShowEditFacultyModal] = useState(false);
   const [showAddFacultyModal, setShowAddFacultyModal] = useState(false);
@@ -10072,9 +10206,9 @@ function FacultyTimetablePanel({
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const deptFaculties = useMemo(() => {
     return faculties.filter((f) => {
-      const matchDept = !f.dept || f.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4));
+      const matchDept = selectedDept === "ALL" || !f.dept || isDepartmentMatch(f.dept, selectedDept);
       const q = searchQuery.toLowerCase().trim();
-      const matchQuery = !q || f.name.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.email && f.email.toLowerCase().includes(q);
+      const matchQuery = !q || f.name.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.email && f.email.toLowerCase().includes(q) || f.dept && f.dept.toLowerCase().includes(q);
       return matchDept && matchQuery;
     });
   }, [faculties, selectedDept, searchQuery]);
@@ -10126,7 +10260,7 @@ function FacultyTimetablePanel({
   };
   const handleSaveSlot = (day, timeSlot, slotData) => {
     try {
-      const activeDeptId = departments.find((d) => d.name === selectedDept)?.id || selectedDept;
+      const activeDeptId = slotData.departmentId || slotData.deptId || departments.find((d) => d.name === selectedDept)?.id || selectedDept;
       const updated = updateFacultySlot(currentFaculty.id, day, timeSlot, slotData, activeDeptId);
       setTimetable({ ...updated });
       if (showToast) showToast(`Saved ${slotData.subject} for ${day} ${timeSlot}`);
@@ -10196,7 +10330,10 @@ function FacultyTimetablePanel({
         "data-span": span
       },
       /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: isMulti ? "13.5px" : "13px", color: style.text, lineHeight: 1.2 } }, slot.subject), isLab && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", fontWeight: "800", padding: "1px 4px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.9)", color: style.text } }, isMulti ? "LAB (2h)" : "LAB")),
-      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px" } }, slot.sem || "3rd Sem", " \u2022 ", slot.div || "Div 1", slot.batch && slot.batch !== "All" ? ` \u2022 ${slot.batch}` : ""),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px" } }, slot.sem || "3rd Sem", (() => {
+        const cDept = slot.department || slot.departmentName || (resolveDepartment(slot.departmentId)?.code || (slot.departmentId && !slot.departmentId.startsWith("DEP_") ? slot.departmentId : ""));
+        return cDept ? ` (${cDept})` : "";
+      })(), " \u2022 ", slot.div || "Div 1", slot.batch && slot.batch !== "All" ? ` \u2022 ${slot.batch}` : ""),
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, opacity: 0.85, marginTop: "1px" } }, slot.room || (isLab ? "Lab 1" : "Room 201")),
       timeRange && isMulti && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: style.subText, fontWeight: "700", marginTop: "3px", opacity: 0.9 } }, formatOfficialTimeSlot(timeRange))
     );
@@ -10229,9 +10366,14 @@ function FacultyTimetablePanel({
       {
         value: selectedDept,
         onChange: (e) => {
-          setSelectedDept(e.target.value);
-          const facInDept = faculties.filter((f) => f.dept?.toLowerCase().includes(e.target.value.toLowerCase().slice(0, 4)));
-          if (facInDept.length > 0) setSelectedFacultyId(facInDept[0].id);
+          const val = e.target.value;
+          setSelectedDept(val);
+          if (val === "ALL") {
+            if (faculties.length > 0) setSelectedFacultyId(faculties[0].id);
+          } else {
+            const facInDept = faculties.filter((f) => isDepartmentMatch(f.dept, val));
+            if (facInDept.length > 0) setSelectedFacultyId(facInDept[0].id);
+          }
         },
         style: {
           border: "none",
@@ -10243,6 +10385,7 @@ function FacultyTimetablePanel({
           outline: "none"
         }
       },
+      /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Departments (College-Wide)"),
       departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name))
     )), /* @__PURE__ */ React.createElement("div", { style: {
       display: "flex",
@@ -10594,8 +10737,16 @@ function FacultyTimetablePanel({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            marginTop: "2px"
-          } }, fac.subjects || fac.designation || "Faculty"))),
+            marginTop: "1px"
+          } }, fac.subjects || fac.designation || "Faculty"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "3px" } }, /* @__PURE__ */ React.createElement("span", { style: {
+            fontSize: "10px",
+            fontWeight: "800",
+            padding: "1.5px 6px",
+            borderRadius: "4px",
+            backgroundColor: "#e0f2fe",
+            color: "#0369a1",
+            display: "inline-block"
+          } }, fac.dept || "General Category")))),
           /* @__PURE__ */ React.createElement(
             "button",
             {
@@ -10675,7 +10826,7 @@ function FacultyTimetablePanel({
             borderTop: "1px solid #f1f5f9"
           }
         },
-        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Department"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.dept || selectedDept))),
+        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Home Department"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.dept || "General Category"))),
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Subjects"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.subjects || "DBMS, Data Structures"))),
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(Mail, { size: 18, style: { color: "#64748b" } }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", textTransform: "uppercase", fontWeight: "700" } }, "Email"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: "#1e293b" } }, currentFaculty.email || `${currentFaculty.name.toLowerCase().replace(/[^a-z]/g, "")}@adit.ac.in`)))
       )
@@ -11106,6 +11257,7 @@ function FacultyTimetablePanel({
     TimetableUploadModal,
     {
       selectedFaculty: currentFaculty,
+      departments,
       departmentName: selectedDept,
       semesterName: selectedSem,
       onClose: () => setShowUploadModal(false),
@@ -11165,8 +11317,9 @@ function FacultyTimetablePanel({
       timeSlot: activeSlotData.timeSlot,
       existingSlot: activeSlotData.existingSlot,
       availableSubjects: departmentSubjects,
-      availableFaculties: deptFaculties,
-      departmentName: selectedDept,
+      availableFaculties: faculties,
+      departments,
+      departmentName: selectedDept === "ALL" ? currentFaculty?.dept || "AI & Data Science" : selectedDept,
       semesterName: selectedSem,
       onClose: () => setShowSlotModal(false),
       onSave: handleSaveSlot,
@@ -14022,7 +14175,7 @@ function DepartmentAdminPanel({
     }
     const newFac = {
       ...facultyForm,
-      dept: currentDept.name
+      dept: facultyForm.dept || currentDept.name
     };
     const updated = saveFaculty(newFac);
     notifyTimetableSync();
@@ -14483,7 +14636,14 @@ function DepartmentAdminPanel({
       justifyContent: "center",
       fontWeight: "800",
       fontSize: "13px"
-    } }, getInitials(fac.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" } }, fac.name, isHOD && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px", padding: "1px 5px" } }, "HOD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, fac.id)))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "600", color: "#334155" } }, fac.designation || "Assistant Professor")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#1e293b" } }, fac.email || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, fac.phone || "\u2014")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "#0f172a", fontWeight: "700" } }, fac.subjects || "General Curriculum")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
+    } }, getInitials(fac.name)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800", color: "#0f172a", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" } }, fac.name, isHOD && /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#fef3c7", color: "#b45309", fontSize: "10px", padding: "1px 5px" } }, "HOD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", marginTop: "1px" } }, /* @__PURE__ */ React.createElement("span", null, fac.id), /* @__PURE__ */ React.createElement("span", { style: {
+      fontSize: "10px",
+      fontWeight: "800",
+      padding: "1px 5px",
+      borderRadius: "4px",
+      backgroundColor: "#e0f2fe",
+      color: "#0369a1"
+    } }, fac.dept || currentDept.name))))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", fontWeight: "600", color: "#334155" } }, fac.designation || "Assistant Professor")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#1e293b" } }, fac.email || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b" } }, fac.phone || "\u2014")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "badge", style: { backgroundColor: "#f1f5f9", color: "#0f172a", fontWeight: "700" } }, fac.subjects || "General Curriculum")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement(
       "span",
       {
         className: "badge",
@@ -14689,7 +14849,16 @@ function DepartmentAdminPanel({
       onChange: (e) => setFacultyForm({ ...facultyForm, name: e.target.value }),
       required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Designation"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      className: "form-control",
+      value: facultyForm.dept || currentDept.name,
+      onChange: (e) => setFacultyForm({ ...facultyForm, dept: e.target.value }),
+      required: true
+    },
+    departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id || d.name, value: d.name }, d.name, " (", d.code, ")"))
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Organizational category. Faculty can be assigned to teach classes across all departments.")), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Designation"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -15724,11 +15893,16 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       resolvedDept = "Elective (No Department)";
     } else {
       if (lec.departmentId) {
-        const f = depts.find((d) => d.id === lec.departmentId || d.name.toLowerCase() === lec.departmentId.toLowerCase());
+        const f = depts.find((d) => d.id === lec.departmentId || d.name.toLowerCase() === lec.departmentId.toLowerCase() || d.code?.toLowerCase() === lec.departmentId.toLowerCase());
         if (f) resolvedDept = f.name;
       }
+      if (!resolvedDept && lec.department) {
+        const f = depts.find((d) => d.id === lec.department || d.name.toLowerCase() === lec.department.toLowerCase() || d.code?.toLowerCase() === lec.department.toLowerCase());
+        if (f) resolvedDept = f.name;
+        else resolvedDept = lec.department;
+      }
       if (!resolvedDept && lec.dept) {
-        const f = depts.find((d) => d.id === lec.dept || d.name.toLowerCase() === lec.dept.toLowerCase());
+        const f = depts.find((d) => d.id === lec.dept || d.name.toLowerCase() === lec.dept.toLowerCase() || d.code?.toLowerCase() === lec.dept.toLowerCase());
         if (f) resolvedDept = f.name;
         else resolvedDept = lec.dept;
       }
@@ -16977,7 +17151,11 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
           color: "#475569",
           padding: "2px 8px",
           borderRadius: "4px"
-        } }, slot.type || (isMulti ? "Practical Lab" : "Lecture")))), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px" } }, slot.name || slot.subject), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "0 0 12px", fontWeight: "600" } }, slot.sem, " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `(${slot.batch})` : "", " ", slot.room ? `\u2022 ${slot.room}` : "")),
+        } }, slot.type || (isMulti ? "Practical Lab" : "Lecture")))), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px" } }, slot.name || slot.subject), (() => {
+          const resolvedDeptObj = resolveDepartment(slot.departmentId || slot.department || slot.departmentName);
+          const deptDisplay = resolvedDeptObj ? resolvedDeptObj.name : slot.department || slot.departmentName || "";
+          return /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: "0 0 12px", fontWeight: "600" } }, slot.sem, deptDisplay ? ` \u2022 ${deptDisplay}` : "", " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `(${slot.batch})` : "", " ", slot.room ? `\u2022 ${slot.room}` : "");
+        })()),
         /* @__PURE__ */ React.createElement("div", { style: { marginTop: "8px" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
           "button",
           {
@@ -17267,7 +17445,8 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
               border: "1px solid #fde68a",
               display: "inline-block"
             } }, "\u23F1 Rescheduled (", slot.rescheduledDate || slot.day, ")")), (() => {
-              const deptDisplay = slot.department || slot.departmentName || (slot.departmentId === "DEP_AI" ? "AI & Data Science" : slot.departmentId === "DEP_IT" ? "Information Technology" : slot.departmentId === "DEP_CP" ? "Computer Engineering" : slot.departmentId && !slot.departmentId.startsWith("DEP_") ? slot.departmentId : "") || currentFaculty?.dept;
+              const resolvedDeptObj = resolveDepartment(slot.departmentId || slot.department || slot.departmentName);
+              const deptDisplay = resolvedDeptObj ? resolvedDeptObj.name : slot.department || slot.departmentName || (slot.departmentId && !slot.departmentId.startsWith("DEP_") ? slot.departmentId : "");
               return /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#475569", fontWeight: "700", marginBottom: "3px" } }, slot.sem, deptDisplay ? ` \u2022 ${deptDisplay}` : "", " \u2022 ", slot.div, " ", slot.batch && slot.batch !== "ALL" ? `\u2022 ${slot.batch}` : "");
             })(), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#64748b", marginBottom: "3px" } }, "\u{1F4CD} ", slot.room || "Classroom"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: "#1e293b", marginBottom: isMulti ? "6px" : "4px" } }, "\u23F0 ", timeRange), isMulti && /* @__PURE__ */ React.createElement("div", { style: {
               fontSize: "10px",

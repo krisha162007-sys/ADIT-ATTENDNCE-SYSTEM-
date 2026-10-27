@@ -33,11 +33,12 @@ import {
   downloadFacultyTimetableTemplate,
   downloadClassTimetableTemplate
 } from '../services/timetableStorage';
-import { getFaculties } from '../services/attendanceStorage';
+import { getFaculties, getDepartments, resolveDepartment } from '../services/attendanceStorage';
 
 export default function TimetableUploadModal({
   selectedFaculty: initialFaculty,
   departmentName = 'AI & Data Science',
+  departments: propDepts,
   semesterName = '3rd Semester',
   divisionName = 'Div 1',
   initialScope = 'faculty',
@@ -45,6 +46,7 @@ export default function TimetableUploadModal({
   onTimetableUpdated,
   showToast
 }) {
+  const departments = (propDepts && propDepts.length > 0) ? propDepts : getDepartments();
   const [targetScope, setTargetScope] = useState(initialScope); // 'faculty' or 'class'
   const [selectedFaculty, setSelectedFaculty] = useState(initialFaculty || { id: 'FAC_PS', name: 'Prof. Priya Shah' });
   const [selectedSem, setSelectedSem] = useState(semesterName);
@@ -596,6 +598,7 @@ export default function TimetableUploadModal({
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Time</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Subject</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Room</th>
+                        <th style={{ padding: '6px 10px', textAlign: 'left' }}>Class Department</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>{targetScope === 'faculty' ? 'Class • Batch' : 'Faculty'}</th>
                         <th style={{ padding: '6px 10px', textAlign: 'left' }}>Status</th>
                       </tr>
@@ -611,6 +614,77 @@ export default function TimetableUploadModal({
                             </span>
                           </td>
                           <td style={{ padding: '6px 10px', color: '#64748b' }}>{lec.room}</td>
+                          <td style={{ padding: '4px 8px' }}>
+                            <select
+                              value={(() => {
+                                if (lec.departmentId) return lec.departmentId;
+                                const d = departments.find(dep => dep.name === lec.department || dep.code === lec.department);
+                                return d ? d.id : (departments[0]?.id || 'DEP_AE');
+                              })()}
+                              onChange={(e) => {
+                                const newDeptId = e.target.value;
+                                const newDeptObj = departments.find(d => d.id === newDeptId) || { id: newDeptId, name: newDeptId };
+                                
+                                const updatedPreview = [...previewData.previewLectures];
+                                updatedPreview[i] = {
+                                  ...updatedPreview[i],
+                                  departmentId: newDeptId,
+                                  department: newDeptObj.name,
+                                  isAmbiguousDept: false
+                                };
+
+                                const updatedTimetable = { ...previewData.timetable };
+                                if (updatedTimetable[lec.day]) {
+                                  Object.keys(updatedTimetable[lec.day]).forEach(k => {
+                                    const s = updatedTimetable[lec.day][k];
+                                    if (s && (k === lec.time || k === lec.timeSlot || (lec.sessionId && s.sessionId === lec.sessionId))) {
+                                      updatedTimetable[lec.day][k] = {
+                                        ...s,
+                                        departmentId: newDeptId,
+                                        department: newDeptObj.name
+                                      };
+                                    }
+                                  });
+                                }
+
+                                let updatedValid = previewData.validLectures;
+                                if (Array.isArray(updatedValid)) {
+                                  updatedValid = updatedValid.map(v => {
+                                    if (v.day === lec.day && (v.time === lec.time || v.timeSlot === lec.time || (lec.sessionId && v.sessionId === lec.sessionId))) {
+                                      return { ...v, departmentId: newDeptId, department: newDeptObj.name };
+                                    }
+                                    return v;
+                                  });
+                                }
+
+                                setPreviewData({
+                                  ...previewData,
+                                  previewLectures: updatedPreview,
+                                  timetable: updatedTimetable,
+                                  validLectures: updatedValid
+                                });
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                border: lec.isAmbiguousDept ? '1.5px solid #f59e0b' : '1px solid #cbd5e1',
+                                backgroundColor: lec.isAmbiguousDept ? '#fffbeb' : 'white',
+                                color: '#0f172a',
+                                fontWeight: '600'
+                              }}
+                              title={lec.isAmbiguousDept ? 'Department was ambiguous in uploaded file. Please confirm.' : 'Class Department'}
+                            >
+                              {departments.map(d => (
+                                <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                              ))}
+                            </select>
+                            {lec.isAmbiguousDept && (
+                              <span style={{ display: 'block', fontSize: '9.5px', color: '#b45309', fontWeight: '700', marginTop: '1px' }}>
+                                ⚠️ Confirm Dept
+                              </span>
+                            )}
+                          </td>
                           <td style={{ padding: '6px 10px', color: '#334155', fontWeight: '600' }}>
                             {targetScope === 'faculty' 
                               ? `${lec.sem} ${lec.div}${lec.batch && lec.batch !== 'All' ? ` (${lec.batch})` : ''}` 

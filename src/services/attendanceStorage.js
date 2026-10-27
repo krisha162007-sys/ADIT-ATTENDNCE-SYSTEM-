@@ -1755,7 +1755,8 @@ export const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null
     if (targetDept) {
       const sDept = String(s.department || s.dept || '').trim().toLowerCase();
       const sDeptId = String(s.departmentId || '').trim().toLowerCase();
-      const matchesDept = sDept === targetDept || sDept.includes(targetDept) || targetDept.includes(sDept) ||
+      const matchesDept = isDepartmentMatch(s.department || s.dept || s.departmentId, targetDept) ||
+        sDept === targetDept || sDept.includes(targetDept) || targetDept.includes(sDept) ||
         (targetDept.includes('cp') && (sDeptId.includes('cp') || sDept.includes('computer'))) ||
         (targetDept.includes('computer') && (sDept.includes('cp') || sDept.includes('computer'))) ||
         (targetDept.includes('ai') && (sDept.includes('ai') || sDept.includes('data science'))) ||
@@ -1779,8 +1780,10 @@ export const getStudentsForAcademicGroup = (criteria = {}, userContextArg = null
     }
 
     // Check Batch
-    if (batch && batch !== 'ALL') {
-      if (s.batch !== batch) return false;
+    if (batch && batch !== 'ALL' && String(batch).toUpperCase() !== 'ALL') {
+      const sBatchNorm = String(s.batch || '').trim().toUpperCase();
+      const batchNorm = String(batch).trim().toUpperCase();
+      if (sBatchNorm !== 'ALL' && sBatchNorm !== batchNorm) return false;
     }
 
     // Check Academic Year

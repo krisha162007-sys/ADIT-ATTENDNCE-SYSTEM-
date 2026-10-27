@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Faculty Department Categories and Timetable Department Handling Tests</title>
+  <link rel="stylesheet" href="/src/index.css">
+  <script src="/libs/react.min.js"></script>
+  <script src="/libs/react-dom.min.js"></script>
+  <script src="/libs/lucide.min.js"></script>
+  <script src="/libs/xlsx.min.js"></script>
+  <script src="/libs/pdf.min.js"></script>
+  <script src="/libs/tesseract.min.js"></script>
+  <script>
+    var _nat = {};
+    ['Map','Set','WeakMap','WeakSet','Promise','Symbol','Error','Image','URL',
+     'Event','Request','Response','Headers','Date','RegExp','Number','String',
+     'Boolean','Function','Array','Object','History','Screen','File','Blob',
+     'MutationObserver','IntersectionObserver','ResizeObserver'
+    ].forEach(function(n) { if (window[n]) _nat[n] = window[n]; });
+
+    window.LucideIcons = {};
+    if (window.lucide && window.lucide.icons) {
+      Object.keys(window.lucide.icons).forEach(iconName => {
+        const pascalName = iconName.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+        const IconComponent = (props = {}) => {
+          const { size = 18, color = 'currentColor', strokeWidth = 2, className = '', style = {}, ...rest } = props;
+          const svgContent = window.lucide.icons[iconName];
+          if (!svgContent) return null;
+          const renderNode = (node, key) => {
+            if (!node || !Array.isArray(node)) return null;
+            const [tag, attrs, children] = node;
+            const reactAttrs = { key };
+            if (attrs) {
+              Object.keys(attrs).forEach(k => {
+                const rk = k.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                reactAttrs[rk] = attrs[k];
+              });
+            }
+            return React.createElement(tag, reactAttrs, (children || []).map((c, i) => renderNode(c, i)));
+          };
+          return React.createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg', width: size, height: size,
+            viewBox: '0 0 24 24', fill: 'none', stroke: color,
+            strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round',
+            className, style: { display: 'inline-block', verticalAlign: 'middle', ...style }, ...rest
+          }, (svgContent[2] || []).map((c, i) => renderNode(c, i)));
+        };
+        window[pascalName] = IconComponent;
+        window.LucideIcons[pascalName] = IconComponent;
+      });
+    }
+
+    Object.keys(_nat).forEach(function(n) { try { window[n] = _nat[n]; } catch(e){} });
+
+    window.CalendarIcon = (window.LucideIcons && window.LucideIcons.Calendar) || null;
+    window.SettingsIcon = (window.LucideIcons && window.LucideIcons.Settings) || null;
+    window.ImageIcon    = (window.LucideIcons && window.LucideIcons.Image) || null;
+
+    window.useState      = React.useState;
+    window.useEffect     = React.useEffect;
+    window.useMemo       = React.useMemo;
+    window.useRef        = React.useRef;
+    window.useCallback   = React.useCallback;
+    window.createContext = React.createContext;
+    window.useContext    = React.useContext;
+    window.useReducer    = React.useReducer;
+    window.useLayoutEffect = React.useLayoutEffect;
+  </script>
+  <script src="/app-bundle.js?v=dept_cat_1"></script>
+</head>
+<body style="padding: 24px; font-family: system-ui, -apple-system, sans-serif;">
+  <h2>Faculty Department Categories & Timetable Department Handling Test Suite</h2>
+  <div id="test-log" style="white-space: pre-wrap; font-family: monospace; background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px;">Running tests...</div>
+  <div id="render-mount" style="margin-top: 24px; border: 1px dashed #cbd5e1; padding: 16px; border-radius: 8px; min-height: 400px;"></div>
+
+  <script>
+    const results = [];
+    function assert(name, condition, extra = '') {
+      const passed = Boolean(condition);
+      results.push({ name, passed, extra });
+      const logEl = document.getElementById('test-log');
+      const symbol = passed ? '✅ [PASS]' : '❌ [FAIL]';
+      const msg = `${symbol} ${name} ${extra ? `(${extra})` : ''}\n`;
+      logEl.textContent += msg;
+      console.log(msg.trim());
+      if (!passed) console.error(`Assertion failed: ${name}`, extra);
+    }
+
+    async function runTestSuite() {
+      try {
+        console.log("Starting Department Category & Timetable Department Test Suite...");
+        
+        // =====================================================================
+        // GROUP 1: Department Management & Category Setup
+        // =====================================================================
+        const depts = getDepartments(true);
+        assert('getDepartments returns array of departments', Array.isArray(depts) && depts.length >= 9);
+
+        const requiredCodes = ['AE', 'CL', 'EE', 'EC', 'ME', 'FPT', 'DT', 'CE', 'IT'];
+        requiredCodes.forEach(code => {
+          const found = depts.find(d => d.code === code || resolveDepartment(code)?.code === code);
+          assert(`Department code "${code}" is registered in system`, Boolean(found));
+        });
+
+        // =====================================================================
+        // GROUP 2: Faculty Creation with Department Category
+        // =====================================================================
+        const testFacultyId = 'FAC_TEST_DR_PATEL';
+        const drPatel = {
+          id: testFacultyId,
+          name: 'Dr. Patel',
+          dept: 'Information Technology', // Home department is IT
+          designation: 'Associate Professor',
+          email: 'dr.patel@adit.ac.in',
+          phone: '9825099999',
+          subjects: 'CPC, Operating Systems'
+        };
+
+        const updatedFacs = saveFaculty(drPatel);
+        const savedFaculty = updatedFacs.find(f => f.id === testFacultyId);
+        assert('Faculty Dr. Patel created with home department category "Information Technology"', 
+          savedFaculty && savedFaculty.dept === 'Information Technology');
+
+        // Verify editing home department category
+        const modifiedFaculty = { ...drPatel, dept: 'Electrical Engineering' };
+        saveFaculty(modifiedFaculty);
+        const refetched = getFaculties().find(f => f.id === testFacultyId);
+        assert('Admin can update faculty home department category', refetched && refetched.dept === 'Electrical Engineering');
+        // Restore to Information Technology
+        saveFaculty(drPatel);
+
+        // =====================================================================
+        // GROUP 3: Separate Class Department in Manual Timetable Entry
+        // =====================================================================
+        clearAllEntries();
+
+        // Dr. Patel (home dept: IT) is assigned to teach Aeronautical Engineering (AE) students
+        // Entry: Subject CPC, Class department: AE, Sem: 1, Div: 1
+        const slotData = {
+          subject: 'CPC',
+          name: 'Computer Programming in C',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'All',
+          room: 'Room 210',
+          type: 'Lecture',
+          color: 'blue',
+          facultyId: testFacultyId,
+          facultyName: 'Dr. Patel',
+          departmentId: 'DEP_AE',
+          department: 'Aeronautical Engineering',
+          deptId: 'DEP_AE',
+          dept: 'Aeronautical Engineering'
+        };
+
+        updateFacultySlot(testFacultyId, 'Monday', '9:00 - 9:55', slotData, 'DEP_AE');
+
+        const entries = getTimetableEntries();
+        const drPatelEntry = entries.find(e => e.facultyId === testFacultyId && e.day === 'Monday' && e.timeSlot === '9:00 - 9:55');
+
+        assert('Timetable entry exists for Dr. Patel', Boolean(drPatelEntry));
+        assert('Timetable entry stores AE as class department ID', drPatelEntry && drPatelEntry.departmentId === 'DEP_AE');
+        assert('Timetable entry stores "Aeronautical Engineering" as class department name', 
+          drPatelEntry && (drPatelEntry.department === 'Aeronautical Engineering' || drPatelEntry.departmentName === 'Aeronautical Engineering'));
+
+        // Faculty home department remains IT
+        const patelFacultyObj = getFaculties().find(f => f.id === testFacultyId);
+        assert('Faculty member home department category remains "Information Technology"', 
+          patelFacultyObj && patelFacultyObj.dept === 'Information Technology');
+        assert('Faculty home department is kept separate from timetable class department',
+          patelFacultyObj.dept !== drPatelEntry.department);
+
+        // =====================================================================
+        // GROUP 4: Authorization Based on Assignment, NOT Department Equality
+        // =====================================================================
+        // Dr. Patel (IT) must be authorized to teach assigned AE class
+        const isAuthorizedToTeachAE = canFacultyTeachClassAndSubject(patelFacultyObj, 'Aeronautical Engineering', '1st Sem', 'Div 1', 'CPC');
+        assert('IT faculty member is authorized to teach assigned AE class (critical rule)', isAuthorizedToTeachAE);
+
+        // Faculty should NOT be authorized to teach an UNASSIGNED class in another department
+        const isAuthorizedForUnassignedCL = canFacultyTeachClassAndSubject(patelFacultyObj, 'Civil Engineering', '5th Sem', 'Div 1', 'Structural Mechanics');
+        assert('Faculty member is NOT authorized for unassigned class in another department', !isAuthorizedForUnassignedCL);
+
+        // =====================================================================
+        // GROUP 5: Student Roster Loading for Cross-Department Class
+        // =====================================================================
+        // Register AE students in database
+        const aeStudents = [
+          { rollNo: '1', enrollmentNo: '230010101001', name: 'Aarav Shah', department: 'Aeronautical Engineering', semester: '1st Sem', division: 'Div 1', batch: 'ALL', status: 'Active' },
+          { rollNo: '2', enrollmentNo: '230010101002', name: 'Diya Patel', department: 'Aeronautical Engineering', semester: '1st Sem', division: 'Div 1', batch: 'ALL', status: 'Active' },
+          { rollNo: '3', enrollmentNo: '230010101003', name: 'Kavya Joshi', department: 'Aeronautical Engineering', semester: '1st Sem', division: 'Div 1', batch: 'ALL', status: 'Active' }
+        ];
+        bulkRegisterStudents(aeStudents);
+
+        // Query students for this lecture's academic group using Dr. Patel's context
+        const loadedStudents = getStudentsForAcademicGroup({
+          department: drPatelEntry.department,
+          semester: drPatelEntry.sem,
+          division: drPatelEntry.div,
+          batch: drPatelEntry.batch,
+          subjectId: drPatelEntry.subjectId || drPatelEntry.subject
+        }, patelFacultyObj);
+
+        assert('getStudentsForAcademicGroup successfully loads AE students for IT faculty', loadedStudents.length === 3);
+        assert('Loaded students belong to Aeronautical Engineering', 
+          loadedStudents.every(s => s.department === 'Aeronautical Engineering' || isDepartmentMatch(s.department, 'Aeronautical Engineering')));
+
+        // =====================================================================
+        // GROUP 6: 2-Hour Laboratory Across Departments
+        // =====================================================================
+        // Add 2-hour laboratory for Dr. Patel teaching AE students
+        const labSlotData = {
+          subject: 'Aero Lab',
+          name: 'Aerodynamics Laboratory',
+          sem: '1st Sem',
+          div: 'Div 1',
+          batch: 'Batch A',
+          room: 'Aero Lab 1',
+          type: 'Lab',
+          color: 'green',
+          facultyId: testFacultyId,
+          facultyName: 'Dr. Patel',
+          departmentId: 'DEP_AE',
+          department: 'Aeronautical Engineering',
+          deptId: 'DEP_AE',
+          dept: 'Aeronautical Engineering'
+        };
+
+        updateFacultySlot(testFacultyId, 'Tuesday', '10:55 - 11:45', labSlotData, 'DEP_AE');
+
+        const allEntriesAfterLab = getTimetableEntries();
+        const labSlots = allEntriesAfterLab.filter(e => e.facultyId === testFacultyId && e.day === 'Tuesday');
+        assert('2-hour Lab allocates 2 consecutive slots in database', labSlots.length === 2);
+        assert('Slot 1 is at 10:55 - 11:45', labSlots.some(s => s.timeSlot === '10:55 - 11:45'));
+        assert('Slot 2 is at 11:50 - 12:40', labSlots.some(s => s.timeSlot === '11:50 - 12:40'));
+        assert('Both constituent lab slots share sessionId', labSlots[0].sessionId === labSlots[1].sessionId);
+        assert('Both constituent lab slots store AE as class department', 
+          labSlots.every(s => s.departmentId === 'DEP_AE' && s.department === 'Aeronautical Engineering'));
+
+        // =====================================================================
+        // GROUP 7: Uploaded Timetable Department Extraction & Admin Preview
+        // =====================================================================
+        // Test columnar parsing with explicit class department
+        const explicitRows = [
+          ['Faculty ID', 'Faculty Name', 'Department', 'Semester', 'Division', 'Batch', 'Subject', 'Day', 'Start Time', 'End Time', 'Room', 'Type'],
+          ['FAC_TEST_DR_PATEL', 'Dr. Patel', 'Aeronautical Engineering', '1st Sem', 'Div 1', 'ALL', 'CPC', 'Monday', '9:00', '9:55', 'Room 210', 'Lecture'],
+          ['FAC_TEST_DR_PATEL', 'Dr. Patel', 'Aeronautical Engineering', '1st Sem', 'Div 1', 'Batch A', 'Aero Lab', 'Tuesday', '10:55', '12:40', 'Aero Lab 1', 'Lab'],
+          ['FAC_TEST_DR_PATEL', 'Dr. Patel', 'Civil Engineering', '3rd Sem', 'Div 1', 'ALL', 'Surveying', 'Wednesday', '9:00', '9:55', 'Room 101', 'Lecture'],
+          ['FAC_TEST_DR_PATEL', 'Dr. Patel', 'Aeronautical Engineering', '1st Sem', 'Div 1', 'Batch B', 'Avionics Lab', 'Wednesday', '10:55', '12:40', 'Lab 2', 'Lab']
+        ];
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(explicitRows);
+        XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+        const excelBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        let fileObj;
+        try {
+          const FileCtor = _nat.File || window.File;
+          fileObj = new FileCtor([excelBlob], 'Faculty_CrossDept_Timetable.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        } catch(e) {
+          const BlobCtor = _nat.Blob || window.Blob;
+          const b = new BlobCtor([excelBlob]);
+          b.name = 'Faculty_CrossDept_Timetable.xlsx';
+          fileObj = b;
+        }
+
+        const parseResult = await parseExcelTimetableForFaculty(fileObj, testFacultyId, '1st Sem', 'Div 1', 'Information Technology');
+        assert('Parser detected cross-department lectures in upload', parseResult.previewLectures.length >= 2);
+
+        const surveyingPreview = parseResult.previewLectures.find(l => l.subject === 'Surveying');
+        assert('Parser extracted Civil Engineering as class department for Surveying', 
+          surveyingPreview && (surveyingPreview.department === 'Civil Engineering' || surveyingPreview.departmentId === 'DEP_CL'));
+
+        const avionicsPreview = parseResult.previewLectures.find(l => l.subject === 'Avionics Lab');
+        assert('Parser extracted Aeronautical Engineering as class department for Avionics Lab', 
+          avionicsPreview && (avionicsPreview.department === 'Aeronautical Engineering' || avionicsPreview.departmentId === 'DEP_AE'));
+
+        // Save preview with user modification: change Surveying to Mechanical Engineering in preview
+        surveyingPreview.departmentId = 'DEP_ME';
+        surveyingPreview.department = 'Mechanical Engineering';
+        if (parseResult.validLectures) {
+          const v = parseResult.validLectures.find(l => l.subject === 'Surveying');
+          if (v) { v.departmentId = 'DEP_ME'; v.department = 'Mechanical Engineering'; }
+        }
+        commitUploadedTimetable('faculty', testFacultyId, parseResult);
+
+        const reloadedEntries = getTimetableEntries().filter(e => e.facultyId === testFacultyId && e.day === 'Wednesday');
+        const savedSurveying = reloadedEntries.find(e => e.subjectName === 'Surveying');
+        assert('User correction in preview successfully saved class department as Mechanical Engineering', 
+          savedSurveying && savedSurveying.departmentId === 'DEP_ME');
+
+        // =====================================================================
+        // GROUP 8: DOM UI Verification - FacultyTimetablePanel & Faculty Category Badge
+        // =====================================================================
+        const mountEl = document.getElementById('render-mount');
+        ReactDOM.unmountComponentAtNode(mountEl);
+
+        const allCollegeDepts = getDepartments(true);
+        const allCollegeFacs = getFaculties();
+        const allCollegeSubjects = getSubjects();
+
+        ReactDOM.render(
+          React.createElement(FacultyTimetablePanel, {
+            departments: allCollegeDepts,
+            faculties: allCollegeFacs,
+            subjects: allCollegeSubjects,
+            selectedFacultyId: testFacultyId,
+            selectedDept: 'ALL'
+          }),
+          mountEl
+        );
+
+        await new Promise(r => setTimeout(r, 400));
+
+        // 1. Verify "All Departments (College-Wide)" option exists in dropdown
+        const deptSelect = mountEl.querySelector('select');
+        assert('Department filter dropdown exists in Faculty Timetable Panel', Boolean(deptSelect));
+        const allOption = Array.from(deptSelect.querySelectorAll('option')).find(o => o.value === 'ALL');
+        assert('"All Departments (College-Wide)" option is present in filter', Boolean(allOption));
+
+        // 2. Verify Dr. Patel in left list displays Home Department category badge
+        const facultyListItems = Array.from(mountEl.querySelectorAll('.faculty-list-item'));
+        const drPatelItem = facultyListItems.find(el => el.textContent.includes('Dr. Patel'));
+        assert('Dr. Patel card found in faculty list', Boolean(drPatelItem));
+        assert('Dr. Patel card displays "Information Technology" category badge', 
+          drPatelItem && drPatelItem.textContent.includes('Information Technology'));
+
+        // 3. Verify Lecture Card displays CLASS DEPARTMENT (AE), not faculty home department
+        const gridTable = Array.from(mountEl.querySelectorAll('table')).find(t => t.textContent.includes('Monday') && t.textContent.includes('Time'));
+        assert('Weekly grid table rendered in DOM', Boolean(gridTable));
+        
+        const mondayRows = Array.from(gridTable.querySelectorAll('tbody tr'));
+        const cpcCell = mondayRows[0].querySelectorAll('td')[1]; // Monday 9:00
+        assert('Monday 9:00 cell displays subject CPC', cpcCell && cpcCell.textContent.includes('CPC'));
+        assert('Monday 9:00 cell displays class department (DEP_AE or Aeronautical)', 
+          cpcCell && (cpcCell.textContent.includes('DEP_AE') || cpcCell.textContent.includes('AE') || cpcCell.textContent.includes('Aeronautical')));
+
+        // 4. Verify 2-Hour Lab displays class department and merged 2-hour duration
+        const tuesdayCell = mondayRows[2].querySelectorAll('td')[2]; // Tuesday 10:55
+        assert('Tuesday 10:55 cell has rowSpan = 2 for 2-hour Lab', tuesdayCell && (tuesdayCell.rowSpan === 2 || tuesdayCell.getAttribute('rowspan') === '2'));
+        assert('Tuesday 10:55 cell displays Aero Lab', tuesdayCell && tuesdayCell.textContent.includes('Aero Lab'));
+        assert('Tuesday 10:55 cell displays 2-hour combined time', tuesdayCell && (tuesdayCell.textContent.includes('10:55') && tuesdayCell.textContent.includes('12:40')));
+
+        // =====================================================================
+        // GROUP 9: FacultyPanel Take Attendance & Lecture Card Resolution
+        // =====================================================================
+        const FacultyPanel = window.FacultyPanel;
+        if (FacultyPanel) {
+          ReactDOM.unmountComponentAtNode(mountEl);
+          ReactDOM.render(
+            React.createElement(FacultyPanel, {
+              currentFaculty: drPatel,
+              departments: allCollegeDepts,
+              faculties: allCollegeFacs
+            }),
+            mountEl
+          );
+
+          await new Promise(r => setTimeout(r, 400));
+          const panelText = mountEl.textContent;
+          assert('FacultyPanel rendered for Dr. Patel', panelText.includes('Dr. Patel'));
+        }
+
+        console.log("TEST SUITE COMPLETED!");
+      } catch (err) {
+        console.error("Test Suite Execution Error:", err);
+        assert('Test suite executed without fatal error', false, err.message + '\n' + err.stack);
+      }
+
+      // Send results to runner
+      try {
+        await fetch('/api/test-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ results })
+        });
+      } catch (e) {
+        console.warn('Could not post test results:', e);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', runTestSuite);
+  </script>
+</body>
+</html>

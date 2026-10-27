@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, Calendar, BookOpen, Layers, MapPin, Trash2, Check, FlaskConical, AlertTriangle } from 'lucide-react';
+import { X, Clock, Calendar, BookOpen, Layers, MapPin, Trash2, Check, FlaskConical, AlertTriangle, Building2 } from 'lucide-react';
 import { 
   checkConflicts, 
   TIME_SLOTS, 
@@ -9,6 +9,7 @@ import {
   getNextConsecutiveTimeSlot, 
   getCombinedTimeSlot 
 } from '../services/timetableStorage';
+import { getDepartments } from '../services/attendanceStorage';
 
 export default function SlotEditModal({
   day: initialDay,
@@ -16,6 +17,7 @@ export default function SlotEditModal({
   existingSlot,
   availableSubjects,
   availableFaculties = [],
+  departments: propDepts,
   departmentName,
   semesterName,
   divisionName,
@@ -24,6 +26,8 @@ export default function SlotEditModal({
   onClear,
   showToast
 }) {
+  const departments = (propDepts && propDepts.length > 0) ? propDepts : getDepartments();
+
   const [day, setDay] = useState(initialDay || 'Monday');
   const [timeSlot, setTimeSlot] = useState(initialTimeSlot || '9:00 - 9:55');
   // Entries from centralized storage use subjectName; parsed timetables use subject — support both
@@ -31,6 +35,18 @@ export default function SlotEditModal({
   const _existingName    = existingSlot?.name || existingSlot?.subjectFullName || existingSlot?.subjectName || '';
   const [subject, setSubject] = useState(_existingSubject || (availableSubjects[0]?.shortName || availableSubjects[0]?.name || ''));
   const [fullName, setFullName] = useState(_existingName || (availableSubjects[0]?.name || ''));
+
+  // Class Department (students being taught) - separate from faculty home department
+  const [classDeptId, setClassDeptId] = useState(() => {
+    if (existingSlot?.departmentId) return existingSlot.departmentId;
+    if (existingSlot?.department) {
+      const match = departments.find(d => d.name === existingSlot.department || d.code === existingSlot.department);
+      if (match) return match.id;
+    }
+    const dMatch = departments.find(d => d.name === departmentName || d.id === departmentName);
+    return dMatch ? dMatch.id : (departments[0]?.id || 'DEP_AE');
+  });
+
   const [sem, setSem] = useState(existingSlot?.sem || existingSlot?.semId || semesterName || '3rd Sem');
   const [div, setDiv] = useState(existingSlot?.div || existingSlot?.divId || divisionName || 'Div 1');
   const [batch, setBatch] = useState(existingSlot?.batch || 'All');
@@ -84,6 +100,7 @@ export default function SlotEditModal({
 
     const facObj = availableFaculties.find(f => f.id === selectedFacultyId);
     const facultyName = facObj?.name || selectedFacultyId || 'Faculty Assigned';
+    const selectedDeptObj = departments.find(d => d.id === classDeptId) || { id: classDeptId, name: classDeptId };
 
     const slotData = {
       subject: subject.trim(),
@@ -96,6 +113,10 @@ export default function SlotEditModal({
       color: color || getSubjectColor(subject),
       facultyId: selectedFacultyId || existingSlot?.facultyId,
       facultyName,
+      departmentId: selectedDeptObj.id,
+      department: selectedDeptObj.name,
+      deptId: selectedDeptObj.id,
+      dept: selectedDeptObj.name,
       span: isLab ? 2 : 1,
       duration: isLab ? '2 Hours' : '1 Hour',
       combinedTimeSlot: isLab ? combinedTime : timeSlot,
@@ -137,8 +158,7 @@ export default function SlotEditModal({
   const handleClear = () => {
     const isMultiSession = existingSlot?.span > 1 || existingSlot?.sessionId || existingSlot?.type === 'Lab';
     const confirmMsg = isMultiSession
-      ? `Clear this 2-hour laboratory session on ${day} (${existingSlot?.combinedTimeSlot || timeSlot})?
-Both consecutive slots will be freed.`
+      ? `Clear this 2-hour laboratory session on ${day} (${existingSlot?.combinedTimeSlot || timeSlot})?\nBoth consecutive slots will be freed.`
       : `Clear this lecture slot on ${day} (${timeSlot})?`;
 
     if (window.confirm(confirmMsg)) {
@@ -148,9 +168,11 @@ Both consecutive slots will be freed.`
     }
   };
 
+  const selectedClassDeptName = departments.find(d => d.id === classDeptId)?.name || departmentName;
+
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: '490px' }}>
+      <div className="modal-card" style={{ maxWidth: '500px' }}>
         <div className="modal-header">
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--navy-primary)' }}>
@@ -158,7 +180,7 @@ Both consecutive slots will be freed.`
               {existingSlot ? 'Edit Timetable Slot' : 'Add Timetable Lecture'}
             </h3>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Department: {departmentName} • {semesterName}
+              Class: {selectedClassDeptName} • {sem} • {div}
             </span>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={onClose}>
@@ -235,6 +257,48 @@ Both consecutive slots will be freed.`
               </div>
             )}
 
+            {/* Class Department & Semester */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
+                  <Building2 size={14} style={{ color: 'var(--blue-primary)' }} />
+                  Class Department *
+                </label>
+                <select
+                  className="form-control"
+                  value={classDeptId}
+                  onChange={(e) => setClassDeptId(e.target.value)}
+                >
+                  {departments.map((d) => (
+                    <option key={d.id || d.name} value={d.id}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                  Department of class/students being taught
+                </span>
+              </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: '700', fontSize: '13px' }}>Semester</label>
+                <select
+                  className="form-control"
+                  value={sem}
+                  onChange={(e) => setSem(e.target.value)}
+                >
+                  <option value="1st Sem">1st Sem</option>
+                  <option value="2nd Sem">2nd Sem</option>
+                  <option value="3rd Sem">3rd Sem</option>
+                  <option value="4th Sem">4th Sem</option>
+                  <option value="5th Sem">5th Sem</option>
+                  <option value="6th Sem">6th Sem</option>
+                  <option value="7th Sem">7th Sem</option>
+                  <option value="8th Sem">8th Sem</option>
+                </select>
+              </div>
+            </div>
+
             {/* Subject Dropdown / Custom Input */}
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
@@ -289,26 +353,8 @@ Both consecutive slots will be freed.`
               </div>
             </div>
 
-            {/* Semester & Division */}
+            {/* Division & Student Batch */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label style={{ fontWeight: '700', fontSize: '13px' }}>Semester</label>
-                <select
-                  className="form-control"
-                  value={sem}
-                  onChange={(e) => setSem(e.target.value)}
-                >
-                  <option value="1st Sem">1st Sem</option>
-                  <option value="2nd Sem">2nd Sem</option>
-                  <option value="3rd Sem">3rd Sem</option>
-                  <option value="4th Sem">4th Sem</option>
-                  <option value="5th Sem">5th Sem</option>
-                  <option value="6th Sem">6th Sem</option>
-                  <option value="7th Sem">7th Sem</option>
-                  <option value="8th Sem">8th Sem</option>
-                </select>
-              </div>
-
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
                   <Layers size={14} style={{ color: 'var(--blue-primary)' }} />
@@ -325,6 +371,20 @@ Both consecutive slots will be freed.`
                   <option value="All Div">All Divisions</option>
                 </select>
               </div>
+
+              <div className="form-group">
+                <label style={{ fontWeight: '700', fontSize: '13px' }}>Student Batch</label>
+                <select
+                  className="form-control"
+                  value={batch}
+                  onChange={(e) => setBatch(e.target.value)}
+                >
+                  <option value="All">All Batches (Entire Class)</option>
+                  <option value="Batch A">Batch A</option>
+                  <option value="Batch B">Batch B</option>
+                  <option value="Batch C">Batch C</option>
+                </select>
+              </div>
             </div>
 
             {/* Faculty & Room */}
@@ -339,7 +399,7 @@ Both consecutive slots will be freed.`
                   <option value="">-- Faculty (Optional) --</option>
                   {availableFaculties.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name}
+                      {f.name} ({f.dept || 'ADIT'})
                     </option>
                   ))}
                 </select>
@@ -360,41 +420,25 @@ Both consecutive slots will be freed.`
               </div>
             </div>
 
-            {/* Type & Batch */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group">
-                <label style={{ fontWeight: '700', fontSize: '13px' }}>Slot Type</label>
-                <select
-                  className="form-control"
-                  value={type}
-                  onChange={(e) => {
-                    const newType = e.target.value;
-                    setType(newType);
-                    if (newType === 'Lab' && (!room || room === 'Room 201')) {
-                      setRoom('Lab 1');
-                    }
-                  }}
-                >
-                  <option value="Lecture">Lecture (1 Slot)</option>
-                  <option value="Lab">Laboratory (2 Slots / 2 Hours)</option>
-                  <option value="Seminar">Seminar</option>
-                  <option value="Tutorial">Tutorial</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontWeight: '700', fontSize: '13px' }}>Student Batch</label>
-                <select
-                  className="form-control"
-                  value={batch}
-                  onChange={(e) => setBatch(e.target.value)}
-                >
-                  <option value="All">All Batches (Entire Class)</option>
-                  <option value="Batch A">Batch A</option>
-                  <option value="Batch B">Batch B</option>
-                  <option value="Batch C">Batch C</option>
-                </select>
-              </div>
+            {/* Slot Type */}
+            <div className="form-group">
+              <label style={{ fontWeight: '700', fontSize: '13px' }}>Slot Type</label>
+              <select
+                className="form-control"
+                value={type}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setType(newType);
+                  if (newType === 'Lab' && (!room || room === 'Room 201')) {
+                    setRoom('Lab 1');
+                  }
+                }}
+              >
+                <option value="Lecture">Lecture (1 Slot)</option>
+                <option value="Lab">Laboratory (2 Slots / 2 Hours)</option>
+                <option value="Seminar">Seminar</option>
+                <option value="Tutorial">Tutorial</option>
+              </select>
             </div>
 
             {/* Color Accent Preview */}

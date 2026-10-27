@@ -492,11 +492,16 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       resolvedDept = 'Elective (No Department)';
     } else {
       if (lec.departmentId) {
-        const f = depts.find(d => d.id === lec.departmentId || d.name.toLowerCase() === lec.departmentId.toLowerCase());
+        const f = depts.find(d => d.id === lec.departmentId || d.name.toLowerCase() === lec.departmentId.toLowerCase() || d.code?.toLowerCase() === lec.departmentId.toLowerCase());
         if (f) resolvedDept = f.name;
       }
+      if (!resolvedDept && lec.department) {
+        const f = depts.find(d => d.id === lec.department || d.name.toLowerCase() === lec.department.toLowerCase() || d.code?.toLowerCase() === lec.department.toLowerCase());
+        if (f) resolvedDept = f.name;
+        else resolvedDept = lec.department;
+      }
       if (!resolvedDept && lec.dept) {
-        const f = depts.find(d => d.id === lec.dept || d.name.toLowerCase() === lec.dept.toLowerCase());
+        const f = depts.find(d => d.id === lec.dept || d.name.toLowerCase() === lec.dept.toLowerCase() || d.code?.toLowerCase() === lec.dept.toLowerCase());
         if (f) resolvedDept = f.name;
         else resolvedDept = lec.dept;
       }
@@ -2205,9 +2210,15 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                               <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: '0 0 4px' }}>
                                 {slot.name || slot.subject}
                               </h4>
-                              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px', fontWeight: '600' }}>
-                                {slot.sem} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `(${slot.batch})` : ''} {slot.room ? `• ${slot.room}` : ''}
-                              </p>
+                              {(() => {
+                                const resolvedDeptObj = resolveDepartment(slot.departmentId || slot.department || slot.departmentName);
+                                const deptDisplay = resolvedDeptObj ? resolvedDeptObj.name : (slot.department || slot.departmentName || '');
+                                return (
+                                  <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px', fontWeight: '600' }}>
+                                    {slot.sem}{deptDisplay ? ` • ${deptDisplay}` : ''} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `(${slot.batch})` : ''} {slot.room ? `• ${slot.room}` : ''}
+                                  </p>
+                                );
+                              })()}
                             </div>
 
                             <div style={{ marginTop: '8px' }} onClick={(e) => e.stopPropagation()}>
@@ -2625,7 +2636,8 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                                         )}
 
                                         {(() => {
-                                          const deptDisplay = slot.department || slot.departmentName || (slot.departmentId === 'DEP_AI' ? 'AI & Data Science' : slot.departmentId === 'DEP_IT' ? 'Information Technology' : slot.departmentId === 'DEP_CP' ? 'Computer Engineering' : (slot.departmentId && !slot.departmentId.startsWith('DEP_') ? slot.departmentId : '')) || currentFaculty?.dept;
+                                          const resolvedDeptObj = resolveDepartment(slot.departmentId || slot.department || slot.departmentName);
+                                          const deptDisplay = resolvedDeptObj ? resolvedDeptObj.name : (slot.department || slot.departmentName || (slot.departmentId && !slot.departmentId.startsWith('DEP_') ? slot.departmentId : ''));
                                           return (
                                             <div style={{ fontSize: '11px', color: '#475569', fontWeight: '700', marginBottom: '3px' }}>
                                               {slot.sem}{deptDisplay ? ` • ${deptDisplay}` : ''} • {slot.div} {slot.batch && slot.batch !== 'ALL' ? `• ${slot.batch}` : ''}

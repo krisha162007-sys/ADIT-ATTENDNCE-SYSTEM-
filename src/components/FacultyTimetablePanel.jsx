@@ -43,21 +43,23 @@ import {
   canMergeConsecutiveSlots,
   isLabSession
 } from '../services/timetableStorage';
-import { saveFaculty } from '../services/attendanceStorage';
+import { saveFaculty, isDepartmentMatch, resolveDepartment } from '../services/attendanceStorage';
 import FacultyEditModal from './FacultyEditModal';
 import SlotEditModal from './SlotEditModal';
 import TimetableUploadModal from './TimetableUploadModal';
 
 export default function FacultyTimetablePanel({
-  departments,
-  faculties,
-  subjects,
+  departments = [],
+  faculties = [],
+  subjects = [],
+  selectedFacultyId: propFacultyId,
+  selectedDept: propSelectedDept,
   onSaveFaculty,
   onSwitchToClassTimetable,
   showToast
 }) {
   // Department & Semester Filter
-  const [selectedDept, setSelectedDept] = useState('AI & Data Science');
+  const [selectedDept, setSelectedDept] = useState(propSelectedDept || 'ALL');
   const [selectedSem, setSelectedSem] = useState('3rd Semester');
   const [selectedWeek, setSelectedWeek] = useState('Current Week');
 
@@ -65,7 +67,13 @@ export default function FacultyTimetablePanel({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Selected Faculty
-  const [selectedFacultyId, setSelectedFacultyId] = useState('FAC_PS');
+  const [selectedFacultyId, setSelectedFacultyId] = useState(propFacultyId || 'FAC_PS');
+
+  React.useEffect(() => {
+    if (propFacultyId && propFacultyId !== selectedFacultyId) {
+      setSelectedFacultyId(propFacultyId);
+    }
+  }, [propFacultyId]);
 
   // Modals state
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -84,12 +92,13 @@ export default function FacultyTimetablePanel({
   // Filter faculties by selected department & search query
   const deptFaculties = useMemo(() => {
     return faculties.filter(f => {
-      const matchDept = !f.dept || f.dept.toLowerCase().includes(selectedDept.toLowerCase().slice(0, 4));
+      const matchDept = selectedDept === 'ALL' || !f.dept || isDepartmentMatch(f.dept, selectedDept);
       const q = searchQuery.toLowerCase().trim();
       const matchQuery = !q || 
         f.name.toLowerCase().includes(q) || 
         (f.subjects && f.subjects.toLowerCase().includes(q)) ||
-        (f.email && f.email.toLowerCase().includes(q));
+        (f.email && f.email.toLowerCase().includes(q)) ||
+        (f.dept && f.dept.toLowerCase().includes(q));
       return matchDept && matchQuery;
     });
   }, [faculties, selectedDept, searchQuery]);
@@ -161,7 +170,7 @@ export default function FacultyTimetablePanel({
   // Save Slot Handler
   const handleSaveSlot = (day, timeSlot, slotData) => {
     try {
-      const activeDeptId = departments.find(d => d.name === selectedDept)?.id || selectedDept;
+      const activeDeptId = slotData.departmentId || slotData.deptId || departments.find(d => d.name === selectedDept)?.id || selectedDept;
       const updated = updateFacultySlot(currentFaculty.id, day, timeSlot, slotData, activeDeptId);
       setTimetable({ ...updated });
       if (showToast) showToast(`Saved ${slotData.subject} for ${day} ${timeSlot}`);
@@ -248,7 +257,12 @@ export default function FacultyTimetablePanel({
           )}
         </div>
         <div style={{ fontSize: '11px', color: style.subText, fontWeight: '600', marginTop: '2px' }}>
-          {slot.sem || '3rd Sem'} • {slot.div || 'Div 1'}{slot.batch && slot.batch !== 'All' ? ` • ${slot.batch}` : ''}
+          {slot.sem || '3rd Sem'}
+          {(() => {
+            const cDept = slot.department || slot.departmentName || (resolveDepartment(slot.departmentId)?.code || (slot.departmentId && !slot.departmentId.startsWith('DEP_') ? slot.departmentId : ''));
+            return cDept ? ` (${cDept})` : '';
+          })()}
+          {' • '}{slot.div || 'Div 1'}{slot.batch && slot.batch !== 'All' ? ` • ${slot.batch}` : ''}
         </div>
         <div style={{ fontSize: '10.5px', color: style.subText, opacity: 0.85, marginTop: '1px' }}>
           {slot.room || (isLab ? 'Lab 1' : 'Room 201')}
@@ -298,10 +312,15 @@ export default function FacultyTimetablePanel({
             <select
               value={selectedDept}
               onChange={(e) => {
-                setSelectedDept(e.target.value);
+                const val = e.target.value;
+                setSelectedDept(val);
                 // Auto select first faculty in new department
-                const facInDept = faculties.filter(f => f.dept?.toLowerCase().includes(e.target.value.toLowerCase().slice(0, 4)));
-                if (facInDept.length > 0) setSelectedFacultyId(facInDept[0].id);
+                if (val === 'ALL') {
+                  if (faculties.length > 0) setSelectedFacultyId(faculties[0].id);
+                } else {
+                  const facInDept = faculties.filter(f => isDepartmentMatch(f.dept, val));
+                  if (facInDept.length > 0) setSelectedFacultyId(facInDept[0].id);
+                }
               }}
               style={{
                 border: 'none',
@@ -313,6 +332,7 @@ export default function FacultyTimetablePanel({
                 outline: 'none'
               }}
             >
+              <option value="ALL">All Departments (College-Wide)</option>
               {departments.map((d) => (
                 <option key={d.id || d.name} value={d.name}>
                   {d.name}
@@ -701,7 +721,7 @@ export default function FacultyTimetablePanel({
                         {initials}
                       </div>
 
-                      {/* Name & Subjects */}
+                      {/* Name, Subjects & Category Badge */}
                       <div style={{ minWidth: 0 }}>
                         <div style={{ 
                           fontSize: '13.5px', 
@@ -719,9 +739,22 @@ export default function FacultyTimetablePanel({
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          marginTop: '2px'
+                          marginTop: '1px'
                         }}>
                           {fac.subjects || fac.designation || 'Faculty'}
+                        </div>
+                        <div style={{ marginTop: '3px' }}>
+                          <span style={{
+                            fontSize: '10px',
+                            fontWeight: '800',
+                            padding: '1.5px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: '#e0f2fe',
+                            color: '#0369a1',
+                            display: 'inline-block'
+                          }}>
+                            {fac.dept || 'General Category'}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -826,10 +859,10 @@ export default function FacultyTimetablePanel({
                 <Building2 size={18} style={{ color: '#64748b' }} />
                 <div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: '700' }}>
-                    Department
+                    Home Department
                   </div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>
-                    {currentFaculty.dept || selectedDept}
+                    {currentFaculty.dept || 'General Category'}
                   </div>
                 </div>
               </div>
@@ -1415,6 +1448,7 @@ export default function FacultyTimetablePanel({
       {showUploadModal && (
         <TimetableUploadModal
           selectedFaculty={currentFaculty}
+          departments={departments}
           departmentName={selectedDept}
           semesterName={selectedSem}
           onClose={() => setShowUploadModal(false)}
@@ -1484,8 +1518,9 @@ export default function FacultyTimetablePanel({
           timeSlot={activeSlotData.timeSlot}
           existingSlot={activeSlotData.existingSlot}
           availableSubjects={departmentSubjects}
-          availableFaculties={deptFaculties}
-          departmentName={selectedDept}
+          availableFaculties={faculties}
+          departments={departments}
+          departmentName={selectedDept === 'ALL' ? (currentFaculty?.dept || 'AI & Data Science') : selectedDept}
           semesterName={selectedSem}
           onClose={() => setShowSlotModal(false)}
           onSave={handleSaveSlot}

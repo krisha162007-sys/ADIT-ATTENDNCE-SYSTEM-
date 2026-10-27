@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { X, UserCheck, Save, Mail, Phone, BookOpen, Building2, Briefcase } from 'lucide-react';
+import { X, UserCheck, Save, Mail, Phone, BookOpen, Building2, Briefcase, Check } from 'lucide-react';
+import { getDepartments } from '../services/attendanceStorage';
 
-export default function FacultyEditModal({ faculty, departments, onClose, onSave, showToast }) {
+export default function FacultyEditModal({ faculty, departments: propDepts, onClose, onSave, showToast }) {
+  const departments = (propDepts && propDepts.length > 0) ? propDepts : getDepartments();
+
   const [formData, setFormData] = useState({
     id: faculty?.id || '',
     name: faculty?.name || '',
-    dept: faculty?.dept || (departments[0]?.name || 'AI & Data Science'),
+    dept: faculty?.dept || (departments[0]?.name || 'Information Technology'),
     designation: faculty?.designation || 'Associate Professor',
     email: faculty?.email || '',
     phone: faculty?.phone || '',
@@ -57,7 +60,7 @@ export default function FacultyEditModal({ faculty, departments, onClose, onSave
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
                   <Building2 size={14} style={{ color: 'var(--blue-primary)' }} />
-                  Department
+                  Department / Home Category *
                 </label>
                 <select
                   className="form-control"
@@ -66,10 +69,13 @@ export default function FacultyEditModal({ faculty, departments, onClose, onSave
                 >
                   {departments.map((d) => (
                     <option key={d.id || d.name} value={d.name}>
-                      {d.name}
+                      {d.name} ({d.code})
                     </option>
                   ))}
                 </select>
+                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                  Organizational category only; faculty can teach across any department.
+                </span>
               </div>
 
               <div className="form-group">

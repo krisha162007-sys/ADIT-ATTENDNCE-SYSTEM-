@@ -1139,6 +1139,10 @@ export const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = n
 
   const sessionId = targetSessionId || ('sess_lab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
 
+  const finalDeptId = slotData.departmentId || slotData.deptId || deptId;
+  const resolvedDept = resolveDepartment(finalDeptId);
+  const finalDeptName = slotData.department || slotData.dept || resolvedDept?.name || finalDeptId;
+
   const baseEntry = {
     facultyId,
     facultyName: slotData.facultyName || 'Faculty',
@@ -1149,7 +1153,10 @@ export const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = n
     divId: normalizeDiv(slotData.div || 'Div 1'),
     sem: normalizeSem(slotData.sem || '3rd Sem'),
     div: normalizeDiv(slotData.div || 'Div 1'),
-    departmentId: deptId,
+    departmentId: finalDeptId,
+    department: finalDeptName,
+    deptId: finalDeptId,
+    dept: finalDeptName,
     room: slotData.room || (isLab ? 'Lab 1' : 'Room 201'),
     color: slotData.color,
     type: isLab ? 'Lab' : (slotData.type || 'Lecture'),
@@ -1382,13 +1389,18 @@ export const applyUploadedFacultyTimetable = (facultyId, newTimetable) => {
       if (!slot || !slot.subject) return;
       const sem = normalizeSem(slot.sem || '3rd Sem');
       const div = normalizeDiv(slot.div || 'Div 1');
-      const deptId = slot.departmentId || facultyDeptId;
+      const deptId = slot.departmentId || slot.deptId || facultyDeptId;
+      const resolvedClassDept = resolveDepartment(deptId);
+      const classDeptName = slot.department || slot.dept || resolvedClassDept?.name || deptId;
 
       filtered.push({
         id: generateId(),
         facultyId: facultyId,
         facultyName: facultyName,
         departmentId: deptId,
+        department: classDeptName,
+        deptId: deptId,
+        dept: classDeptName,
         subjectId: slot.subjectId || slot.subject,
         subjectName: slot.subject,
         subjectFullName: slot.name || slot.subject,
@@ -1815,6 +1827,8 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
                 /\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(raw) ||
                 /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room) ||
                 (batch && batch !== 'ALL' && !batch.startsWith('DIV'));
+  const hasExplicitDept = Boolean(deptId);
+  const resolvedDept = resolveDepartment(deptId || defaultDeptId);
   return {
     subject,
     name: subject,
@@ -1822,6 +1836,9 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     div: div || normalizeDiv(defaultDiv),
     batch: batch || 'ALL',
     deptId: deptId || defaultDeptId,
+    departmentId: deptId || defaultDeptId,
+    department: resolvedDept?.name || defaultDeptId,
+    isAmbiguousDept: !hasExplicitDept,
     room,
     type: isLab ? 'Lab' : 'Lecture'
   };
@@ -1924,6 +1941,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           const type = parsed.type || (isLabSession(parsed) ? 'Lab' : 'Lecture');
           const sessionId = 'sess_lab_xl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 
+          const classDeptName = resolveDepartment(deptId)?.name || deptId;
+          const isAmbiguous = Boolean(parsed.isAmbiguousDept);
           timetable[day][slot1] = {
             subject: parsed.subject,
             name: parsed.subject,
@@ -1931,6 +1950,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
             div,
             batch: parsed.batch || 'ALL',
             departmentId: deptId,
+            department: classDeptName,
+            isAmbiguousDept: isAmbiguous,
             room,
             type,
             color: getSubjectColor(parsed.subject),
@@ -1967,6 +1988,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
             div,
             batch: parsed.batch || 'ALL',
             departmentId: deptId,
+            department: classDeptName,
+            isAmbiguousDept: isAmbiguous,
             status: 'valid',
             span: 2,
             duration: '2 Hours',
@@ -2040,6 +2063,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         const room = parsed.room || 'Room 201';
         const type = parsed.type || 'Lecture';
 
+        const classDeptName = resolveDepartment(deptId)?.name || deptId;
+        const isAmbiguous = Boolean(parsed.isAmbiguousDept);
         timetable[day][timeSlot] = {
           subject: parsed.subject,
           name: parsed.subject,
@@ -2047,6 +2072,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           div,
           batch: parsed.batch || 'ALL',
           departmentId: deptId,
+          department: classDeptName,
+          isAmbiguousDept: isAmbiguous,
           room,
           type,
           color: getSubjectColor(parsed.subject)
@@ -2060,6 +2087,8 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           div,
           batch: parsed.batch || 'ALL',
           departmentId: deptId,
+          department: classDeptName,
+          isAmbiguousDept: isAmbiguous,
           status: 'valid'
         };
         previewLectures.push(lec);
@@ -2724,14 +2753,27 @@ export const commitUploadedTimetable = (targetScope, targetId, timetableData, op
     // Filter out previous entries for these faculties so we replace with the new upload without duplicates
     let updatedEntries = existingEntries.filter(e => !facultiesInUpload.has(e.facultyId));
 
-    timetableData.validLectures.forEach(lec => {
+    timetableData.validLectures.forEach((lec, idx) => {
       const facId = lec.facultyId || targetId || 'FAC_PS';
       const facName = lec.facultyName || 'Faculty';
+      const matchingPreview = timetableData.previewLectures?.find(p => 
+        (p.id && p.id === lec.id) || 
+        (p.subject === lec.subject && p.day === lec.day && (p.time === lec.timeSlot || p.timeSlot === lec.timeSlot || p.time === lec.time))
+      ) || timetableData.previewLectures?.[idx];
+      const deptIdToUse = matchingPreview?.departmentId || lec.departmentId || lec.deptId;
+      const deptNameToUse = matchingPreview?.department || lec.department || lec.dept;
+      const resolvedClassDept = resolveDepartment(deptIdToUse || deptNameToUse);
+      const finalDeptId = deptIdToUse || (resolvedClassDept ? resolvedClassDept.id : 'DEP_AI');
+      const finalDeptName = deptNameToUse || (resolvedClassDept ? resolvedClassDept.name : finalDeptId);
+
       updatedEntries.push({
         id: generateId(),
         facultyId: facId,
         facultyName: facName,
-        departmentId: lec.departmentId || 'DEP_AI',
+        departmentId: finalDeptId,
+        department: finalDeptName,
+        deptId: finalDeptId,
+        dept: finalDeptName,
         subjectId: lec.subject,
         subjectName: lec.subject,
         subjectFullName: lec.name || lec.subject,
