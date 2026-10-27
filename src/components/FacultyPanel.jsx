@@ -826,6 +826,19 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     setUnmarkedAlert(null);
   };
 
+  // Detect previously recorded session for current lecture parameters
+  const existingSessionForSlot = useMemo(() => {
+    const slotStr = `${attStartTime} - ${attEndTime}`;
+    const normCurSlot = normalizeTimeSlot(slotStr);
+    return facultySessions.find(s => 
+      s.date === attDate &&
+      normalizeTimeSlot(s.timeSlot || `${s.startTime} - ${s.endTime}`) === normCurSlot &&
+      (s.subjectId === attSubjectId || s.subjectName === attSubjectName) &&
+      (s.classId === activeClass?.id || (normalizeSem(s.sem) === normalizeSem(attSem) && normalizeDiv(s.division) === normalizeDiv(attDiv))) &&
+      (s.batch || 'ALL') === (attBatch || 'ALL')
+    ) || null;
+  }, [facultySessions, attDate, attStartTime, attEndTime, attSubjectId, attSubjectName, activeClass, attSem, attDiv, attBatch]);
+
   // Submit attendance to database (Completely independent of timetable)
   const executeSaveAttendance = (recordsToSave) => {
     if (isSavingAttendance) return;
@@ -3021,6 +3034,29 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         Close
                       </button>
 
+                      {recordedSession && (
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete the recorded attendance for ${slot.subject} (${slot.sem} ${slot.div}${slot.batch ? ' ' + slot.batch : ''}) on ${todayStr}? This action cannot be undone.`)) {
+                              try {
+                                deleteSession(recordedSession.id, currentFaculty);
+                                setSelectedLectureDetail(null);
+                                reloadSessions();
+                                if (showToast) showToast('Attendance record deleted successfully!');
+                              } catch (err) {
+                                alert(err.message || 'Error deleting session');
+                              }
+                            }
+                          }}
+                        >
+                          <Trash2 size={15} />
+                          <span>Delete Attendance Record</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         className="btn btn-secondary"
@@ -3851,6 +3887,41 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                   <span>View Class Register</span>
                 </button>
 
+                {existingSessionForSlot && (
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete this recorded attendance session for ${attSubjectName || attSubjectId} (${attSem} ${attDiv}${attBatch !== 'ALL' ? ' ' + attBatch : ''}) on ${attDate}? This will remove the recorded attendance and reset the slot to unrecorded.`)) {
+                        try {
+                          deleteSession(existingSessionForSlot.id, currentFaculty);
+                          reloadSessions();
+                          setAttRecords({});
+                          if (showToast) showToast('Attendance record deleted successfully!');
+                        } catch (err) {
+                          alert(err.message || 'Error deleting session');
+                        }
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '11px 20px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)'
+                    }}
+                  >
+                    <Trash2 size={16} />
+                    <span>Delete This Attendance Record</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleSubmitAttendance}

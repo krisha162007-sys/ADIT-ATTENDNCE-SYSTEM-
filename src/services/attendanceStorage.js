@@ -362,6 +362,24 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
   cleanupBatchDefinitions();
+
+  // One-time cleanup of accidental attendance session requested by user
+  try {
+    const rawSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+    if (rawSessions) {
+      const sessList = JSON.parse(rawSessions);
+      const targetSessionId = 'SESS_1793076485521_k3r0c';
+      if (sessList.some(s => s.id === targetSessionId)) {
+        const cleanedList = sessList.filter(s => s.id !== targetSessionId);
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(cleanedList));
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Session cleanup warning:', err);
+  }
 };
 
 // Security PIN Verification

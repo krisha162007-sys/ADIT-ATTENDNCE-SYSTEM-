@@ -302,6 +302,22 @@ const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
   }
   cleanupBatchDefinitions();
+  try {
+    const rawSessions = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+    if (rawSessions) {
+      const sessList = JSON.parse(rawSessions);
+      const targetSessionId = "SESS_1793076485521_k3r0c";
+      if (sessList.some((s) => s.id === targetSessionId)) {
+        const cleanedList = sessList.filter((s) => s.id !== targetSessionId);
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(cleanedList));
+        if (typeof window !== "undefined" && window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Session cleanup warning:", err);
+  }
 };
 const verifyAdminPin = (inputPin) => {
   initializeStorage();
@@ -16492,6 +16508,13 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     }));
     setUnmarkedAlert(null);
   };
+  const existingSessionForSlot = useMemo(() => {
+    const slotStr = `${attStartTime} - ${attEndTime}`;
+    const normCurSlot = normalizeTimeSlot(slotStr);
+    return facultySessions.find(
+      (s) => s.date === attDate && normalizeTimeSlot(s.timeSlot || `${s.startTime} - ${s.endTime}`) === normCurSlot && (s.subjectId === attSubjectId || s.subjectName === attSubjectName) && (s.classId === activeClass?.id || normalizeSem(s.sem) === normalizeSem(attSem) && normalizeDiv(s.division) === normalizeDiv(attDiv)) && (s.batch || "ALL") === (attBatch || "ALL")
+    ) || null;
+  }, [facultySessions, attDate, attStartTime, attEndTime, attSubjectId, attSubjectName, activeClass, attSem, attDiv, attBatch]);
   const executeSaveAttendance = (recordsToSave) => {
     if (isSavingAttendance) return;
     setIsSavingAttendance(true);
@@ -17883,6 +17906,27 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         onClick: () => setSelectedLectureDetail(null)
       },
       "Close"
+    ), recordedSession && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-danger",
+        style: { display: "flex", alignItems: "center", gap: "6px" },
+        onClick: () => {
+          if (window.confirm(`Are you sure you want to delete the recorded attendance for ${slot.subject} (${slot.sem} ${slot.div}${slot.batch ? " " + slot.batch : ""}) on ${todayStr}? This action cannot be undone.`)) {
+            try {
+              deleteSession(recordedSession.id, currentFaculty);
+              setSelectedLectureDetail(null);
+              reloadSessions();
+              if (showToast) showToast("Attendance record deleted successfully!");
+            } catch (err) {
+              alert(err.message || "Error deleting session");
+            }
+          }
+        }
+      },
+      /* @__PURE__ */ React.createElement(Trash2, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "Delete Attendance Record")
     ), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -18495,6 +18539,40 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     },
     /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 15, color: "#059669" }),
     /* @__PURE__ */ React.createElement("span", null, "View Class Register")
+  ), existingSessionForSlot && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-danger",
+      onClick: () => {
+        if (window.confirm(`Are you sure you want to delete this recorded attendance session for ${attSubjectName || attSubjectId} (${attSem} ${attDiv}${attBatch !== "ALL" ? " " + attBatch : ""}) on ${attDate}? This will remove the recorded attendance and reset the slot to unrecorded.`)) {
+          try {
+            deleteSession(existingSessionForSlot.id, currentFaculty);
+            reloadSessions();
+            setAttRecords({});
+            if (showToast) showToast("Attendance record deleted successfully!");
+          } catch (err) {
+            alert(err.message || "Error deleting session");
+          }
+        }
+      },
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "11px 20px",
+        borderRadius: "10px",
+        border: "none",
+        backgroundColor: "#dc2626",
+        color: "#ffffff",
+        fontWeight: "700",
+        fontSize: "14px",
+        cursor: "pointer",
+        boxShadow: "0 4px 12px rgba(220, 38, 38, 0.25)"
+      }
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 16 }),
+    /* @__PURE__ */ React.createElement("span", null, "Delete This Attendance Record")
   ), /* @__PURE__ */ React.createElement(
     "button",
     {

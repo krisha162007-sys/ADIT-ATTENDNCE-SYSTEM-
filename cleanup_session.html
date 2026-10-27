@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADIT Attendance - Record Cleanup</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 520px;
+      width: 100%;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .badge-success {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-info {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+    }
+    h2 {
+      margin: 0 0 10px 0;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    p {
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0 0 20px 0;
+    }
+    .details {
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: left;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .details-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+    .details-val {
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .btn {
+      display: inline-block;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover {
+      background: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="badgeContainer">
+      <span class="badge badge-info">Processing...</span>
+    </div>
+    <h2 id="heading">Removing Accidental Attendance Record</h2>
+    <p id="subtext">Please wait while the attendance session is removed from local storage...</p>
+
+    <div class="details" id="detailsBox" style="display: none;">
+      <div class="details-row"><span class="details-label">Subject:</span><span class="details-val" id="detSubj">CPC</span></div>
+      <div class="details-row"><span class="details-label">Faculty:</span><span class="details-val" id="detFaculty">Dr. Priyang Bhatt</span></div>
+      <div class="details-row"><span class="details-label">Class:</span><span class="details-val" id="detClass">IT Sem 1 Div 1 (Batch B)</span></div>
+      <div class="details-row"><span class="details-label">Date & Time:</span><span class="details-val" id="detDateTime">2026-10-27 (10:55 - 12:40)</span></div>
+      <div class="details-row"><span class="details-label">Session ID:</span><span class="details-val" id="detId" style="font-family: monospace; font-size: 11px;">SESS_1793076485521_k3r0c</span></div>
+    </div>
+
+    <div>
+      <a href="index.html" class="btn" id="actionBtn">Go to Attendance Dashboard</a>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const TARGET_ID = 'SESS_1793076485521_k3r0c';
+      const SESSIONS_KEY = 'adit_attendance_sessions';
+      
+      try {
+        const raw = localStorage.getItem(SESSIONS_KEY);
+        const sessions = raw ? JSON.parse(raw) : [];
+        const match = sessions.find(s => s.id === TARGET_ID);
+        
+        // Remove target session or any latest session if matches today
+        const filtered = sessions.filter(s => s.id !== TARGET_ID);
+        localStorage.setItem(SESSIONS_KEY, JSON.stringify(filtered));
+        
+        // Notify any active app windows
+        window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+        
+        const badgeContainer = document.getElementById('badgeContainer');
+        const heading = document.getElementById('heading');
+        const subtext = document.getElementById('subtext');
+        const detailsBox = document.getElementById('detailsBox');
+        
+        if (match) {
+          badgeContainer.innerHTML = '<span class="badge badge-success">✓ Successfully Removed</span>';
+          heading.innerText = 'Attendance Record Removed';
+          subtext.innerText = 'The accidental attendance record has been completely removed from storage. The timetable slot has been restored to "Take Attendance".';
+          detailsBox.style.display = 'block';
+          if (match.subjectName || match.subjectId) document.getElementById('detSubj').innerText = match.subjectName || match.subjectId;
+          if (match.facultyName) document.getElementById('detFaculty').innerText = match.facultyName;
+          if (match.batch) document.getElementById('detClass').innerText = (match.department || 'IT') + ' ' + (match.sem || 'Sem 1') + ' ' + (match.division || 'Div 1') + ' (' + match.batch + ')';
+          if (match.date) document.getElementById('detDateTime').innerText = match.date + ' (' + (match.timeSlot || '') + ')';
+        } else {
+          badgeContainer.innerHTML = '<span class="badge badge-success">✓ Storage Clean</span>';
+          heading.innerText = 'No Accidental Record Found';
+          subtext.innerText = 'The attendance record is already removed or does not exist in this browser storage.';
+        }
+      } catch (err) {
+        document.getElementById('heading').innerText = 'Cleanup Notice';
+        document.getElementById('subtext').innerText = 'Error processing storage: ' + err.message;
+      }
+    })();
+  </script>
+</body>
+</html>
