@@ -77,7 +77,7 @@
     window.useReducer    = React.useReducer;
     window.useLayoutEffect = React.useLayoutEffect;
   </script>
-  <script src="/app-bundle.js?v=9999"></script>
+  <script src="/app-bundle.js?v=lab_fix_4"></script>
 </head>
 <body style="font-family: sans-serif; padding: 20px; background-color: #f1f5f9;">
   <h2>Faculty Timetable Excel Upload & 2-Slot Lab Card Suite</h2>
@@ -374,6 +374,66 @@
         const wedLabDb = parsedDb.filter(e => e.day === 'Wednesday' && e.subjectName.includes('Computer Networks'));
         assert('Persisted entries retain shared sessionId after reload', wedLabDb.length === 2 && wedLabDb[0].sessionId === wedLabDb[1].sessionId);
         assert('Persisted entries retain span: 2', wedLabDb[0]?.span === 2);
+
+        // =====================================================================
+        // Test Group 8: Excel Upload with SheetJS Merged Cells (!merges)
+        // =====================================================================
+        const wbMerged = XLSX.utils.book_new();
+        const wsMergedData = [
+          ['time', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+          ['9:00 - 9:55', 'Maths\n1st Sem\nRoom 101', '', '', '', '', ''],
+          ['10:00 - 10:50', 'Maths\n1st Sem\nRoom 101', '', '', '', '', ''],
+          ['10:55 - 11:45', '', 'AI Robotics Lab\n1st Sem Div 1\nRoom 210', '', '', '', ''],
+          ['11:50 - 12:40', '', '', '', '', '', ''], // Merged with row above in Excel!
+          ['12:40 - 1:25', '', '', '', '', '', ''],
+          ['1:25 - 2:15', '', '', '', '', '', '']
+        ];
+        const wsMerged = XLSX.utils.aoa_to_sheet(wsMergedData);
+        // Explicitly add merge range covering Tuesday B4:B5 (row index 3 to 4, col index 2)
+        wsMerged['!merges'] = [
+          { s: { r: 3, c: 2 }, e: { r: 4, c: 2 } }
+        ];
+        XLSX.utils.book_append_sheet(wbMerged, wsMerged, 'Faculty Timetable');
+        const wbMergedBuffer = XLSX.write(wbMerged, { type: 'array', bookType: 'xlsx' });
+
+        const parseMergedResult = await window.parseExcelTimetableForFaculty(wbMergedBuffer, 'FAC_PS', '1st Sem', 'Div 1', 'DEP_AI');
+        assert('Excel parser detects SheetJS merged cells (!merges)', Boolean(parseMergedResult.previewLectures));
+
+        const tuesdayPreview = parseMergedResult.previewLectures.filter(l => l.day === 'Tuesday' && (l.subject.includes('ROBOTICS') || l.subject.includes('AI Robotics')));
+        assert('Merged Excel cell creates exactly 1 preview entry', tuesdayPreview.length === 1, `found ${tuesdayPreview.length}`);
+        assert('Merged Excel cell has combined time 10:55 - 12:40', tuesdayPreview[0]?.time === '10:55 - 12:40', tuesdayPreview[0]?.time);
+        assert('Merged Excel cell preview has span: 2', tuesdayPreview[0]?.span === 2);
+
+        // =====================================================================
+        // Test Group 9: Preservation of Independent Consecutive Regular Lectures
+        // =====================================================================
+        const mondayLectures = parseMergedResult.previewLectures.filter(l => l.day === 'Monday' && (l.subject.toUpperCase().includes('MATHS')));
+        assert('Independent consecutive lectures are NOT merged (2 entries)', mondayLectures.length === 2, `found ${mondayLectures.length}`);
+        assert('Maths lecture 1 remains span 1', mondayLectures[0]?.span === 1 || !mondayLectures[0]?.span);
+        assert('Maths lecture 2 remains span 1', mondayLectures[1]?.span === 1 || !mondayLectures[1]?.span);
+
+        // =====================================================================
+        // Test Group 10: Rescheduling a Merged Lab Session Updates Entire Session
+        // =====================================================================
+        window.commitUploadedTimetable('faculty', 'FAC_PS', parseMergedResult);
+        const tuesdayDbEntries = window.getTimetableEntries().filter(e => e.day === 'Tuesday' && (e.subjectName.includes('ROBOTICS') || e.subjectName.includes('AI Robotics')));
+        assert('Tuesday merged lab saved linked entries in database', tuesdayDbEntries.length === 2, `found ${tuesdayDbEntries.length}`);
+        const sharedLabSessionId = tuesdayDbEntries[0]?.sessionId;
+        assert('Tuesday entries share sessionId', Boolean(sharedLabSessionId) && sharedLabSessionId === tuesdayDbEntries[1]?.sessionId);
+
+        // Perform reschedule test
+        const rescheduleRes = window.rescheduleLectureEntry({
+          entryId: tuesdayDbEntries[0].id,
+          newDate: '2026-11-12',
+          newTimeSlot: '10:55 - 11:45',
+          newStartTime: '10:55',
+          newEndTime: '11:45',
+          reason: 'Faculty Conference'
+        }, { role: 'admin', facultyId: 'FAC_PS' });
+        assert('Reschedule executed successfully', rescheduleRes && (rescheduleRes.success || rescheduleRes.isRescheduled));
+
+        const updatedEntries = window.getTimetableEntries().filter(e => e.sessionId === sharedLabSessionId);
+        assert('All entries with shared sessionId updated on reschedule', updatedEntries.every(e => e.isRescheduled && e.rescheduledDate === '2026-11-12'));
 
         // =====================================================================
         // Post Test Results

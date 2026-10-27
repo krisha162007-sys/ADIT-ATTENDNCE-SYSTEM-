@@ -977,8 +977,17 @@ export default function FacultyTimetablePanel({
                           continue;
                         }
 
+                        // 1. If slot is marked as continuation, skip it!
+                        if (slot.isContinuation) {
+                          dayCellMap[dayName][rIdx] = { type: 'skip' };
+                          continue;
+                        }
+
                         let span = 1;
                         const mergedSlotsList = [slot];
+                        const fullTimeStr = slot.combinedTimeSlot || slot.timeSlot || time;
+                        const slotRng = parseTimeRangeMinutes(fullTimeStr);
+                        const explicitSpan = slot.span && slot.span > 1 ? slot.span : 1;
 
                         let checkIdx = rIdx + 1;
                         while (checkIdx < TIME_SLOTS.length) {
@@ -987,17 +996,28 @@ export default function FacultyTimetablePanel({
 
                           const nextSlot = timetable[dayName]?.[nextTime];
 
-                          if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
+                          if (span < explicitSpan) {
                             span++;
-                            mergedSlotsList.push(nextSlot);
+                            if (nextSlot) mergedSlotsList.push(nextSlot);
                             dayCellMap[dayName][checkIdx] = { type: 'skip' };
                             checkIdx++;
                             continue;
                           }
 
-                          if (slot.span && slot.span > 1 && span < slot.span) {
+                          if (slotRng) {
+                            const nextRng = parseTimeRangeMinutes(nextTime);
+                            if (nextRng && nextRng.startMin < slotRng.endMin) {
+                              span++;
+                              if (nextSlot) mergedSlotsList.push(nextSlot);
+                              dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                              checkIdx++;
+                              continue;
+                            }
+                          }
+
+                          if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
                             span++;
-                            if (nextSlot) mergedSlotsList.push(nextSlot);
+                            mergedSlotsList.push(nextSlot);
                             dayCellMap[dayName][checkIdx] = { type: 'skip' };
                             checkIdx++;
                             continue;

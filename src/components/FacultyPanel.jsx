@@ -2059,6 +2059,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                   for (let i = 0; i < rawActiveKeys.length; i++) {
                     const t = rawActiveKeys[i];
                     const slot = daySlots[t];
+                    if (slot.isContinuation) continue;
                     const mergedList = [slot];
                     
                     const slotParts = (slot.timeSlot || t).split(/[-–—]/);
@@ -2396,10 +2397,18 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                               continue;
                             }
 
-                            // Determine span
+                            // 1. If slot is a continuation slot, mark as skip and continue immediately!
+                            if (slot.isContinuation) {
+                              dayCellMap[dayName][rIdx] = { type: 'skip' };
+                              continue;
+                            }
+
+                            // 2. Determine span across covered rows
                             let span = 1;
                             const mergedSlotsList = [slot];
-                            const slotRng = parseTimeRangeMinutes(slot.timeSlot || time);
+                            const fullTimeStr = slot.combinedTimeSlot || slot.timeSlot || time;
+                            const slotRng = parseTimeRangeMinutes(fullTimeStr);
+                            const explicitSpan = slot.span && slot.span > 1 ? slot.span : 1;
 
                             let checkIdx = rIdx + 1;
                             while (checkIdx < allSlotsToRender.length) {
@@ -2408,7 +2417,28 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
                               const nextSlot = getSlotForRow(dayName, nextTime);
 
-                              // 1. Check if next slot is consecutive and belongs to same session
+                              // A. If slot has explicit span covering this index
+                              if (span < explicitSpan) {
+                                span++;
+                                if (nextSlot) mergedSlotsList.push(nextSlot);
+                                dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                                checkIdx++;
+                                continue;
+                              }
+
+                              // B. If slot has a combined time range extending over nextTime
+                              if (slotRng) {
+                                const nextRng = parseTimeRangeMinutes(nextTime);
+                                if (nextRng && nextRng.startMin < slotRng.endMin) {
+                                  span++;
+                                  if (nextSlot) mergedSlotsList.push(nextSlot);
+                                  dayCellMap[dayName][checkIdx] = { type: 'skip' };
+                                  checkIdx++;
+                                  continue;
+                                }
+                              }
+
+                              // C. Check if next slot is consecutive and belongs to same session
                               if (nextSlot && canMergeConsecutiveSlots(slot, nextSlot)) {
                                 span++;
                                 mergedSlotsList.push(nextSlot);
@@ -2417,37 +2447,30 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                                 continue;
                               }
 
-                              // 2. Check if current slot has a multi-period duration spanning over nextTime
-                              if (slotRng) {
-                                const nextRng = parseTimeRangeMinutes(nextTime);
-                                if (nextRng && nextRng.startMin < slotRng.endMin) {
-                                  span++;
-                                  dayCellMap[dayName][checkIdx] = { type: 'skip' };
-                                  checkIdx++;
-                                  continue;
-                                }
-                              }
-
                               break;
                             }
 
                             // Formulate combined time range string
-                            let timeRange = slot.combinedTimeSlot || slot.timeSlot || time;
-                            if (span > 1) {
-                              const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || '';
-                              const lastSlot = mergedSlotsList[mergedSlotsList.length - 1];
-                              let lastEnd = '';
-                              if (lastSlot && lastSlot.timeSlot) {
-                                const p = lastSlot.timeSlot.split(/[-–—]/);
-                                lastEnd = (p[1] || p[0]).trim();
-                              } else if (slotRng && slot.timeSlot && slot.timeSlot.includes('-')) {
-                                lastEnd = slot.timeSlot.split(/[-–—]/)[1]?.trim() || '';
+                            let timeRange = slot.combinedTimeSlot;
+                            if (!timeRange) {
+                              if (span > 1) {
+                                const firstStart = (slot.timeSlot || time).split(/[-–—]/)[0]?.trim() || '';
+                                const lastSlot = mergedSlotsList[mergedSlotsList.length - 1];
+                                let lastEnd = '';
+                                if (lastSlot && lastSlot.timeSlot) {
+                                  const p = lastSlot.timeSlot.split(/[-–—]/);
+                                  lastEnd = (p[1] || p[0]).trim();
+                                } else if (slotRng && slot.timeSlot && slot.timeSlot.includes('-')) {
+                                  lastEnd = slot.timeSlot.split(/[-–—]/)[1]?.trim() || '';
+                                } else {
+                                  const lastRowTime = allSlotsToRender[rIdx + span - 1];
+                                  const p = lastRowTime.split(/[-–—]/);
+                                  lastEnd = (p[1] || p[0]).trim();
+                                }
+                                timeRange = `${firstStart}–${lastEnd}`;
                               } else {
-                                const lastRowTime = allSlotsToRender[rIdx + span - 1];
-                                const p = lastRowTime.split(/[-–—]/);
-                                lastEnd = (p[1] || p[0]).trim();
+                                timeRange = slot.timeSlot || time;
                               }
-                              timeRange = `${firstStart}–${lastEnd}`;
                             }
 
                             const mergedSlot = {

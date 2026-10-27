@@ -43,8 +43,14 @@ export const isLabSession = (slot) => {
   if (type === 'lab' || type === 'laboratory' || type === 'practical') return true;
   const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || '').toLowerCase();
   if (/\b(lab|laboratory|practical|pr|pract)\b/i.test(subj)) return true;
+  if (/\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(subj)) return true;
   const room = String(slot.room || '').toLowerCase();
-  if (/\b(lab|laboratory)\b/i.test(room)) return true;
+  if (/\b(lab|laboratory)\b/i.test(room) || /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room)) return true;
+  const batch = String(slot.batch || '').trim().toUpperCase();
+  if (batch && batch !== 'ALL' && !batch.startsWith('DIV')) return true;
+  if (slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours') return true;
+  if (slot.timeSlot && getCoveredConsecutiveSlots(slot.timeSlot).length >= 2) return true;
+  if (slot.isMergedRange || slot.fromMergedCell) return true;
   return false;
 };
 
@@ -675,16 +681,17 @@ export const canMergeConsecutiveSlots = (slotA, slotB) => {
   }
 
   // 6. Same classroom / room
-  const roomA = (slotA.room || '').trim().toLowerCase();
-  const roomB = (slotB.room || '').trim().toLowerCase();
+  const normRoom = (r) => (r || '').replace(/^(room|lab)\s*/i, '').trim().toLowerCase();
+  const roomA = normRoom(slotA.room);
+  const roomB = normRoom(slotB.room);
   if (roomA && roomB && roomA !== roomB) {
     return false;
   }
 
   // 7. Same department
-  const deptA = (slotA.departmentId || slotA.department || '').trim().toLowerCase();
-  const deptB = (slotB.departmentId || slotB.department || '').trim().toLowerCase();
-  if (deptA && deptB && deptA !== deptB) {
+  const deptA = (slotA.departmentId || slotA.department || '').trim();
+  const deptB = (slotB.departmentId || slotB.department || '').trim();
+  if (deptA && deptB && !isDepartmentMatch(deptA, deptB)) {
     return false;
   }
 
@@ -1570,6 +1577,7 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
   const entries = getTimetableEntries();
   const dayEntries = entries.filter(e => {
     if (e.facultyId !== facultyId) return false;
+    if (e.isContinuation) return false;
     if (e.isRescheduled && e.rescheduledDate) {
       return e.rescheduledDate === dateStr;
     }
@@ -1578,7 +1586,8 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
   if (dayEntries.length > 0) {
     const lectures = dayEntries.map(e => ({
       id: e.id,
-      time: e.timeSlot,
+      time: e.combinedTimeSlot || e.timeSlot,
+      timeSlot: e.combinedTimeSlot || e.timeSlot,
       subjectId: e.subjectId,
       subjectName: e.subjectName || e.subjectFullName || e.subjectId,
       facultyId: e.facultyId,
@@ -1589,6 +1598,10 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
       departmentId: e.departmentId,
       room: e.room,
       type: e.type || 'Lecture',
+      span: e.span || 1,
+      duration: e.duration || (e.span > 1 ? '2 Hours' : null),
+      isMultiSlot: e.span > 1,
+      sessionId: e.sessionId,
       isRescheduled: !!e.isRescheduled,
       rescheduledDate: e.rescheduledDate,
       rescheduleReason: e.rescheduleReason
@@ -1797,7 +1810,11 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
 
   if (!subject) return null;
 
-  const isLab = /lab/i.test(raw);
+  const isLab = /lab/i.test(raw) || 
+                /practical|pract|\bpr\b/i.test(raw) || 
+                /\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(raw) ||
+                /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room) ||
+                (batch && batch !== 'ALL' && !batch.startsWith('DIV'));
   return {
     subject,
     name: subject,
@@ -1829,7 +1846,7 @@ const _isGridFormat = (rows) => {
   return findGridHeaderRowIdx(rows) !== -1;
 };
 
-const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = 'DEP_AI', targetFacultyId = null) => {
+const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDeptId = 'DEP_AI', targetFacultyId = null, mergeInfoMap = {}) => {
   const timetable = {};
   TIMETABLE_DAYS.forEach(d => { timetable[d] = {}; });
   const previewLectures = [];
@@ -2009,6 +2026,13 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         if (!cellText) return;
         const parsed = _parseCellContent(cellText, defaultSem, defaultDiv, defaultDeptId);
         if (!parsed) return;
+
+        const mergeInfo = (mergeInfoMap && mergeInfoMap[`${ri}_${colIdx}`]) || null;
+        if (mergeInfo && mergeInfo.isMergedRange) {
+          parsed.type = 'Lab';
+          parsed.isMergedRange = true;
+          parsed.fromMergedCell = true;
+        }
 
         const sem = parsed.sem || normalizeSem(defaultSem);
         const div = parsed.div || normalizeDiv(defaultDiv);
@@ -2411,6 +2435,44 @@ const _readAsUint8Array = (file) => {
   });
 };
 
+export const preprocessSheetWithMerges = (sheet, rows) => {
+  if (!sheet || !sheet['!merges'] || !Array.isArray(sheet['!merges']) || !Array.isArray(rows)) {
+    return { rows, mergeInfoMap: {} };
+  }
+  const mergeInfoMap = {};
+  sheet['!merges'].forEach(m => {
+    const startRow = m.s.r;
+    const endRow = m.e.r;
+    const startCol = m.s.c;
+    const endCol = m.e.c;
+    const topVal = rows[startRow] && rows[startRow][startCol];
+    const isMultiRow = endRow > startRow;
+
+    if (topVal !== undefined && topVal !== null && String(topVal).trim() !== '') {
+      for (let r = startRow; r <= endRow; r++) {
+        if (!rows[r]) rows[r] = [];
+        for (let c = startCol; c <= endCol; c++) {
+          if (r !== startRow || c !== startCol) {
+            rows[r][c] = topVal;
+          }
+          if (isMultiRow) {
+            mergeInfoMap[`${r}_${c}`] = {
+              isMergedRange: true,
+              isTopCell: r === startRow,
+              startRow,
+              endRow,
+              startCol,
+              endCol,
+              span: endRow - startRow + 1
+            };
+          }
+        }
+      }
+    }
+  });
+  return { rows, mergeInfoMap };
+};
+
 export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, divFilter, deptNameOrId) => {
   if (!file) throw new Error('No file provided.');
   const bytes = await _readAsUint8Array(file);
@@ -2419,8 +2481,9 @@ export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, 
   catch (e) { throw new Error('Could not parse spreadsheet. Ensure the file is a valid .xlsx or .csv.'); }
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Spreadsheet has no sheets.');
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (!rows || rows.length < 2) throw new Error('Spreadsheet appears to be empty.');
+  let rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  if (!rawRows || rawRows.length < 2) throw new Error('Spreadsheet appears to be empty.');
+  const { rows, mergeInfoMap } = preprocessSheetWithMerges(sheet, rawRows);
   let defaultDeptId = 'DEP_AI';
   if (deptNameOrId) {
     const res = resolveDepartment(deptNameOrId);
@@ -2436,7 +2499,7 @@ export const parseExcelTimetableForFaculty = async (file, facultyId, semFilter, 
       }
     } catch(e) {}
   }
-  const { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', false, defaultDeptId, facultyId);
+  const { timetable, previewLectures, errorRows, conflictRows, duplicateRows, validLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', false, defaultDeptId, facultyId, mergeInfoMap);
   const summary = calculateTimetableSummary(timetable);
   const fileName = (file && file.name) ? file.name : 'uploaded_timetable.xlsx';
   const fileSize = (file && file.size) ? (file.size / 1024).toFixed(1) + ' KB' : 'Spreadsheet';
@@ -2453,9 +2516,10 @@ export const parseExcelTimetableForClass = async (file, semFilter, divFilter, de
   catch (e) { throw new Error('Could not parse spreadsheet. Ensure the file is a valid .xlsx or .csv.'); }
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error('Spreadsheet has no sheets.');
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (!rows || rows.length < 2) throw new Error('Spreadsheet appears to be empty.');
-  const { timetable, previewLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', true);
+  let rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  if (!rawRows || rawRows.length < 2) throw new Error('Spreadsheet appears to be empty.');
+  const { rows, mergeInfoMap } = preprocessSheetWithMerges(sheet, rawRows);
+  const { timetable, previewLectures } = _parseSheetRows(rows, semFilter || '3rd Sem', divFilter || 'Div 1', true, 'DEP_AI', null, mergeInfoMap);
   const summary = calculateTimetableSummary(timetable);
   const fileName = (file && file.name) ? file.name : 'class_timetable.xlsx';
   const fileSize = (file && file.size) ? (file.size / 1024).toFixed(1) + ' KB' : 'Spreadsheet';
@@ -3701,6 +3765,7 @@ if (typeof window !== 'undefined') {
   window.normalizeTimetable = normalizeTimetable;
   window.getClassTimetable = getClassTimetable;
   window.getCoveredConsecutiveSlots = getCoveredConsecutiveSlots;
+  window.preprocessSheetWithMerges = preprocessSheetWithMerges;
   window.mergeConsecutiveLabSessionsInParsedResult = mergeConsecutiveLabSessionsInParsedResult;
   window.reconcileConsecutiveLabEntries = reconcileConsecutiveLabEntries;
   window.commitUploadedTimetable = commitUploadedTimetable;
