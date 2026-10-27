@@ -152,8 +152,9 @@ export default function ClassTimetablePanel({
     };
 
     const style = colorStyles[color] || colorStyles.blue;
-    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
-    const isLab = slot.type === 'Lab' || isLabSession(slot);
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours';
+    // Only when the class extends to two hours (takes two consecutive slots) is it a lab!
+    const isLab = isMulti && (slot.type === 'Lab' || isLabSession(slot) || slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours');
 
     return (
       <div 
@@ -193,7 +194,7 @@ export default function ClassTimetablePanel({
                 whiteSpace: 'nowrap'
               }}
             >
-              {isMulti && isLab ? 'LAB (2 SLOTS)' : (slot.type || 'Lecture')}
+              {isMulti && isLab ? 'LAB (2 SLOTS)' : 'Lecture'}
             </span>
           </div>
 

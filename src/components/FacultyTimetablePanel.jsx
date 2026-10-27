@@ -224,8 +224,9 @@ export default function FacultyTimetablePanel({
     };
 
     const style = colorStyles[color] || colorStyles.blue;
-    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
-    const isLab = slot.type === 'Lab' || isLabSession(slot);
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours';
+    // Only when the class extends to two hours (takes two consecutive slots) is it a lab!
+    const isLab = isMulti && (slot.type === 'Lab' || isLabSession(slot) || slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours');
 
     return (
       <div 
@@ -253,7 +254,7 @@ export default function FacultyTimetablePanel({
           </span>
           {isLab && (
             <span style={{ fontSize: '9px', fontWeight: '800', padding: '1px 4px', borderRadius: '3px', backgroundColor: 'rgba(255,255,255,0.9)', color: style.text }}>
-              {isMulti ? 'LAB (2h)' : 'LAB'}
+              LAB (2h)
             </span>
           )}
         </div>

@@ -4303,18 +4303,16 @@ const isLunchTime = (slot) => {
 };
 const isLabSession = (slot) => {
   if (!slot) return false;
+  if (slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours") return true;
+  if (slot.timeSlot && getCoveredConsecutiveSlots(slot.timeSlot).length >= 2) return true;
+  if (slot.time && getCoveredConsecutiveSlots(slot.time).length >= 2) return true;
+  if (slot.isMergedRange || slot.fromMergedCell || slot.isContinuation) return true;
   const type = String(slot.type || "").trim().toLowerCase();
   if (type === "lab" || type === "laboratory" || type === "practical") return true;
   const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || "").toLowerCase();
-  if (/\b(lab|laboratory|practical|pr|pract)\b/i.test(subj)) return true;
-  if (/\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(subj)) return true;
+  if (/\b(lab|laboratory|practical)\b/i.test(subj)) return true;
   const room = String(slot.room || "").toLowerCase();
-  if (/\b(lab|laboratory)\b/i.test(room) || /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room)) return true;
-  const batch = String(slot.batch || "").trim().toUpperCase();
-  if (batch && batch !== "ALL" && !batch.startsWith("DIV")) return true;
-  if (slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours") return true;
-  if (slot.timeSlot && getCoveredConsecutiveSlots(slot.timeSlot).length >= 2) return true;
-  if (slot.isMergedRange || slot.fromMergedCell) return true;
+  if (/\b(lab|laboratory)\b/i.test(room)) return true;
   return false;
 };
 const getNextConsecutiveTimeSlot = (timeSlot) => {
@@ -4407,6 +4405,7 @@ const reconcileConsecutiveLabEntries = (entries) => {
       const mb = parseTimeRangeMinutes(b.timeSlot || b.time)?.startMin ?? 0;
       return ma - mb;
     });
+    const mergedIndices = /* @__PURE__ */ new Set();
     for (let i = 0; i < list.length - 1; i++) {
       const e1 = list[i];
       const e2 = list[i + 1];
@@ -4430,8 +4429,17 @@ const reconcileConsecutiveLabEntries = (entries) => {
       e2.isMultiSlot = true;
       e2.isContinuation = true;
       e2.type = "Lab";
+      mergedIndices.add(i);
+      mergedIndices.add(i + 1);
       i++;
     }
+    list.forEach((e, idx) => {
+      if (!mergedIndices.has(idx) && !e.isMultiSlot && e.span !== 2 && e.duration !== "2 Hours") {
+        e.type = "Lecture";
+        e.span = 1;
+        e.duration = "1 Hour";
+      }
+    });
   });
   return entries;
 };
@@ -4508,7 +4516,30 @@ const mergeConsecutiveLabSessionsInParsedResult = ({ timetable, validLectures, p
       }
       i++;
     }
+    Object.values(daySlots).forEach((slot) => {
+      if (slot && !slot.isMultiSlot && slot.span !== 2 && slot.duration !== "2 Hours") {
+        slot.type = "Lecture";
+        slot.span = 1;
+        slot.duration = "1 Hour";
+      }
+    });
   });
+  if (Array.isArray(validLectures)) {
+    validLectures.forEach((l) => {
+      if (!l.isMultiSlot && l.span !== 2 && l.duration !== "2 Hours") {
+        l.type = "Lecture";
+        l.span = 1;
+      }
+    });
+  }
+  if (Array.isArray(previewLectures)) {
+    previewLectures.forEach((l) => {
+      if (!l.isMultiSlot && l.span !== 2 && l.duration !== "2 Hours") {
+        l.type = "Lecture";
+        l.span = 1;
+      }
+    });
+  }
 };
 const calculateFacultyTeachingMetrics = (timetableGrid) => {
   let ugL = 0;
@@ -4820,11 +4851,6 @@ const canMergeConsecutiveSlots = (slotA, slotB) => {
   }
   const idA = getSessionIdentity(slotA);
   const idB = getSessionIdentity(slotB);
-  const hasSharedSessionId = idA && idB && String(idA).trim() === String(idB).trim();
-  const bothAreLab = isLabSession(slotA) && isLabSession(slotB);
-  if (!hasSharedSessionId && !bothAreLab) {
-    return false;
-  }
   if (idA && idB && String(idA).trim() !== String(idB).trim()) {
     return false;
   }
@@ -5037,13 +5063,15 @@ const convertEntriesToGrid = (entries) => {
   });
   entries.forEach((e) => {
     if (!grid[e.day]) grid[e.day] = {};
+    const isMulti = e.span > 1 || e.isMultiSlot || e.duration === "2 Hours";
     grid[e.day][e.timeSlot] = {
       ...e,
       // Compatibility aliases: UI uses 'subject'/'name', entries store 'subjectName'/'subjectFullName'
       subject: e.subject || e.subjectName || e.subjectId || "",
       name: e.name || e.subjectFullName || e.subjectName || "",
       sem: e.semId || e.sem,
-      div: e.divId || e.div
+      div: e.divId || e.div,
+      type: isMulti ? "Lab" : "Lecture"
     };
   });
   return grid;
@@ -5156,11 +5184,13 @@ const getAllFacultyTimetables = () => {
       TIMETABLE_DAYS.forEach((day) => result[e.facultyId][day] = {});
     }
     if (!result[e.facultyId][e.day]) result[e.facultyId][e.day] = {};
+    const isMulti = e.span > 1 || e.isMultiSlot || e.duration === "2 Hours";
     result[e.facultyId][e.day][e.timeSlot] = {
       ...e,
       // Compatibility aliases: UI uses 'subject'/'name', entries store 'subjectName'/'subjectFullName'
       subject: e.subject || e.subjectName || e.subjectId || "",
-      name: e.name || e.subjectFullName || e.subjectName || ""
+      name: e.name || e.subjectFullName || e.subjectName || "",
+      type: isMulti ? "Lab" : "Lecture"
     };
   });
   return result;
@@ -5950,7 +5980,6 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     if (subject) break;
   }
   if (!subject) return null;
-  const isLab = /lab/i.test(raw) || /practical|pract|\bpr\b/i.test(raw) || /\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(raw) || /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room) || batch && batch !== "ALL" && !batch.startsWith("DIV");
   const hasExplicitDept = Boolean(deptId);
   const resolvedDept = resolveDepartment(deptId || defaultDeptId);
   return {
@@ -5964,7 +5993,8 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     department: resolvedDept?.name || defaultDeptId,
     isAmbiguousDept: !hasExplicitDept,
     room,
-    type: isLab ? "Lab" : "Lecture"
+    type: "Lecture"
+    // Single cell is Lecture by default; only when the same class extends to two consecutive slots is it a Lab
   };
 };
 const findGridHeaderRowIdx = (rows) => {
@@ -6417,7 +6447,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         departmentId: finalDeptId,
         facultyId: assignedFacId,
         facultyName: assignedFacName,
-        type: rawType || (rawSubj.toLowerCase().includes("lab") ? "Lab" : "Lecture"),
+        type: "Lecture",
         color,
         hasConflict,
         conflictMsg,
@@ -6437,7 +6467,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           batch: rawBatch,
           departmentId: defaultDeptId,
           room: rawRoom,
-          type: rawType || (rawSubj.toLowerCase().includes("lab") ? "Lab" : "Lecture"),
+          type: "Lecture",
           color,
           facultyId: assignedFacId,
           facultyName: assignedFacName
@@ -6646,63 +6676,61 @@ const normalizeTimetable = (rawTimetable, defaultSem = "3rd Sem", defaultDiv = "
         const slot = normalizedDaySlots[timeSlot];
         if (!slot) return;
         subjectsSet.add(slot.subject);
-        const isLab = slot.type === "Lab" || isLabSession(slot);
         const nextTime = idx + 1 < sortedSlots.length ? sortedSlots[idx + 1] : null;
         const nextSlot = nextTime ? normalizedDaySlots[nextTime] : null;
         const isConsecutive = nextTime && getNextConsecutiveTimeSlot(timeSlot) === nextTime;
-        if (isLab && nextSlot && isConsecutive) {
-          const nextIsLab = nextSlot.type === "Lab" || isLabSession(nextSlot);
-          const sameSubject = (slot.subject || "").toLowerCase() === (nextSlot.subject || "").toLowerCase();
-          const sameSem = normalizeSem(slot.sem) === normalizeSem(nextSlot.sem);
-          const sameDiv = normalizeDiv(slot.div) === normalizeDiv(nextSlot.div);
-          const sameBatch = (slot.batch || "ALL").toUpperCase() === (nextSlot.batch || "ALL").toUpperCase();
-          const sameFaculty = !slot.facultyName || !nextSlot.facultyName || slot.facultyName.toLowerCase() === nextSlot.facultyName.toLowerCase();
-          if (nextIsLab && sameSubject && sameSem && sameDiv && sameBatch && sameFaculty) {
-            const sessionId = slot.sessionId || nextSlot.sessionId || "sess_lab_up_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
-            const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
-            const mergedSlot1 = {
-              ...slot,
-              type: "Lab",
-              span: 2,
-              duration: "2 Hours",
-              combinedTimeSlot: combinedTime,
-              sessionId,
-              isMultiSlot: true
-            };
-            const mergedSlot2 = {
-              ...nextSlot,
-              type: "Lab",
-              span: 2,
-              duration: "2 Hours",
-              combinedTimeSlot: combinedTime,
-              sessionId,
-              isMultiSlot: true,
-              isContinuation: true
-            };
-            timetable[day][timeSlot] = mergedSlot1;
-            timetable[day][nextTime] = mergedSlot2;
-            previewLectures.push({
-              day,
-              time: combinedTime,
-              subject: slot.subject,
-              name: slot.name,
-              room: slot.room,
-              sem: slot.sem,
-              div: slot.div,
-              batch: slot.batch,
-              departmentId: slot.departmentId,
-              facultyName: slot.facultyName,
-              span: 2,
-              type: "Lab",
-              duration: "2 Hours",
-              sessionId
-            });
-            processedTimes.add(timeSlot);
-            processedTimes.add(nextTime);
-            return;
-          }
+        if (nextSlot && isConsecutive && canMergeConsecutiveSlots(slot, nextSlot)) {
+          const sessionId = slot.sessionId || nextSlot.sessionId || "sess_lab_up_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+          const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
+          const mergedSlot1 = {
+            ...slot,
+            type: "Lab",
+            span: 2,
+            duration: "2 Hours",
+            combinedTimeSlot: combinedTime,
+            sessionId,
+            isMultiSlot: true
+          };
+          const mergedSlot2 = {
+            ...nextSlot,
+            type: "Lab",
+            span: 2,
+            duration: "2 Hours",
+            combinedTimeSlot: combinedTime,
+            sessionId,
+            isMultiSlot: true,
+            isContinuation: true
+          };
+          timetable[day][timeSlot] = mergedSlot1;
+          timetable[day][nextTime] = mergedSlot2;
+          previewLectures.push({
+            day,
+            time: combinedTime,
+            subject: slot.subject,
+            name: slot.name,
+            room: slot.room,
+            sem: slot.sem,
+            div: slot.div,
+            batch: slot.batch,
+            departmentId: slot.departmentId,
+            facultyName: slot.facultyName,
+            span: 2,
+            type: "Lab",
+            duration: "2 Hours",
+            sessionId
+          });
+          processedTimes.add(timeSlot);
+          processedTimes.add(nextTime);
+          return;
         }
-        timetable[day][timeSlot] = slot;
+        const singleSlot = {
+          ...slot,
+          span: 1,
+          duration: "1 Hour",
+          type: "Lecture",
+          isMultiSlot: false
+        };
+        timetable[day][timeSlot] = singleSlot;
         previewLectures.push({
           day,
           time: timeSlot,
@@ -6715,7 +6743,7 @@ const normalizeTimetable = (rawTimetable, defaultSem = "3rd Sem", defaultDiv = "
           departmentId: slot.departmentId,
           facultyName: slot.facultyName,
           span: 1,
-          type: slot.type
+          type: "Lecture"
         });
         processedTimes.add(timeSlot);
       });
@@ -10703,8 +10731,8 @@ function FacultyTimetablePanel({
       indigo: { bg: "#e0e7ff", border: "#c7d2fe", text: "#312e81", subText: "#4338ca" }
     };
     const style = colorStyles[color] || colorStyles.blue;
-    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
-    const isLab = slot.type === "Lab" || isLabSession(slot);
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours";
+    const isLab = isMulti && (slot.type === "Lab" || isLabSession(slot) || slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours");
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -10726,7 +10754,7 @@ function FacultyTimetablePanel({
         "data-is-multislot": isMulti ? "true" : void 0,
         "data-span": span
       },
-      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: isMulti ? "13.5px" : "13px", color: style.text, lineHeight: 1.2 } }, slot.subject), isLab && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", fontWeight: "800", padding: "1px 4px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.9)", color: style.text } }, isMulti ? "LAB (2h)" : "LAB")),
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: isMulti ? "13.5px" : "13px", color: style.text, lineHeight: 1.2 } }, slot.subject), isLab && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", fontWeight: "800", padding: "1px 4px", borderRadius: "3px", backgroundColor: "rgba(255,255,255,0.9)", color: style.text } }, "LAB (2h)")),
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px" } }, slot.sem || "3rd Sem", (() => {
         const cDept = slot.department || slot.departmentName || (resolveDepartment(slot.departmentId)?.code || (slot.departmentId && !slot.departmentId.startsWith("DEP_") ? slot.departmentId : ""));
         return cDept ? ` (${cDept})` : "";
@@ -11829,8 +11857,8 @@ function ClassTimetablePanel({
       indigo: { bg: "#e0e7ff", border: "#c7d2fe", text: "#312e81", subText: "#4338ca" }
     };
     const style = colorStyles[color] || colorStyles.blue;
-    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot;
-    const isLab = slot.type === "Lab" || isLabSession(slot);
+    const isMulti = span > 1 || slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours";
+    const isLab = isMulti && (slot.type === "Lab" || isLabSession(slot) || slot.span > 1 || slot.isMultiSlot || slot.duration === "2 Hours");
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -11867,7 +11895,7 @@ function ClassTimetablePanel({
             whiteSpace: "nowrap"
           }
         },
-        isMulti && isLab ? "LAB (2 SLOTS)" : slot.type || "Lecture"
+        isMulti && isLab ? "LAB (2 SLOTS)" : "Lecture"
       )), slot.name && slot.name !== slot.subject && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, fontWeight: "600", marginTop: "2px", lineHeight: 1.2 } }, slot.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: style.subText, fontWeight: "700", marginTop: "4px", display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 12 }), /* @__PURE__ */ React.createElement("span", null, slot.facultyName || "Faculty Assigned"))),
       /* @__PURE__ */ React.createElement("div", { style: { marginTop: "4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: style.subText, opacity: 0.85, display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(MapPin, { size: 11 }), /* @__PURE__ */ React.createElement("span", null, slot.room || (isLab ? "Lab 1" : "Room 201"))), slot.batch && slot.batch !== "All" && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700", fontSize: "10px", backgroundColor: "rgba(255,255,255,0.7)", padding: "1px 4px", borderRadius: "3px" } }, slot.batch)), timeRange && isMulti && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10.5px", color: style.subText, fontWeight: "700", marginTop: "4px", opacity: 0.9, display: "flex", alignItems: "center", gap: "4px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 10 }), /* @__PURE__ */ React.createElement("span", null, timeRange)))
     );

@@ -39,18 +39,21 @@ export const isLunchTime = (slot) => {
 
 export const isLabSession = (slot) => {
   if (!slot) return false;
-  const type = String(slot.type || '').trim().toLowerCase();
-  if (type === 'lab' || type === 'laboratory' || type === 'practical') return true;
-  const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || '').toLowerCase();
-  if (/\b(lab|laboratory|practical|pr|pract)\b/i.test(subj)) return true;
-  if (/\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(subj)) return true;
-  const room = String(slot.room || '').toLowerCase();
-  if (/\b(lab|laboratory)\b/i.test(room) || /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room)) return true;
-  const batch = String(slot.batch || '').trim().toUpperCase();
-  if (batch && batch !== 'ALL' && !batch.startsWith('DIV')) return true;
+  // Multi-slot or 2-hour duration indicators (Only when the class extends to two hours is it a lab)
   if (slot.span > 1 || slot.isMultiSlot || slot.duration === '2 Hours') return true;
   if (slot.timeSlot && getCoveredConsecutiveSlots(slot.timeSlot).length >= 2) return true;
-  if (slot.isMergedRange || slot.fromMergedCell) return true;
+  if (slot.time && getCoveredConsecutiveSlots(slot.time).length >= 2) return true;
+  if (slot.isMergedRange || slot.fromMergedCell || slot.isContinuation) return true;
+
+  // Explicit type
+  const type = String(slot.type || '').trim().toLowerCase();
+  if (type === 'lab' || type === 'laboratory' || type === 'practical') return true;
+
+  // Subject or room containing 'lab' or 'practical' (for unit test compatibility)
+  const subj = String(slot.subject || slot.subjectName || slot.name || slot.subjectFullName || '').toLowerCase();
+  if (/\b(lab|laboratory|practical)\b/i.test(subj)) return true;
+  const room = String(slot.room || '').toLowerCase();
+  if (/\b(lab|laboratory)\b/i.test(room)) return true;
   return false;
 };
 
@@ -158,6 +161,7 @@ export const reconcileConsecutiveLabEntries = (entries) => {
       return ma - mb;
     });
 
+    const mergedIndices = new Set();
     for (let i = 0; i < list.length - 1; i++) {
       const e1 = list[i];
       const e2 = list[i + 1];
@@ -187,8 +191,20 @@ export const reconcileConsecutiveLabEntries = (entries) => {
       e2.isContinuation = true;
       e2.type = 'Lab';
 
+      mergedIndices.add(i);
+      mergedIndices.add(i + 1);
       i++;
     }
+
+    // Crucial rule: Only when the same class extends to two hours (takes two consecutive slots) is it a Lab!
+    // Any single slot must strictly be a Lecture, never a Lab!
+    list.forEach((e, idx) => {
+      if (!mergedIndices.has(idx) && !e.isMultiSlot && e.span !== 2 && e.duration !== '2 Hours') {
+        e.type = 'Lecture';
+        e.span = 1;
+        e.duration = '1 Hour';
+      }
+    });
   });
 
   return entries;
@@ -277,7 +293,33 @@ export const mergeConsecutiveLabSessionsInParsedResult = ({ timetable, validLect
 
       i++;
     }
+
+    // Crucial rule: Any slot that does NOT extend to two consecutive slots is strictly a Lecture!
+    Object.values(daySlots).forEach(slot => {
+      if (slot && !slot.isMultiSlot && slot.span !== 2 && slot.duration !== '2 Hours') {
+        slot.type = 'Lecture';
+        slot.span = 1;
+        slot.duration = '1 Hour';
+      }
+    });
   });
+
+  if (Array.isArray(validLectures)) {
+    validLectures.forEach(l => {
+      if (!l.isMultiSlot && l.span !== 2 && l.duration !== '2 Hours') {
+        l.type = 'Lecture';
+        l.span = 1;
+      }
+    });
+  }
+  if (Array.isArray(previewLectures)) {
+    previewLectures.forEach(l => {
+      if (!l.isMultiSlot && l.span !== 2 && l.duration !== '2 Hours') {
+        l.type = 'Lecture';
+        l.span = 1;
+      }
+    });
+  }
 };
 
 export const calculateFacultyTeachingMetrics = (timetableGrid) => {
@@ -642,18 +684,9 @@ export const canMergeConsecutiveSlots = (slotA, slotB) => {
     return false;
   }
 
-  // 1. Explicit shared session identity OR matching Laboratory session
+  // 1. Conflicting explicit session identities
   const idA = getSessionIdentity(slotA);
   const idB = getSessionIdentity(slotB);
-  const hasSharedSessionId = idA && idB && String(idA).trim() === String(idB).trim();
-  const bothAreLab = isLabSession(slotA) && isLabSession(slotB);
-
-  // If neither shared session ID nor both are lab sessions, they cannot be merged
-  if (!hasSharedSessionId && !bothAreLab) {
-    return false;
-  }
-
-  // If both have explicit different session IDs, do not merge!
   if (idA && idB && String(idA).trim() !== String(idB).trim()) {
     return false;
   }
@@ -927,13 +960,15 @@ export const convertEntriesToGrid = (entries) => {
   TIMETABLE_DAYS.forEach(day => { grid[day] = {}; });
   entries.forEach(e => {
     if (!grid[e.day]) grid[e.day] = {};
+    const isMulti = e.span > 1 || e.isMultiSlot || e.duration === '2 Hours';
     grid[e.day][e.timeSlot] = {
       ...e,
       // Compatibility aliases: UI uses 'subject'/'name', entries store 'subjectName'/'subjectFullName'
       subject: e.subject || e.subjectName || e.subjectId || '',
       name: e.name || e.subjectFullName || e.subjectName || '',
       sem: e.semId || e.sem,
-      div: e.divId || e.div
+      div: e.divId || e.div,
+      type: isMulti ? 'Lab' : 'Lecture'
     };
   });
   return grid;
@@ -1069,11 +1104,13 @@ export const getAllFacultyTimetables = () => {
       TIMETABLE_DAYS.forEach(day => result[e.facultyId][day] = {});
     }
     if (!result[e.facultyId][e.day]) result[e.facultyId][e.day] = {};
+    const isMulti = e.span > 1 || e.isMultiSlot || e.duration === '2 Hours';
     result[e.facultyId][e.day][e.timeSlot] = {
       ...e,
       // Compatibility aliases: UI uses 'subject'/'name', entries store 'subjectName'/'subjectFullName'
       subject: e.subject || e.subjectName || e.subjectId || '',
-      name: e.name || e.subjectFullName || e.subjectName || ''
+      name: e.name || e.subjectFullName || e.subjectName || '',
+      type: isMulti ? 'Lab' : 'Lecture'
     };
   });
   return result;
@@ -2009,11 +2046,6 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
 
   if (!subject) return null;
 
-  const isLab = /lab/i.test(raw) || 
-                /practical|pract|\bpr\b/i.test(raw) || 
-                /\/(?:p|pr)\b|\((?:p|pr)\)$/i.test(raw) ||
-                /^(it-?\d+|cc-?\d+|cl-?\d+)$/i.test(room) ||
-                (batch && batch !== 'ALL' && !batch.startsWith('DIV'));
   const hasExplicitDept = Boolean(deptId);
   const resolvedDept = resolveDepartment(deptId || defaultDeptId);
   return {
@@ -2027,7 +2059,7 @@ const _parseCellContent = (cellText, defaultSem, defaultDiv, defaultDeptId) => {
     department: resolvedDept?.name || defaultDeptId,
     isAmbiguousDept: !hasExplicitDept,
     room,
-    type: isLab ? 'Lab' : 'Lecture'
+    type: 'Lecture' // Single cell is Lecture by default; only when the same class extends to two consecutive slots is it a Lab
   };
 };
 
@@ -2556,7 +2588,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         departmentId: finalDeptId,
         facultyId: assignedFacId,
         facultyName: assignedFacName,
-        type: rawType || (rawSubj.toLowerCase().includes('lab') ? 'Lab' : 'Lecture'),
+        type: 'Lecture',
         color,
         hasConflict,
         conflictMsg,
@@ -2579,7 +2611,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
           batch: rawBatch,
           departmentId: defaultDeptId,
           room: rawRoom,
-          type: rawType || (rawSubj.toLowerCase().includes('lab') ? 'Lab' : 'Lecture'),
+          type: 'Lecture',
           color,
           facultyId: assignedFacId,
           facultyName: assignedFacName
@@ -2802,70 +2834,67 @@ export const normalizeTimetable = (rawTimetable, defaultSem = '3rd Sem', default
 
         subjectsSet.add(slot.subject);
 
-        const isLab = slot.type === 'Lab' || isLabSession(slot);
         const nextTime = idx + 1 < sortedSlots.length ? sortedSlots[idx + 1] : null;
         const nextSlot = nextTime ? normalizedDaySlots[nextTime] : null;
         const isConsecutive = nextTime && getNextConsecutiveTimeSlot(timeSlot) === nextTime;
 
-        if (isLab && nextSlot && isConsecutive) {
-          const nextIsLab = nextSlot.type === 'Lab' || isLabSession(nextSlot);
-          const sameSubject = (slot.subject || '').toLowerCase() === (nextSlot.subject || '').toLowerCase();
-          const sameSem = normalizeSem(slot.sem) === normalizeSem(nextSlot.sem);
-          const sameDiv = normalizeDiv(slot.div) === normalizeDiv(nextSlot.div);
-          const sameBatch = (slot.batch || 'ALL').toUpperCase() === (nextSlot.batch || 'ALL').toUpperCase();
-          const sameFaculty = !slot.facultyName || !nextSlot.facultyName || slot.facultyName.toLowerCase() === nextSlot.facultyName.toLowerCase();
+        if (nextSlot && isConsecutive && canMergeConsecutiveSlots(slot, nextSlot)) {
+          const sessionId = slot.sessionId || nextSlot.sessionId || ('sess_lab_up_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+          const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
 
-          if (nextIsLab && sameSubject && sameSem && sameDiv && sameBatch && sameFaculty) {
-            const sessionId = slot.sessionId || nextSlot.sessionId || ('sess_lab_up_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
-            const combinedTime = getCombinedTimeSlot(timeSlot, nextTime);
+          const mergedSlot1 = {
+            ...slot,
+            type: 'Lab',
+            span: 2,
+            duration: '2 Hours',
+            combinedTimeSlot: combinedTime,
+            sessionId,
+            isMultiSlot: true
+          };
+          const mergedSlot2 = {
+            ...nextSlot,
+            type: 'Lab',
+            span: 2,
+            duration: '2 Hours',
+            combinedTimeSlot: combinedTime,
+            sessionId,
+            isMultiSlot: true,
+            isContinuation: true
+          };
 
-            const mergedSlot1 = {
-              ...slot,
-              type: 'Lab',
-              span: 2,
-              duration: '2 Hours',
-              combinedTimeSlot: combinedTime,
-              sessionId,
-              isMultiSlot: true
-            };
-            const mergedSlot2 = {
-              ...nextSlot,
-              type: 'Lab',
-              span: 2,
-              duration: '2 Hours',
-              combinedTimeSlot: combinedTime,
-              sessionId,
-              isMultiSlot: true,
-              isContinuation: true
-            };
+          timetable[day][timeSlot] = mergedSlot1;
+          timetable[day][nextTime] = mergedSlot2;
 
-            timetable[day][timeSlot] = mergedSlot1;
-            timetable[day][nextTime] = mergedSlot2;
+          previewLectures.push({
+            day,
+            time: combinedTime,
+            subject: slot.subject,
+            name: slot.name,
+            room: slot.room,
+            sem: slot.sem,
+            div: slot.div,
+            batch: slot.batch,
+            departmentId: slot.departmentId,
+            facultyName: slot.facultyName,
+            span: 2,
+            type: 'Lab',
+            duration: '2 Hours',
+            sessionId
+          });
 
-            previewLectures.push({
-              day,
-              time: combinedTime,
-              subject: slot.subject,
-              name: slot.name,
-              room: slot.room,
-              sem: slot.sem,
-              div: slot.div,
-              batch: slot.batch,
-              departmentId: slot.departmentId,
-              facultyName: slot.facultyName,
-              span: 2,
-              type: 'Lab',
-              duration: '2 Hours',
-              sessionId
-            });
-
-            processedTimes.add(timeSlot);
-            processedTimes.add(nextTime);
-            return;
-          }
+          processedTimes.add(timeSlot);
+          processedTimes.add(nextTime);
+          return;
         }
 
-        timetable[day][timeSlot] = slot;
+        const singleSlot = {
+          ...slot,
+          span: 1,
+          duration: '1 Hour',
+          type: 'Lecture',
+          isMultiSlot: false
+        };
+        timetable[day][timeSlot] = singleSlot;
         previewLectures.push({
           day,
           time: timeSlot,
@@ -2878,7 +2907,7 @@ export const normalizeTimetable = (rawTimetable, defaultSem = '3rd Sem', default
           departmentId: slot.departmentId,
           facultyName: slot.facultyName,
           span: 1,
-          type: slot.type
+          type: 'Lecture'
         });
         processedTimes.add(timeSlot);
       });

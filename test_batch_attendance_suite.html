@@ -82,7 +82,7 @@
   <script src="/app-bundle.js?v=batch_att_1"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    window.addEventListener('load', async () => {
       const results = [];
       function assert(name, condition, extra = '') {
         results.push({ name, pass: Boolean(condition), extra });
