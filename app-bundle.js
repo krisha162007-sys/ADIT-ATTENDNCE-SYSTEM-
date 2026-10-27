@@ -5269,16 +5269,108 @@ const updateFacultySlot = (facultyId, day, timeSlot, slotData, deptId = null) =>
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
 };
-const clearFacultySlot = (facultyId, day, timeSlot) => {
+const clearFacultySlot = (facultyId, day, timeSlot, sessionId = null) => {
   const entries = getTimetableEntries();
-  const target = entries.find((e) => e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot);
+  const normFacId = String(facultyId || "").trim();
+  const target = entries.find(
+    (e) => (String(e.facultyId || "").trim() === normFacId || e.facultyName && normFacId && String(e.facultyName || "").trim().toLowerCase() === normFacId.toLowerCase()) && e.day === day && e.timeSlot === timeSlot
+  );
   let filtered;
-  if (target && target.sessionId) {
-    filtered = entries.filter((e) => e.sessionId !== target.sessionId);
+  const targetSessionId = sessionId || target?.sessionId;
+  if (targetSessionId) {
+    filtered = entries.filter((e) => e.sessionId !== targetSessionId);
   } else {
-    filtered = entries.filter((e) => !(e.facultyId === facultyId && e.day === day && e.timeSlot === timeSlot));
+    filtered = entries.filter((e) => !((String(e.facultyId || "").trim() === normFacId || e.facultyName && normFacId && String(e.facultyName || "").trim().toLowerCase() === normFacId.toLowerCase()) && e.day === day && e.timeSlot === timeSlot));
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+  notifyTimetableSync();
+  return getFacultyTimetable(facultyId);
+};
+const clearAllFacultySlots = (facultyId, facultyName = null) => {
+  const entries = getTimetableEntries();
+  const normFacId = String(facultyId || "").trim();
+  const normFacName = String(facultyName || "").trim().toLowerCase();
+  let facNameAlt = "";
+  try {
+    const rawFac = localStorage.getItem("adit_attendance_faculties");
+    if (rawFac) {
+      const facList = JSON.parse(rawFac);
+      const matched = facList.find((f) => f.id === normFacId || normFacName && f.name && f.name.toLowerCase() === normFacName);
+      if (matched && matched.name) facNameAlt = matched.name.toLowerCase().trim();
+    }
+  } catch (err) {
+    console.warn("Faculty lookup error in clearAllFacultySlots:", err);
+  }
+  const filtered = entries.filter((e) => {
+    const eId = String(e.facultyId || "").trim();
+    const eName = String(e.facultyName || "").trim().toLowerCase();
+    if (normFacId && eId === normFacId) return false;
+    if (normFacName && eName === normFacName) return false;
+    if (facNameAlt && eName === facNameAlt) return false;
+    return true;
+  });
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+  try {
+    const rawLegacy = localStorage.getItem(TT_STORAGE_KEYS.TIMETABLE);
+    if (rawLegacy) {
+      const legacy = JSON.parse(rawLegacy);
+      if (legacy[normFacId]) {
+        delete legacy[normFacId];
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE, JSON.stringify(legacy));
+      }
+    }
+  } catch (e) {
+    console.warn("Error clearing legacy faculty timetable:", e);
+  }
+  notifyTimetableSync();
+  const empty = {};
+  TIMETABLE_DAYS.forEach((day) => empty[day] = {});
+  return empty;
+};
+const saveFacultyTimetable = (facultyId, newTimetable) => {
+  const hasSlots = newTimetable && typeof newTimetable === "object" && Object.keys(newTimetable).some((day) => {
+    const dayObj = newTimetable[day];
+    return dayObj && typeof dayObj === "object" && Object.keys(dayObj).length > 0;
+  });
+  if (!hasSlots) {
+    return clearAllFacultySlots(facultyId);
+  }
+  clearAllFacultySlots(facultyId);
+  const entries = getTimetableEntries();
+  const normFacId = String(facultyId || "").trim();
+  TIMETABLE_DAYS.forEach((day) => {
+    const daySlots = newTimetable[day] || {};
+    Object.keys(daySlots).forEach((timeSlot) => {
+      const slotData = daySlots[timeSlot];
+      if (slotData && slotData.subject) {
+        entries.push({
+          id: slotData.id || generateId(),
+          facultyId: normFacId,
+          facultyName: slotData.facultyName || "Faculty",
+          subjectId: slotData.subject,
+          subjectName: slotData.subject,
+          subjectFullName: slotData.name || slotData.subject,
+          semId: normalizeSem(slotData.sem || "1st Sem"),
+          divId: normalizeDiv(slotData.div || "Div 1"),
+          sem: normalizeSem(slotData.sem || "1st Sem"),
+          div: normalizeDiv(slotData.div || "Div 1"),
+          departmentId: slotData.departmentId || slotData.deptId || "DEP_IT",
+          department: slotData.department || slotData.dept || "Information Technology",
+          deptId: slotData.departmentId || slotData.deptId || "DEP_IT",
+          day,
+          timeSlot,
+          room: slotData.room || "Classroom",
+          batch: slotData.batch || "ALL",
+          type: slotData.type || "Lecture",
+          span: slotData.span || 1,
+          sessionId: slotData.sessionId || null,
+          isMultiSlot: !!slotData.isMultiSlot,
+          isContinuation: !!slotData.isContinuation
+        });
+      }
+    });
+  });
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
   return getFacultyTimetable(facultyId);
 };
@@ -5376,6 +5468,74 @@ const updateClassSlot = (sem, div, day, timeSlot, slotData, deptId = null) => {
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
   notifyTimetableSync();
   return convertEntriesToGrid(getEntriesByClass(deptId, sem, div));
+};
+const clearAllClassSlots = (sem, div, deptId = null) => {
+  const entries = getTimetableEntries();
+  const normSem = normalizeSem(sem);
+  const normDiv = normalizeDiv(div);
+  const normDept = deptId ? String(deptId).trim() : null;
+  const filtered = entries.filter((e) => {
+    const semMatch = normalizeSem(e.semId || e.sem) === normSem;
+    const divMatch = normalizeDiv(e.divId || e.div) === normDiv;
+    const deptMatch = !normDept || isDepartmentMatch(e.departmentId || e.deptId, normDept);
+    return !(semMatch && divMatch && deptMatch);
+  });
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(filtered));
+  notifyTimetableSync();
+  const empty = {};
+  TIMETABLE_DAYS.forEach((day) => empty[day] = {});
+  return empty;
+};
+const saveClassTimetable = (sem, div, newTimetable, deptId = null) => {
+  const hasSlots = newTimetable && typeof newTimetable === "object" && Object.keys(newTimetable).some((day) => {
+    const dayObj = newTimetable[day];
+    return dayObj && typeof dayObj === "object" && Object.keys(dayObj).length > 0;
+  });
+  if (!hasSlots) {
+    return clearAllClassSlots(sem, div, deptId);
+  }
+  clearAllClassSlots(sem, div, deptId);
+  const entries = getTimetableEntries();
+  const normSem = normalizeSem(sem);
+  const normDiv = normalizeDiv(div);
+  const finalDeptId = deptId || "DEP_IT";
+  const resolvedDept = resolveDepartment(finalDeptId);
+  const finalDeptName = resolvedDept?.name || finalDeptId;
+  TIMETABLE_DAYS.forEach((day) => {
+    const daySlots = newTimetable[day] || {};
+    Object.keys(daySlots).forEach((timeSlot) => {
+      const slotData = daySlots[timeSlot];
+      if (slotData && slotData.subject) {
+        entries.push({
+          id: slotData.id || generateId(),
+          facultyId: slotData.facultyId || "FAC_PS",
+          facultyName: slotData.facultyName || "Faculty",
+          subjectId: slotData.subject,
+          subjectName: slotData.subject,
+          subjectFullName: slotData.name || slotData.subject,
+          semId: normSem,
+          divId: normDiv,
+          sem: normSem,
+          div: normDiv,
+          departmentId: slotData.departmentId || slotData.deptId || finalDeptId,
+          department: slotData.department || slotData.dept || finalDeptName,
+          deptId: slotData.departmentId || slotData.deptId || finalDeptId,
+          day,
+          timeSlot,
+          room: slotData.room || "Classroom",
+          batch: slotData.batch || "ALL",
+          type: slotData.type || "Lecture",
+          span: slotData.span || 1,
+          sessionId: slotData.sessionId || null,
+          isMultiSlot: !!slotData.isMultiSlot,
+          isContinuation: !!slotData.isContinuation
+        });
+      }
+    });
+  });
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+  notifyTimetableSync();
+  return getClassTimetable(sem, div, deptId);
 };
 const clearClassSlot = (sem, div, day, timeSlot, deptId = null) => {
   const entries = getTimetableEntries();
@@ -7559,6 +7719,10 @@ if (typeof window !== "undefined") {
   window.clearFacultySlot = clearFacultySlot;
   window.updateClassSlot = updateClassSlot;
   window.clearClassSlot = clearClassSlot;
+  window.clearAllFacultySlots = clearAllFacultySlots;
+  window.saveFacultyTimetable = saveFacultyTimetable;
+  window.clearAllClassSlots = clearAllClassSlots;
+  window.saveClassTimetable = saveClassTimetable;
   window.normalizeTimetable = normalizeTimetable;
   window.getClassTimetable = getClassTimetable;
   window.getCoveredConsecutiveSlots = getCoveredConsecutiveSlots;
@@ -10503,7 +10667,7 @@ function FacultyTimetablePanel({
     }
   };
   const handleClearSlot = (day, timeSlot, sessionId = null) => {
-    const updated = clearFacultySlot(currentFaculty.id, day, timeSlot);
+    const updated = clearFacultySlot(currentFaculty.id, day, timeSlot, sessionId);
     setTimetable({ ...updated });
     if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
     setShowSlotModal(false);
@@ -11389,8 +11553,8 @@ function FacultyTimetablePanel({
                 return;
               }
               if (window.confirm(`Clear all scheduled slots for ${currentFaculty.name}?`)) {
-                saveFacultyTimetable(currentFaculty.id, {});
-                setTimetable({});
+                const emptyGrid = clearAllFacultySlots(currentFaculty.id, currentFaculty.name);
+                setTimetable(emptyGrid || {});
                 if (showToast) showToast("All slots cleared for " + currentFaculty.name);
               }
             },
@@ -11419,7 +11583,7 @@ function FacultyTimetablePanel({
             alignItems: "center",
             justifyContent: "center"
           } }, /* @__PURE__ */ React.createElement(Trash2, { size: 15 })),
-          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Clear Slot")
+          /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", fontWeight: "700", color: "#334155" } }, "Clear Slots")
         ), /* @__PURE__ */ React.createElement(
           "button",
           {

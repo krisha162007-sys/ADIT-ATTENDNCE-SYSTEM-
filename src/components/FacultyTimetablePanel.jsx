@@ -31,6 +31,7 @@ import {
   saveFacultyTimetable, 
   updateFacultySlot, 
   clearFacultySlot, 
+  clearAllFacultySlots, 
   copyFacultyTimetable, 
   calculateTimetableSummary,
   getSubjectColor,
@@ -182,7 +183,7 @@ export default function FacultyTimetablePanel({
 
   // Clear Slot Handler
   const handleClearSlot = (day, timeSlot, sessionId = null) => {
-    const updated = clearFacultySlot(currentFaculty.id, day, timeSlot);
+    const updated = clearFacultySlot(currentFaculty.id, day, timeSlot, sessionId);
     setTimetable({ ...updated });
     if (showToast) showToast(`Cleared slot on ${day} ${timeSlot}`);
     setShowSlotModal(false);
@@ -1286,7 +1287,7 @@ export default function FacultyTimetablePanel({
                   <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>Copy Timetable</span>
                 </button>
 
-                {/* 3. Clear Slot */}
+                {/* 3. Clear Slots */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1296,8 +1297,8 @@ export default function FacultyTimetablePanel({
                       return;
                     }
                     if (window.confirm(`Clear all scheduled slots for ${currentFaculty.name}?`)) {
-                      saveFacultyTimetable(currentFaculty.id, {});
-                      setTimetable({});
+                      const emptyGrid = clearAllFacultySlots(currentFaculty.id, currentFaculty.name);
+                      setTimetable(emptyGrid || {});
                       if (showToast) showToast('All slots cleared for ' + currentFaculty.name);
                     }
                   }}
@@ -1328,7 +1329,7 @@ export default function FacultyTimetablePanel({
                   }}>
                     <Trash2 size={15} />
                   </div>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>Clear Slot</span>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155' }}>Clear Slots</span>
                 </button>
 
                 {/* 4. Download PDF / Print */}
