@@ -1372,27 +1372,6 @@ h1, h2, h3, h4, h5, h6 {
     });
   </script>
 
-  <!-- Automatic self-healing cleanup for accidental attendance record -->
-  <script>
-    (function() {
-      try {
-        var SESSIONS_KEY = 'adit_attendance_sessions';
-        var raw = localStorage.getItem(SESSIONS_KEY);
-        if (raw) {
-          var sessions = JSON.parse(raw);
-          var targetId = 'SESS_1793076485521_k3r0c';
-          if (sessions.some(function(s) { return s.id === targetId; })) {
-            var filtered = sessions.filter(function(s) { return s.id !== targetId; });
-            localStorage.setItem(SESSIONS_KEY, JSON.stringify(filtered));
-            console.log('[ADIT] Removed accidental attendance session:', targetId);
-          }
-        }
-      } catch (err) {
-        console.warn('[ADIT] Session cleanup:', err);
-      }
-    })();
-  </script>
-
   <!-- Pre-compiled app (no Babel needed!) -->
   <script src="/app-bundle.js"></script>
 </body>

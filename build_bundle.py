@@ -244,6 +244,16 @@ if (rootElement) {
             f.write(html)
         import shutil
         shutil.copy(out_js, 'dist/app-bundle.js')
+        if os.path.exists('libs'):
+            shutil.copytree('libs', 'dist/libs', dirs_exist_ok=True)
+        if os.path.exists('public'):
+            for item in os.listdir('public'):
+                s = os.path.join('public', item)
+                d = os.path.join('dist', item)
+                if os.path.isdir(s):
+                    shutil.copytree(s, d, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(s, d)
     except OSError:
         pass
 
