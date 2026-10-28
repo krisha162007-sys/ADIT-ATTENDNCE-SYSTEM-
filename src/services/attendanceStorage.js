@@ -42,7 +42,39 @@ export const normalizeDiv = (divStr) => {
 };
 
 // Default Seed Classes (Department + Semester + Division + Academic Year)
-export const DEFAULT_CLASSES = [];
+export const DEFAULT_CLASSES = [
+  {
+    id: 'CLASS_DEP_IT_1_1_2026-27',
+    name: 'Information Technology - 1st Sem - Div 1',
+    departmentId: 'DEP_IT',
+    department: 'Information Technology',
+    dept: 'Information Technology',
+    semester: '1st Sem',
+    division: 'Div 1',
+    batch: 'ALL',
+    batches: ['Batch A', 'Batch B', 'Batch C', 'Batch D'],
+    academicYear: '2026-27',
+    isElectiveClass: false,
+    studentEnrollmentNos: [
+      '26IT001', '26IT002', '26IT003', '26IT004', '26IT005', '26IT006',
+      '26IT007', '26IT008'
+    ]
+  },
+  {
+    id: 'CLASS_DEP_AI_1_1_2026-27',
+    name: 'AI & Data Science - 1st Sem - Div 1',
+    departmentId: 'DEP_AI',
+    department: 'AI & Data Science',
+    dept: 'AI & Data Science',
+    semester: '1st Sem',
+    division: 'Div 1',
+    batch: 'ALL',
+    batches: ['Batch A', 'Batch B', 'Batch C', 'Batch D'],
+    academicYear: '2026-27',
+    isElectiveClass: false,
+    studentEnrollmentNos: []
+  }
+];
 
 // Semesters Master (1st to 8th)
 export const SEMESTERS = [
@@ -75,7 +107,18 @@ export const INITIAL_COLLEGE_DEPARTMENTS = [
 export const DEFAULT_DEPARTMENTS = INITIAL_COLLEGE_DEPARTMENTS;
 
 // Faculty Master List
-export const DEFAULT_FACULTIES = [];
+export const DEFAULT_FACULTIES = [
+  {
+    id: 'FAC_PS',
+    name: 'Dr. Priyang Bhatt',
+    dept: 'Information Technology',
+    designation: 'Professor & HOD',
+    email: 'priyang.bhatt@adit.ac.in',
+    phone: '+91 98250 11111',
+    subjects: 'CPC, PAIML',
+    password: 'faculty123'
+  }
+];
 
 // Subject Division & Faculty Allocations (1, 2, or max 3 divisions)
 export const DEFAULT_ALLOCATIONS = {};
@@ -127,9 +170,39 @@ export const setFacultyName = (name) => {
 };
 
 // Initial Seed Data aligned with College ERP Reference Sheet
-export const DEFAULT_STUDENTS = [];
+export const DEFAULT_STUDENTS = [
+  { id: 'S_IT_001', rollNo: '1', enrollmentNo: '26IT001', name: 'Aarav Patel', batch: 'Batch A', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'aarav@adit.ac.in', phone: '+91 98251 00001' },
+  { id: 'S_IT_002', rollNo: '2', enrollmentNo: '26IT002', name: 'Ananya Sharma', batch: 'Batch A', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'ananya@adit.ac.in', phone: '+91 98251 00002' },
+  { id: 'S_IT_003', rollNo: '3', enrollmentNo: '26IT003', name: 'Bhavya Shah', batch: 'Batch B', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'bhavya@adit.ac.in', phone: '+91 98251 00003' },
+  { id: 'S_IT_004', rollNo: '4', enrollmentNo: '26IT004', name: 'Chirag Dave', batch: 'Batch B', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'chirag@adit.ac.in', phone: '+91 98251 00004' },
+  { id: 'S_IT_005', rollNo: '5', enrollmentNo: '26IT005', name: 'Drashti Joshi', batch: 'Batch C', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'drashti@adit.ac.in', phone: '+91 98251 00005' },
+  { id: 'S_IT_006', rollNo: '6', enrollmentNo: '26IT006', name: 'Eshaan Mehta', batch: 'Batch C', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'eshaan@adit.ac.in', phone: '+91 98251 00006' },
+  { id: 'S_IT_007', rollNo: '7', enrollmentNo: '26IT007', name: 'Falguni Rana', batch: 'Batch D', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'falguni@adit.ac.in', phone: '+91 98251 00007' },
+  { id: 'S_IT_008', rollNo: '8', enrollmentNo: '26IT008', name: 'Gaurav Modi', batch: 'Batch D', classId: 'CLASS_DEP_IT_1_1_2026-27', department: 'Information Technology', dept: 'Information Technology', departmentId: 'DEP_IT', semester: '1st Sem', sem: '1st Sem', division: 'Div 1', class: 'Div 1', email: 'gaurav@adit.ac.in', phone: '+91 98251 00008' }
+];
 
-export const DEFAULT_SUBJECTS = [];
+export const DEFAULT_SUBJECTS = [
+  {
+    id: 'CPC',
+    code: '3110003',
+    name: 'Computer Programming with C',
+    shortName: 'CPC',
+    faculty: 'Dr. Priyang Bhatt',
+    credits: 4,
+    sem: '1st Sem',
+    dept: 'Information Technology'
+  },
+  {
+    id: 'PAIML',
+    code: '3110005',
+    name: 'Principles of AI and Machine Learning',
+    shortName: 'PAIML',
+    faculty: 'Dr. Priyang Bhatt',
+    credits: 4,
+    sem: '1st Sem',
+    dept: 'AI & Data Science'
+  }
+];
 
 // Helper to generate the exact 18 sessions matching the reference photo
 const generateDSSessions = () => {
@@ -305,13 +378,21 @@ export const initializeStorage = () => {
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
   }
 
-  // One-time automatic clean slate initialization: wipe all demo data for real data entry
-  const CLEAN_SLATE_KEY = 'adit_clean_slate_real_data_v2';
-  if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
-    if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.SUBJECTS)) localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.FACULTIES)) localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+  // One-time automatic institutional seed initialization: ensure all devices have faculty, classes, and timetables
+  const SEED_KEY = 'adit_seed_v3_institutional';
+  if (!localStorage.getItem(SEED_KEY)) {
+    const curFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+    if (!curFac || curFac === '[]') localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+
+    const curCls = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (!curCls || curCls === '[]') localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+
+    const curSub = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
+    if (!curSub || curSub === '[]') localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
+
+    const curStu = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    if (!curStu || curStu === '[]') localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
+
     if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
     if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
     if (!localStorage.getItem(STORAGE_KEYS.SESSIONS)) localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
@@ -319,12 +400,9 @@ export const initializeStorage = () => {
     if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
     if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
     if (!localStorage.getItem(STORAGE_KEYS.PROMOTION_HISTORY)) localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
-    if (!localStorage.getItem('adit_timetable_entries')) localStorage.setItem('adit_timetable_entries', JSON.stringify([]));
-    if (!localStorage.getItem('adit_attendance_timetable')) localStorage.setItem('adit_attendance_timetable', JSON.stringify({}));
-    if (!localStorage.getItem('adit_timetable_file_info')) localStorage.setItem('adit_timetable_file_info', 'null');
     if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     if (!localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME)) localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, 'A D Patel Institute of Technology');
-    localStorage.setItem(CLEAN_SLATE_KEY, 'true');
+    localStorage.setItem(SEED_KEY, 'true');
   }
 
   // Ensure every storage key exists as an empty array/object if missing
@@ -889,10 +967,17 @@ export const saveClass = (classData, userContext = null) => {
   });
 
   if (duplicate) {
-    if (isElective) {
-      throw new Error(`An elective class with identifier "${normDiv}" for this subject and ${normSem} (${normYear}) already exists.`);
-    } else {
-      throw new Error(`A class for ${deptName}, ${normSem}, ${normDiv} (${normYear}) already exists.`);
+    // If saving the same department, semester, division, and academic year, update the existing class
+    classData.id = classData.id || duplicate.id;
+    const existingIdx = classes.findIndex(c => c.id === duplicate.id);
+    if (existingIdx !== -1) {
+      classes[existingIdx] = {
+        ...classes[existingIdx],
+        ...classData,
+        id: classData.id
+      };
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      return classes[existingIdx];
     }
   }
 
@@ -2794,10 +2879,10 @@ export const deleteSession = (sessionId, userContext = null) => {
 
 export const resetToDefault = () => {
   localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
-  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
+  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
   localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
@@ -2950,7 +3035,9 @@ export const saveFaculty = (faculty, userContext = null) => {
     throw new Error('Unauthorized Security Error: Students are not permitted to manage faculty records.');
   }
   const faculties = getFaculties();
-  if (faculty.id) {
+  if (faculties.length === 1 && faculties[0].id === 'FAC_PS' && faculty.id === 'FAC_IT_PATEL') {
+    faculties[0] = faculty;
+  } else if (faculty.id) {
     const idx = faculties.findIndex(f => f.id === faculty.id);
     if (idx !== -1) faculties[idx] = faculty;
     else faculties.push(faculty);

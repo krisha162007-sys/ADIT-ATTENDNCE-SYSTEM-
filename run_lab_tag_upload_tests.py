@@ -86,7 +86,7 @@ HTML_CONTENT = """<!DOCTYPE html>
       });
     };
   </script>
-  <script src="/app-bundle.js?v=lab_tag_fix_2"></script>
+  <script src="/app-bundle.js?v=lab_tag_fix_3"></script>
 </head>
 <body>
   <div id="test-root" style="padding: 20px;"></div>

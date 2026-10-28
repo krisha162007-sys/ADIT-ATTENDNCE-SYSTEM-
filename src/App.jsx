@@ -38,6 +38,9 @@ export default function App() {
 
   useEffect(() => {
     initializeStorage();
+    if (typeof initCloudSync === 'function') {
+      initCloudSync();
+    }
   }, []);
 
   const showToast = (msg) => {

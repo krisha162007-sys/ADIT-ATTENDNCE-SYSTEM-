@@ -91,6 +91,15 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
   // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
   const [adminTab, setAdminTab] = useState(initialTab);
 
+  // Cloud Sync & Cross-Device Management State
+  const [syncConfig, setSyncConfig] = useState(() => (typeof getCloudSyncConfig === 'function' ? getCloudSyncConfig() : { enabled: false, syncUrl: '' }));
+  const [cloudUrlInput, setCloudUrlInput] = useState(() => (typeof getCloudSyncConfig === 'function' ? (getCloudSyncConfig().syncUrl || '') : ''));
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncTokenInput, setSyncTokenInput] = useState('');
+  const [generatedToken, setGeneratedToken] = useState('');
+  const [classesList, setClassesList] = useState(getClasses());
+
   // Master data states
   const [departments, setDepartments] = useState(getDepartments());
   const [subjects, setSubjects] = useState(getSubjects());
@@ -184,6 +193,109 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
     setShowSubjectModal(false);
     setSubjectForm({ id: '', code: '', name: '', shortName: '', credits: 4, sem: activeSem, dept: activeDept });
     if (showToast) showToast(`Subject ${subjectForm.name} saved to ${activeDept}!`);
+  };
+
+  // Cloud Synchronization Handlers
+  const handleSaveCloudConfig = (e) => {
+    e.preventDefault();
+    if (typeof saveCloudSyncConfig === 'function') {
+      const updated = saveCloudSyncConfig({
+        enabled: Boolean(cloudUrlInput.trim()),
+        syncUrl: cloudUrlInput.trim()
+      });
+      setSyncConfig(updated);
+      if (showToast) showToast('Cloud Sync settings updated!');
+    }
+  };
+
+  const handlePushToCloud = async () => {
+    if (typeof pushToCloud !== 'function') return;
+    setSyncLoading(true);
+    setSyncMessage('');
+    const res = await pushToCloud(cloudUrlInput.trim());
+    setSyncLoading(false);
+    if (res.success) {
+      if (showToast) showToast('Successfully pushed all changes to cloud!');
+      if (typeof getCloudSyncConfig === 'function') setSyncConfig(getCloudSyncConfig());
+    } else {
+      setSyncMessage(res.error || 'Failed to upload to cloud.');
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    if (typeof pullFromCloud !== 'function') return;
+    setSyncLoading(true);
+    setSyncMessage('');
+    const res = await pullFromCloud(cloudUrlInput.trim(), true);
+    setSyncLoading(false);
+    if (res.success) {
+      if (showToast) showToast('Successfully downloaded latest changes from cloud!');
+      if (typeof getCloudSyncConfig === 'function') setSyncConfig(getCloudSyncConfig());
+      refreshState();
+    } else {
+      setSyncMessage(res.error || 'Failed to pull updates from cloud.');
+    }
+  };
+
+  const handleExportBackup = () => {
+    if (typeof downloadSnapshotFile === 'function') {
+      downloadSnapshotFile();
+      if (showToast) showToast('System backup (.json) downloaded!');
+    }
+  };
+
+  const handleImportBackupFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (typeof importSystemSnapshot === 'function') {
+          const res = importSystemSnapshot(parsed);
+          if (res.success) {
+            if (showToast) showToast(`Restored ${res.restoredCount} collections from backup!`);
+            refreshState();
+          } else {
+            if (showToast) showToast('Import failed: ' + res.error);
+          }
+        }
+      } catch (err) {
+        if (showToast) showToast('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleCopySyncToken = () => {
+    if (typeof generateSyncToken === 'function') {
+      const token = generateSyncToken();
+      setGeneratedToken(token);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(token).then(() => {
+          if (showToast) showToast('Quick Transfer Token copied to clipboard!');
+        }).catch(() => {
+          if (showToast) showToast('Token generated. Copy from box below.');
+        });
+      } else {
+        if (showToast) showToast('Token generated. Copy from box below.');
+      }
+    }
+  };
+
+  const handleApplySyncToken = () => {
+    if (!syncTokenInput.trim()) return;
+    if (typeof restoreFromSyncToken === 'function') {
+      const res = restoreFromSyncToken(syncTokenInput.trim());
+      if (res.success) {
+        if (showToast) showToast(`Restored ${res.restoredCount} collections from token!`);
+        setSyncTokenInput('');
+        refreshState();
+      } else {
+        if (showToast) showToast('Token restore failed: ' + res.error);
+      }
+    }
   };
 
   // PIN Update Handler
@@ -628,6 +740,168 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
               <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '4px' }}>
                 Manage master administrator PIN code, data synchronization, and college branding.
               </p>
+            </div>
+
+            {/* 1. CLOUD SYNC & MULTI-DEVICE PERSISTENCE */}
+            <div className="card" style={{ padding: '24px', marginBottom: '20px', border: '1px solid #bfdbfe', backgroundColor: '#f8faff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <UploadCloud size={20} style={{ color: '#2563eb' }} />
+                  Cloud Synchronization (Cross-Device)
+                </h3>
+                <span style={{
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  backgroundColor: syncConfig.enabled ? '#dcfce7' : '#f1f5f9',
+                  color: syncConfig.enabled ? '#15803d' : '#64748b'
+                }}>
+                  {syncConfig.enabled ? '● Cloud Sync Enabled' : '○ Local Storage Mode'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12.5px', color: '#475569', marginTop: '2px', lineHeight: '1.5' }}>
+                Keep your faculties, timetables, and student attendance automatically synchronized across all laptops, phones, and devices.
+              </p>
+
+              <form onSubmit={handleSaveCloudConfig} style={{ marginTop: '16px' }}>
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b' }}>
+                    Cloud Database URL (Firebase Realtime Database or Custom REST Endpoint)
+                  </label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    placeholder="https://your-project-default-rtdb.firebaseio.com"
+                    value={cloudUrlInput}
+                    onChange={(e) => setCloudUrlInput(e.target.value)}
+                    style={{ fontSize: '13px' }}
+                  />
+                  <small style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                    Tip: Enter your free Firebase Realtime Database URL to automatically replicate all admin changes across any phone or device worldwide.
+                  </small>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <button type="submit" className="btn btn-outline btn-sm" style={{ fontWeight: '700' }}>
+                    Save Cloud URL
+                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handlePushToCloud}
+                      disabled={syncLoading || !cloudUrlInput.trim()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <UploadCloud size={14} />
+                      {syncLoading ? 'Syncing...' : 'Push to Cloud'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handlePullFromCloud}
+                      disabled={syncLoading || !cloudUrlInput.trim()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Download size={14} />
+                      Pull from Cloud
+                    </button>
+                  </div>
+                </div>
+
+                {syncMessage && (
+                  <div style={{ marginTop: '12px', fontSize: '12px', fontWeight: '700', color: '#e11d48' }}>
+                    {syncMessage}
+                  </div>
+                )}
+                {syncConfig.lastSyncTime && (
+                  <div style={{ marginTop: '10px', fontSize: '11px', color: '#64748b' }}>
+                    Last Synced: {new Date(syncConfig.lastSyncTime).toLocaleString()}
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* 2. 1-CLICK INSTANT DEVICE TRANSFER & BACKUP */}
+            <div className="card" style={{ padding: '24px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={18} style={{ color: '#2563eb' }} />
+                Instant Device Transfer & Backup
+              </h3>
+              <p style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px', lineHeight: '1.5' }}>
+                Move all admin configuration, faculties, classes, and timetables to another device immediately without typing anything.
+              </p>
+
+              {/* Action Buttons: Export & Import File */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={handleExportBackup}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
+                >
+                  <Download size={15} /> Export System Backup (.json)
+                </button>
+                <label className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: '700', cursor: 'pointer', margin: 0 }}>
+                  <UploadCloud size={15} /> Restore from Backup File
+                  <input type="file" accept=".json" onChange={handleImportBackupFile} style={{ display: 'none' }} />
+                </label>
+              </div>
+
+              {/* Quick Transfer Token */}
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ fontSize: '12.5px', fontWeight: '700', color: '#1e293b', display: 'block', marginBottom: '6px' }}>
+                  📱 Quick Device Transfer Token (No files needed)
+                </label>
+                <p style={{ fontSize: '11.5px', color: '#64748b', margin: '0 0 10px 0' }}>
+                  Click <strong>Copy Token</strong> on this computer, send it to your phone (via WhatsApp or email), and click <strong>Apply Token</strong> on your phone to transfer everything instantly.
+                </p>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleCopySyncToken}
+                    style={{ fontWeight: '700' }}
+                  >
+                    Copy Transfer Token
+                  </button>
+                </div>
+
+                {generatedToken && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <textarea
+                      readOnly
+                      value={generatedToken}
+                      rows={2}
+                      className="form-control"
+                      style={{ fontSize: '11px', fontFamily: 'monospace', resize: 'none' }}
+                      onClick={(e) => e.target.select()}
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Paste Transfer Token on other device here..."
+                    value={syncTokenInput}
+                    onChange={(e) => setSyncTokenInput(e.target.value)}
+                    style={{ fontSize: '12.5px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleApplySyncToken}
+                    disabled={!syncTokenInput.trim()}
+                    style={{ whiteSpace: 'nowrap', fontWeight: '700' }}
+                  >
+                    Apply Token
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* PIN Code Form */}

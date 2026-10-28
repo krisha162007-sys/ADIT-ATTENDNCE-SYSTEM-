@@ -33,7 +33,45 @@ const normalizeDiv = (divStr) => {
   if (!m) return s;
   return `Div ${m[1]}`;
 };
-const DEFAULT_CLASSES = [];
+const DEFAULT_CLASSES = [
+  {
+    id: "CLASS_DEP_IT_1_1_2026-27",
+    name: "Information Technology - 1st Sem - Div 1",
+    departmentId: "DEP_IT",
+    department: "Information Technology",
+    dept: "Information Technology",
+    semester: "1st Sem",
+    division: "Div 1",
+    batch: "ALL",
+    batches: ["Batch A", "Batch B", "Batch C", "Batch D"],
+    academicYear: "2026-27",
+    isElectiveClass: false,
+    studentEnrollmentNos: [
+      "26IT001",
+      "26IT002",
+      "26IT003",
+      "26IT004",
+      "26IT005",
+      "26IT006",
+      "26IT007",
+      "26IT008"
+    ]
+  },
+  {
+    id: "CLASS_DEP_AI_1_1_2026-27",
+    name: "AI & Data Science - 1st Sem - Div 1",
+    departmentId: "DEP_AI",
+    department: "AI & Data Science",
+    dept: "AI & Data Science",
+    semester: "1st Sem",
+    division: "Div 1",
+    batch: "ALL",
+    batches: ["Batch A", "Batch B", "Batch C", "Batch D"],
+    academicYear: "2026-27",
+    isElectiveClass: false,
+    studentEnrollmentNos: []
+  }
+];
 const SEMESTERS = [
   { id: "1st Sem", num: 1, term: "Odd", year: "1st Year" },
   { id: "2nd Sem", num: 2, term: "Even", year: "1st Year" },
@@ -57,7 +95,18 @@ const INITIAL_COLLEGE_DEPARTMENTS = [
   { id: "DEP_AI", code: "AI", name: "AI & Data Science", status: "active" }
 ];
 const DEFAULT_DEPARTMENTS = INITIAL_COLLEGE_DEPARTMENTS;
-const DEFAULT_FACULTIES = [];
+const DEFAULT_FACULTIES = [
+  {
+    id: "FAC_PS",
+    name: "Dr. Priyang Bhatt",
+    dept: "Information Technology",
+    designation: "Professor & HOD",
+    email: "priyang.bhatt@adit.ac.in",
+    phone: "+91 98250 11111",
+    subjects: "CPC, PAIML",
+    password: "faculty123"
+  }
+];
 const DEFAULT_ALLOCATIONS = {};
 const DEFAULT_ELECTIVE_GROUPS = [];
 const DEFAULT_ELECTIVE_ASSIGNMENTS = [];
@@ -88,8 +137,38 @@ const setFacultyName = (name) => {
   localStorage.setItem("adit_faculty_name", name);
   return name;
 };
-const DEFAULT_STUDENTS = [];
-const DEFAULT_SUBJECTS = [];
+const DEFAULT_STUDENTS = [
+  { id: "S_IT_001", rollNo: "1", enrollmentNo: "26IT001", name: "Aarav Patel", batch: "Batch A", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "aarav@adit.ac.in", phone: "+91 98251 00001" },
+  { id: "S_IT_002", rollNo: "2", enrollmentNo: "26IT002", name: "Ananya Sharma", batch: "Batch A", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "ananya@adit.ac.in", phone: "+91 98251 00002" },
+  { id: "S_IT_003", rollNo: "3", enrollmentNo: "26IT003", name: "Bhavya Shah", batch: "Batch B", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "bhavya@adit.ac.in", phone: "+91 98251 00003" },
+  { id: "S_IT_004", rollNo: "4", enrollmentNo: "26IT004", name: "Chirag Dave", batch: "Batch B", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "chirag@adit.ac.in", phone: "+91 98251 00004" },
+  { id: "S_IT_005", rollNo: "5", enrollmentNo: "26IT005", name: "Drashti Joshi", batch: "Batch C", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "drashti@adit.ac.in", phone: "+91 98251 00005" },
+  { id: "S_IT_006", rollNo: "6", enrollmentNo: "26IT006", name: "Eshaan Mehta", batch: "Batch C", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "eshaan@adit.ac.in", phone: "+91 98251 00006" },
+  { id: "S_IT_007", rollNo: "7", enrollmentNo: "26IT007", name: "Falguni Rana", batch: "Batch D", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "falguni@adit.ac.in", phone: "+91 98251 00007" },
+  { id: "S_IT_008", rollNo: "8", enrollmentNo: "26IT008", name: "Gaurav Modi", batch: "Batch D", classId: "CLASS_DEP_IT_1_1_2026-27", department: "Information Technology", dept: "Information Technology", departmentId: "DEP_IT", semester: "1st Sem", sem: "1st Sem", division: "Div 1", class: "Div 1", email: "gaurav@adit.ac.in", phone: "+91 98251 00008" }
+];
+const DEFAULT_SUBJECTS = [
+  {
+    id: "CPC",
+    code: "3110003",
+    name: "Computer Programming with C",
+    shortName: "CPC",
+    faculty: "Dr. Priyang Bhatt",
+    credits: 4,
+    sem: "1st Sem",
+    dept: "Information Technology"
+  },
+  {
+    id: "PAIML",
+    code: "3110005",
+    name: "Principles of AI and Machine Learning",
+    shortName: "PAIML",
+    faculty: "Dr. Priyang Bhatt",
+    credits: 4,
+    sem: "1st Sem",
+    dept: "AI & Data Science"
+  }
+];
 const generateDSSessions = () => {
   const dates = [
     { date: "2026-07-06", topic: "Course Overview & Introduction to Data Structures" },
@@ -248,12 +327,16 @@ const initializeStorage = () => {
   if (!storedCollege || storedCollege.includes("G H Patel") || storedCollege.includes("GCET") || storedCollege.includes("GH Patel")) {
     localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
   }
-  const CLEAN_SLATE_KEY = "adit_clean_slate_real_data_v2";
-  if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
-    if (!localStorage.getItem(STORAGE_KEYS.STUDENTS)) localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.CLASSES)) localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.SUBJECTS)) localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
-    if (!localStorage.getItem(STORAGE_KEYS.FACULTIES)) localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
+  const SEED_KEY = "adit_seed_v3_institutional";
+  if (!localStorage.getItem(SEED_KEY)) {
+    const curFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+    if (!curFac || curFac === "[]") localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+    const curCls = localStorage.getItem(STORAGE_KEYS.CLASSES);
+    if (!curCls || curCls === "[]") localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+    const curSub = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
+    if (!curSub || curSub === "[]") localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
+    const curStu = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    if (!curStu || curStu === "[]") localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
     if (!localStorage.getItem(STORAGE_KEYS.DEPARTMENTS)) localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
     if (!localStorage.getItem(STORAGE_KEYS.ALLOCATIONS)) localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
     if (!localStorage.getItem(STORAGE_KEYS.SESSIONS)) localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
@@ -261,12 +344,9 @@ const initializeStorage = () => {
     if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_GROUPS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_GROUPS, JSON.stringify([]));
     if (!localStorage.getItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS)) localStorage.setItem(STORAGE_KEYS.ELECTIVE_ASSIGNMENTS, JSON.stringify([]));
     if (!localStorage.getItem(STORAGE_KEYS.PROMOTION_HISTORY)) localStorage.setItem(STORAGE_KEYS.PROMOTION_HISTORY, JSON.stringify([]));
-    if (!localStorage.getItem("adit_timetable_entries")) localStorage.setItem("adit_timetable_entries", JSON.stringify([]));
-    if (!localStorage.getItem("adit_attendance_timetable")) localStorage.setItem("adit_attendance_timetable", JSON.stringify({}));
-    if (!localStorage.getItem("adit_timetable_file_info")) localStorage.setItem("adit_timetable_file_info", "null");
     if (!localStorage.getItem(STORAGE_KEYS.SECURITY)) localStorage.setItem(STORAGE_KEYS.SECURITY, JSON.stringify(DEFAULT_SECURITY));
     if (!localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME)) localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
-    localStorage.setItem(CLEAN_SLATE_KEY, "true");
+    localStorage.setItem(SEED_KEY, "true");
   }
   if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
@@ -712,10 +792,16 @@ const saveClass = (classData, userContext = null) => {
     }
   });
   if (duplicate) {
-    if (isElective) {
-      throw new Error(`An elective class with identifier "${normDiv}" for this subject and ${normSem} (${normYear}) already exists.`);
-    } else {
-      throw new Error(`A class for ${deptName}, ${normSem}, ${normDiv} (${normYear}) already exists.`);
+    classData.id = classData.id || duplicate.id;
+    const existingIdx = classes.findIndex((c) => c.id === duplicate.id);
+    if (existingIdx !== -1) {
+      classes[existingIdx] = {
+        ...classes[existingIdx],
+        ...classData,
+        id: classData.id
+      };
+      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+      return classes[existingIdx];
     }
   }
   let savedClass;
@@ -2279,10 +2365,10 @@ const deleteSession = (sessionId, userContext = null) => {
 };
 const resetToDefault = () => {
   localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(INITIAL_COLLEGE_DEPARTMENTS));
-  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(DEFAULT_FACULTIES));
+  localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+  localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
+  localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(DEFAULT_SUBJECTS));
   localStorage.setItem(STORAGE_KEYS.ALLOCATIONS, JSON.stringify({}));
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify([]));
@@ -2411,7 +2497,9 @@ const saveFaculty = (faculty, userContext = null) => {
     throw new Error("Unauthorized Security Error: Students are not permitted to manage faculty records.");
   }
   const faculties = getFaculties();
-  if (faculty.id) {
+  if (faculties.length === 1 && faculties[0].id === "FAC_PS" && faculty.id === "FAC_IT_PATEL") {
+    faculties[0] = faculty;
+  } else if (faculty.id) {
     const idx = faculties.findIndex((f) => f.id === faculty.id);
     if (idx !== -1) faculties[idx] = faculty;
     else faculties.push(faculty);
@@ -4664,6 +4752,344 @@ const getClassKey = (sem, div) => {
   return `${normalizeSem(sem)}_${normalizeDiv(div)}`;
 };
 const generateId = () => "tte_" + Math.random().toString(36).substring(2, 11);
+const DEFAULT_TIMETABLE_ENTRIES = [
+  {
+    "id": "tte_hxzpeywm7",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_IT",
+    "department": "Information Technology",
+    "deptId": "DEP_IT",
+    "dept": "Information Technology",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "Room 201",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Wednesday",
+    "timeSlot": "9:00 - 9:55",
+    "sessionId": "sess_lab_xl_1793126028657_pz808m",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "9:00 - 10:50",
+    "isMultiSlot": true,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_ew3b0ce7y",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_IT",
+    "department": "Information Technology",
+    "deptId": "DEP_IT",
+    "dept": "Information Technology",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "210",
+    "color": "blue",
+    "type": "Lecture",
+    "day": "Monday",
+    "timeSlot": "10:00 - 10:50",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_68j3gvb9g",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "PAIML",
+    "subjectName": "PAIML",
+    "subjectFullName": "PAIML",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "ALL",
+    "room": "141",
+    "color": "emerald",
+    "type": "Lecture",
+    "day": "Tuesday",
+    "timeSlot": "10:00 - 10:50",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_ot04gikro",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_IT",
+    "department": "Information Technology",
+    "deptId": "DEP_IT",
+    "dept": "Information Technology",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "Room 201",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Wednesday",
+    "timeSlot": "10:00 - 10:50",
+    "sessionId": "sess_lab_xl_1793126028657_pz808m",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "9:00 - 10:50",
+    "isMultiSlot": true,
+    "isContinuation": true
+  },
+  {
+    "id": "tte_2f84pkuuu",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_IT",
+    "department": "Information Technology",
+    "deptId": "DEP_IT",
+    "dept": "Information Technology",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "Room 201",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Tuesday",
+    "timeSlot": "10:55 - 11:45",
+    "sessionId": "sess_lab_xl_1793126028656_ghjupd",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "10:55 - 12:40",
+    "isMultiSlot": true,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_hdsstmab7",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_IT",
+    "department": "Information Technology",
+    "deptId": "DEP_IT",
+    "dept": "Information Technology",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "210",
+    "color": "blue",
+    "type": "Lecture",
+    "day": "Wednesday",
+    "timeSlot": "10:55 - 11:45",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_dgniyppn3",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "PAIML",
+    "subjectName": "PAIML",
+    "subjectFullName": "PAIML",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "ALL",
+    "room": "141",
+    "color": "emerald",
+    "type": "Lecture",
+    "day": "Friday",
+    "timeSlot": "10:55 - 11:45",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_r8i5e0ykp",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "PAIML",
+    "subjectName": "PAIML",
+    "subjectFullName": "PAIML",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "ALL",
+    "room": "141",
+    "color": "emerald",
+    "type": "Lecture",
+    "day": "Monday",
+    "timeSlot": "11:50 - 12:40",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_qdbylywrv",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 1",
+    "room": "Room 201",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Tuesday",
+    "timeSlot": "11:50 - 12:40",
+    "sessionId": "sess_lab_xl_1793126028656_ghjupd",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "10:55 - 12:40",
+    "isMultiSlot": true,
+    "isContinuation": true
+  },
+  {
+    "id": "tte_pjvazc8v6",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "PAIML",
+    "subjectName": "PAIML",
+    "subjectFullName": "PAIML",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "ALL",
+    "room": "108",
+    "color": "emerald",
+    "type": "Lecture",
+    "day": "Thursday",
+    "timeSlot": "11:50 - 12:40",
+    "sessionId": null,
+    "span": 1,
+    "duration": "1 Hour",
+    "combinedTimeSlot": null,
+    "isMultiSlot": false,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_tnlhv2sn8",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 2",
+    "room": "331",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Thursday",
+    "timeSlot": "1:25 - 2:15",
+    "sessionId": "sess_lab_xl_1793126028657_88ial2",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "1:25 - 3:10",
+    "isMultiSlot": true,
+    "isContinuation": false
+  },
+  {
+    "id": "tte_oqvg58mja",
+    "facultyId": "FAC_PS",
+    "facultyName": "Faculty",
+    "departmentId": "DEP_AI",
+    "department": "AI & Data Science",
+    "deptId": "DEP_AI",
+    "dept": "AI & Data Science",
+    "subjectId": "CPC",
+    "subjectName": "CPC",
+    "subjectFullName": "CPC",
+    "semId": "1st Sem",
+    "divId": "Div 1",
+    "sem": "1st Sem",
+    "div": "Div 1",
+    "batch": "Batch 2",
+    "room": "331",
+    "color": "blue",
+    "type": "Lab",
+    "day": "Thursday",
+    "timeSlot": "2:20 - 3:10",
+    "sessionId": "sess_lab_xl_1793126028657_88ial2",
+    "span": 2,
+    "duration": "2 Hours",
+    "combinedTimeSlot": "1:25 - 3:10",
+    "isMultiSlot": true,
+    "isContinuation": true
+  }
+];
 const getTimetableEntries = () => {
   if (typeof localStorage === "undefined") return [];
   const data = localStorage.getItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES);
@@ -4685,8 +5111,9 @@ const getTimetableEntries = () => {
       console.error(e);
     }
   }
-  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify([]));
-  return [];
+  const initial = DEFAULT_TIMETABLE_ENTRIES && DEFAULT_TIMETABLE_ENTRIES.length > 0 ? DEFAULT_TIMETABLE_ENTRIES : [];
+  localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(initial));
+  return initial;
 };
 const saveTimetableEntry = (entry) => {
   const entries = getTimetableEntries();
@@ -6411,7 +6838,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
         conflictMsg = `Room conflict: ${rawRoom} is already occupied by ${roomConflict.facultyName || "another faculty"} (${roomConflict.subjectName}) on ${dayHit} ${timeSlot}.`;
         conflictRows.push({ row: rowNum, warning: conflictMsg, reason: conflictMsg, message: conflictMsg });
       }
-      const facultyOverlap = existingEntries.find(
+      const facultyOverlap = (!targetFacultyId || assignedFacId !== targetFacultyId) && existingEntries.find(
         (e) => e.day === dayHit && e.timeSlot === timeSlot && e.facultyId === assignedFacId && (e.sem !== normalizeSem(rawSem) || e.div !== normalizeDiv(rawDiv))
       );
       if (facultyOverlap) {
@@ -6423,7 +6850,7 @@ const _parseSheetRows = (rows, defaultSem, defaultDiv, scopeIsClass, defaultDept
       const divNorm = normalizeDiv(rawDiv);
       const sheetKey = `${assignedFacId}_${dayHit}_${timeSlot}_${rawSubj}_${semNorm}_${divNorm}`;
       const isDupInSheet = seenSheetKeys.has(sheetKey);
-      const isDupInDb = existingEntries.some(
+      const isDupInDb = (!targetFacultyId || assignedFacId !== targetFacultyId) && existingEntries.some(
         (e) => e.day === dayHit && e.timeSlot === timeSlot && e.facultyId === assignedFacId && e.subjectName === rawSubj && normalizeSem(e.semId || e.sem) === semNorm && normalizeDiv(e.divId || e.div) === divNorm
       );
       const isDuplicate = isDupInDb || isDupInSheet;
@@ -7827,6 +8254,264 @@ if (typeof window !== "undefined") {
   window.downloadColumnarTimetableTemplate = downloadColumnarTimetableTemplate;
   window.resolveDepartment = resolveDepartment;
   window.isDepartmentMatch = isDepartmentMatch;
+}
+const SYSTEM_STORAGE_KEYS = [
+  "adit_attendance_departments",
+  "adit_attendance_faculties",
+  "adit_attendance_classes",
+  "adit_attendance_subjects",
+  "adit_attendance_students",
+  "adit_attendance_sessions",
+  "adit_attendance_exceptions",
+  "adit_attendance_elective_groups",
+  "adit_attendance_elective_assignments",
+  "adit_attendance_allocations",
+  "adit_attendance_promotion_history",
+  "adit_attendance_security",
+  "adit_attendance_college_name",
+  "adit_timetable_entries",
+  "adit_timetable_data",
+  "adit_timetable_file_info",
+  "adit_timetable_settings"
+];
+const CLOUD_SYNC_CONFIG_KEY = "adit_cloud_sync_config";
+const getCloudSyncConfig = () => {
+  if (typeof localStorage === "undefined") {
+    return { enabled: false, syncUrl: "", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
+  }
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_CONFIG_KEY);
+    if (!raw) {
+      return {
+        enabled: false,
+        syncUrl: "",
+        autoSync: true,
+        lastSyncTime: null,
+        lastStatus: "idle",
+        lastMessage: ""
+      };
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    return { enabled: false, syncUrl: "", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
+  }
+};
+const saveCloudSyncConfig = (config) => {
+  if (typeof localStorage === "undefined") return config;
+  const current = getCloudSyncConfig();
+  const updated = { ...current, ...config };
+  localStorage.setItem(CLOUD_SYNC_CONFIG_KEY, JSON.stringify(updated));
+  if (typeof window !== "undefined" && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent("adit-cloud-sync-status", { detail: updated }));
+  }
+  return updated;
+};
+const exportSystemSnapshot = () => {
+  if (typeof localStorage === "undefined") return { error: "No localStorage available" };
+  const snapshotData = {};
+  SYSTEM_STORAGE_KEYS.forEach((key) => {
+    const raw = localStorage.getItem(key);
+    if (raw !== null) {
+      try {
+        snapshotData[key] = JSON.parse(raw);
+      } catch (e) {
+        snapshotData[key] = raw;
+      }
+    }
+  });
+  return {
+    appName: "ADIT_ATTENDANCE_SYSTEM",
+    version: "2.0.0",
+    exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    timestamp: Date.now(),
+    keysCount: Object.keys(snapshotData).length,
+    data: snapshotData
+  };
+};
+const importSystemSnapshot = (snapshot) => {
+  if (!snapshot || typeof snapshot !== "object") {
+    return { success: false, error: "Invalid snapshot data: root must be an object" };
+  }
+  const payload = snapshot.data && typeof snapshot.data === "object" ? snapshot.data : snapshot;
+  let restoredCount = 0;
+  Object.keys(payload).forEach((key) => {
+    if (key.startsWith("adit_") || SYSTEM_STORAGE_KEYS.includes(key)) {
+      const val = payload[key];
+      if (val !== void 0 && val !== null) {
+        const strVal = typeof val === "string" ? val : JSON.stringify(val);
+        localStorage.setItem(key, strVal);
+        restoredCount++;
+      }
+    }
+  });
+  localStorage.setItem("adit_seed_v3_institutional", "true");
+  notifySystemDataUpdated();
+  return {
+    success: true,
+    restoredCount,
+    timestamp: snapshot.timestamp || Date.now()
+  };
+};
+const downloadSnapshotFile = (filename = null) => {
+  const snapshot = exportSystemSnapshot();
+  const jsonStr = JSON.stringify(snapshot, null, 2);
+  const dateStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const name = filename || `adit_attendance_backup_${dateStr}.json`;
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return true;
+};
+const generateSyncToken = () => {
+  const snapshot = exportSystemSnapshot();
+  const jsonStr = JSON.stringify(snapshot);
+  try {
+    return btoa(encodeURIComponent(jsonStr));
+  } catch (err) {
+    return btoa(unescape(encodeURIComponent(jsonStr)));
+  }
+};
+const restoreFromSyncToken = (tokenStr) => {
+  if (!tokenStr || typeof tokenStr !== "string") {
+    return { success: false, error: "Empty or invalid sync token." };
+  }
+  try {
+    const cleanToken = tokenStr.trim();
+    let jsonStr = "";
+    try {
+      jsonStr = decodeURIComponent(atob(cleanToken));
+    } catch (e1) {
+      jsonStr = decodeURIComponent(escape(atob(cleanToken)));
+    }
+    const snapshot = JSON.parse(jsonStr);
+    return importSystemSnapshot(snapshot);
+  } catch (err) {
+    return { success: false, error: "Failed to parse sync token: " + (err.message || "Corrupted token") };
+  }
+};
+const notifySystemDataUpdated = () => {
+  if (typeof window === "undefined" || !window.dispatchEvent) return;
+  window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+  window.dispatchEvent(new CustomEvent("adit-timetable-synced"));
+  window.dispatchEvent(new CustomEvent("adit-departments-updated"));
+  window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+  window.dispatchEvent(new CustomEvent("adit-exceptions-updated"));
+  window.dispatchEvent(new CustomEvent("adit-data-synced"));
+};
+const pushToCloud = async (targetUrl = null) => {
+  const config = getCloudSyncConfig();
+  const endpoint = targetUrl || config.syncUrl;
+  if (!endpoint) {
+    return { success: false, error: "No Cloud Database URL configured. Enter your Cloud URL in Settings." };
+  }
+  saveCloudSyncConfig({ lastStatus: "syncing", lastMessage: "Uploading to cloud..." });
+  try {
+    const snapshot = exportSystemSnapshot();
+    const cleanUrl = endpoint.trim();
+    const finalUrl = cleanUrl.includes("firebaseio.com") && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/system_state.json` : cleanUrl;
+    const res = await fetch(finalUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(snapshot)
+    });
+    if (!res.ok) {
+      throw new Error(`Cloud server returned HTTP ${res.status} (${res.statusText})`);
+    }
+    const updatedConfig = saveCloudSyncConfig({
+      lastStatus: "success",
+      lastSyncTime: (/* @__PURE__ */ new Date()).toISOString(),
+      lastMessage: `Successfully uploaded ${snapshot.keysCount} collections to cloud.`
+    });
+    return { success: true, timestamp: updatedConfig.lastSyncTime };
+  } catch (err) {
+    saveCloudSyncConfig({
+      lastStatus: "error",
+      lastMessage: err.message || "Network error during cloud upload."
+    });
+    return { success: false, error: err.message };
+  }
+};
+const pullFromCloud = async (targetUrl = null, force = false) => {
+  const config = getCloudSyncConfig();
+  const endpoint = targetUrl || config.syncUrl;
+  if (!endpoint) {
+    return { success: false, error: "No Cloud Database URL configured." };
+  }
+  saveCloudSyncConfig({ lastStatus: "syncing", lastMessage: "Checking cloud for updates..." });
+  try {
+    const cleanUrl = endpoint.trim();
+    const finalUrl = cleanUrl.includes("firebaseio.com") && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/system_state.json` : cleanUrl;
+    const res = await fetch(finalUrl, {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+    if (!res.ok) {
+      throw new Error(`Cloud server returned HTTP ${res.status}`);
+    }
+    const remoteData = await res.json();
+    if (!remoteData || typeof remoteData !== "object") {
+      throw new Error("Empty or invalid data received from cloud.");
+    }
+    const localSnapshot = exportSystemSnapshot();
+    const remoteTime = remoteData.timestamp || 0;
+    const localTime = localSnapshot.timestamp || 0;
+    if (force || remoteTime > localTime || !localStorage.getItem("adit_seed_v3_institutional")) {
+      const result = importSystemSnapshot(remoteData);
+      saveCloudSyncConfig({
+        lastStatus: "success",
+        lastSyncTime: (/* @__PURE__ */ new Date()).toISOString(),
+        lastMessage: `Synchronized ${result.restoredCount} collections from cloud.`
+      });
+      return { success: true, updated: true, restoredCount: result.restoredCount };
+    } else {
+      saveCloudSyncConfig({
+        lastStatus: "success",
+        lastSyncTime: (/* @__PURE__ */ new Date()).toISOString(),
+        lastMessage: "Local database is already up to date."
+      });
+      return { success: true, updated: false, message: "Already up to date" };
+    }
+  } catch (err) {
+    saveCloudSyncConfig({
+      lastStatus: "error",
+      lastMessage: err.message || "Failed to pull cloud updates."
+    });
+    return { success: false, error: err.message };
+  }
+};
+const initCloudSync = () => {
+  if (typeof window === "undefined") return;
+  const config = getCloudSyncConfig();
+  if (config.enabled && config.syncUrl && config.autoSync) {
+    pullFromCloud(config.syncUrl).catch((err) => {
+      console.warn("Initial cloud sync notice:", err.message);
+    });
+  }
+  window.addEventListener("storage", (e) => {
+    if (e.key && (e.key.startsWith("adit_") || SYSTEM_STORAGE_KEYS.includes(e.key))) {
+      notifySystemDataUpdated();
+    }
+  });
+};
+if (typeof window !== "undefined") {
+  window.exportSystemSnapshot = exportSystemSnapshot;
+  window.importSystemSnapshot = importSystemSnapshot;
+  window.downloadSnapshotFile = downloadSnapshotFile;
+  window.generateSyncToken = generateSyncToken;
+  window.restoreFromSyncToken = restoreFromSyncToken;
+  window.pushToCloud = pushToCloud;
+  window.pullFromCloud = pullFromCloud;
+  window.getCloudSyncConfig = getCloudSyncConfig;
+  window.saveCloudSyncConfig = saveCloudSyncConfig;
+  window.initCloudSync = initCloudSync;
 }
 function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockToggle }) {
   const facultyName = getFacultyName();
@@ -15754,6 +16439,13 @@ if (typeof window !== "undefined") {
 }
 function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
   const [adminTab, setAdminTab] = useState(initialTab);
+  const [syncConfig, setSyncConfig] = useState(() => typeof getCloudSyncConfig === "function" ? getCloudSyncConfig() : { enabled: false, syncUrl: "" });
+  const [cloudUrlInput, setCloudUrlInput] = useState(() => typeof getCloudSyncConfig === "function" ? getCloudSyncConfig().syncUrl || "" : "");
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+  const [syncTokenInput, setSyncTokenInput] = useState("");
+  const [generatedToken, setGeneratedToken] = useState("");
+  const [classesList, setClassesList] = useState(getClasses());
   const [departments, setDepartments] = useState(getDepartments());
   const [subjects, setSubjects] = useState(getSubjects());
   const [faculties, setFaculties] = useState(getFaculties());
@@ -15828,6 +16520,101 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     setShowSubjectModal(false);
     setSubjectForm({ id: "", code: "", name: "", shortName: "", credits: 4, sem: activeSem, dept: activeDept });
     if (showToast) showToast(`Subject ${subjectForm.name} saved to ${activeDept}!`);
+  };
+  const handleSaveCloudConfig = (e) => {
+    e.preventDefault();
+    if (typeof saveCloudSyncConfig === "function") {
+      const updated = saveCloudSyncConfig({
+        enabled: Boolean(cloudUrlInput.trim()),
+        syncUrl: cloudUrlInput.trim()
+      });
+      setSyncConfig(updated);
+      if (showToast) showToast("Cloud Sync settings updated!");
+    }
+  };
+  const handlePushToCloud = async () => {
+    if (typeof pushToCloud !== "function") return;
+    setSyncLoading(true);
+    setSyncMessage("");
+    const res = await pushToCloud(cloudUrlInput.trim());
+    setSyncLoading(false);
+    if (res.success) {
+      if (showToast) showToast("Successfully pushed all changes to cloud!");
+      if (typeof getCloudSyncConfig === "function") setSyncConfig(getCloudSyncConfig());
+    } else {
+      setSyncMessage(res.error || "Failed to upload to cloud.");
+    }
+  };
+  const handlePullFromCloud = async () => {
+    if (typeof pullFromCloud !== "function") return;
+    setSyncLoading(true);
+    setSyncMessage("");
+    const res = await pullFromCloud(cloudUrlInput.trim(), true);
+    setSyncLoading(false);
+    if (res.success) {
+      if (showToast) showToast("Successfully downloaded latest changes from cloud!");
+      if (typeof getCloudSyncConfig === "function") setSyncConfig(getCloudSyncConfig());
+      refreshState();
+    } else {
+      setSyncMessage(res.error || "Failed to pull updates from cloud.");
+    }
+  };
+  const handleExportBackup = () => {
+    if (typeof downloadSnapshotFile === "function") {
+      downloadSnapshotFile();
+      if (showToast) showToast("System backup (.json) downloaded!");
+    }
+  };
+  const handleImportBackupFile = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        if (typeof importSystemSnapshot === "function") {
+          const res = importSystemSnapshot(parsed);
+          if (res.success) {
+            if (showToast) showToast(`Restored ${res.restoredCount} collections from backup!`);
+            refreshState();
+          } else {
+            if (showToast) showToast("Import failed: " + res.error);
+          }
+        }
+      } catch (err) {
+        if (showToast) showToast("Invalid JSON file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+  const handleCopySyncToken = () => {
+    if (typeof generateSyncToken === "function") {
+      const token = generateSyncToken();
+      setGeneratedToken(token);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(token).then(() => {
+          if (showToast) showToast("Quick Transfer Token copied to clipboard!");
+        }).catch(() => {
+          if (showToast) showToast("Token generated. Copy from box below.");
+        });
+      } else {
+        if (showToast) showToast("Token generated. Copy from box below.");
+      }
+    }
+  };
+  const handleApplySyncToken = () => {
+    if (!syncTokenInput.trim()) return;
+    if (typeof restoreFromSyncToken === "function") {
+      const res = restoreFromSyncToken(syncTokenInput.trim());
+      if (res.success) {
+        if (showToast) showToast(`Restored ${res.restoredCount} collections from token!`);
+        setSyncTokenInput("");
+        refreshState();
+      } else {
+        if (showToast) showToast("Token restore failed: " + res.error);
+      }
+    }
   };
   const handlePinUpdate = (e) => {
     e.preventDefault();
@@ -16030,7 +16817,95 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onOpenFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
-  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 18, style: { color: "#2563eb" } }), "Change Admin Security PIN"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Default PIN code is ", /* @__PURE__ */ React.createElement("strong", null, "1234"), "."), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinUpdate, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Current PIN"), /* @__PURE__ */ React.createElement(
+  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", border: "1px solid #bfdbfe", backgroundColor: "#f8faff" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#1e3a8a", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(UploadCloud, { size: 20, style: { color: "#2563eb" } }), "Cloud Synchronization (Cross-Device)"), /* @__PURE__ */ React.createElement("span", { style: {
+    fontSize: "11.5px",
+    fontWeight: "700",
+    padding: "3px 10px",
+    borderRadius: "20px",
+    backgroundColor: syncConfig.enabled ? "#dcfce7" : "#f1f5f9",
+    color: syncConfig.enabled ? "#15803d" : "#64748b"
+  } }, syncConfig.enabled ? "\u25CF Cloud Sync Enabled" : "\u25CB Local Storage Mode")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#475569", marginTop: "2px", lineHeight: "1.5" } }, "Keep your faculties, timetables, and student attendance automatically synchronized across all laptops, phones, and devices."), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSaveCloudConfig, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group", style: { marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#1e293b" } }, "Cloud Database URL (Firebase Realtime Database or Custom REST Endpoint)"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "url",
+      className: "form-control",
+      placeholder: "https://your-project-default-rtdb.firebaseio.com",
+      value: cloudUrlInput,
+      onChange: (e) => setCloudUrlInput(e.target.value),
+      style: { fontSize: "13px" }
+    }
+  ), /* @__PURE__ */ React.createElement("small", { style: { fontSize: "11px", color: "#64748b", marginTop: "4px", display: "block" } }, "Tip: Enter your free Firebase Realtime Database URL to automatically replicate all admin changes across any phone or device worldwide.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-outline btn-sm", style: { fontWeight: "700" } }, "Save Cloud URL"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary btn-sm",
+      onClick: handlePushToCloud,
+      disabled: syncLoading || !cloudUrlInput.trim(),
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(UploadCloud, { size: 14 }),
+    syncLoading ? "Syncing..." : "Push to Cloud"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: handlePullFromCloud,
+      disabled: syncLoading || !cloudUrlInput.trim(),
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(Download, { size: 14 }),
+    "Pull from Cloud"
+  ))), syncMessage && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", fontSize: "12px", fontWeight: "700", color: "#e11d48" } }, syncMessage), syncConfig.lastSyncTime && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", fontSize: "11px", color: "#64748b" } }, "Last Synced: ", new Date(syncConfig.lastSyncTime).toLocaleString()))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(Layers, { size: 18, style: { color: "#2563eb" } }), "Instant Device Transfer & Backup"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px", lineHeight: "1.5" } }, "Move all admin configuration, faculties, classes, and timetables to another device immediately without typing anything."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "16px", paddingBottom: "16px", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-outline btn-sm",
+      onClick: handleExportBackup,
+      style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700" }
+    },
+    /* @__PURE__ */ React.createElement(Download, { size: 15 }),
+    " Export System Backup (.json)"
+  ), /* @__PURE__ */ React.createElement("label", { className: "btn btn-outline btn-sm", style: { display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "700", cursor: "pointer", margin: 0 } }, /* @__PURE__ */ React.createElement(UploadCloud, { size: 15 }), " Restore from Backup File", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".json", onChange: handleImportBackupFile, style: { display: "none" } }))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "6px" } }, "\u{1F4F1} Quick Device Transfer Token (No files needed)"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "11.5px", color: "#64748b", margin: "0 0 10px 0" } }, "Click ", /* @__PURE__ */ React.createElement("strong", null, "Copy Token"), " on this computer, send it to your phone (via WhatsApp or email), and click ", /* @__PURE__ */ React.createElement("strong", null, "Apply Token"), " on your phone to transfer everything instantly."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-primary btn-sm",
+      onClick: handleCopySyncToken,
+      style: { fontWeight: "700" }
+    },
+    "Copy Transfer Token"
+  )), generatedToken && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      readOnly: true,
+      value: generatedToken,
+      rows: 2,
+      className: "form-control",
+      style: { fontSize: "11px", fontFamily: "monospace", resize: "none" },
+      onClick: (e) => e.target.select()
+    }
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "Paste Transfer Token on other device here...",
+      value: syncTokenInput,
+      onChange: (e) => setSyncTokenInput(e.target.value),
+      style: { fontSize: "12.5px" }
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: handleApplySyncToken,
+      disabled: !syncTokenInput.trim(),
+      style: { whiteSpace: "nowrap", fontWeight: "700" }
+    },
+    "Apply Token"
+  )))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(KeyRound, { size: 18, style: { color: "#2563eb" } }), "Change Admin Security PIN"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", marginTop: "4px" } }, "Default PIN code is ", /* @__PURE__ */ React.createElement("strong", null, "1234"), "."), /* @__PURE__ */ React.createElement("form", { onSubmit: handlePinUpdate, style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Current PIN"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "password",
@@ -20508,7 +21383,15 @@ function LoginView({ onLoginSuccess, showToast }) {
     },
     /* @__PURE__ */ React.createElement("span", null, loading ? "Authenticating..." : "Login"),
     /* @__PURE__ */ React.createElement(ArrowRight, { size: 17 })
-  ))));
+  ), /* @__PURE__ */ React.createElement("div", { style: {
+    marginTop: "20px",
+    padding: "12px 14px",
+    backgroundColor: "#f1f5f9",
+    borderRadius: "10px",
+    fontSize: "12px",
+    color: "#475569",
+    lineHeight: "1.5"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", color: "#1e293b", marginBottom: "4px" } }, "\u{1F511} Default Portal Credentials:"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Admin:"), " admin \u2022 Pass: 1234 or admin123"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Faculty:"), " FAC_PS \u2022 Pass: faculty123"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Student:"), " 26IT001 \u2022 Pass: 26IT001 or 1234")))));
 }
 function App() {
   const [currentUser, setCurrentUserSession] = useState(() => getCurrentUser());
@@ -20522,6 +21405,9 @@ function App() {
   const [pendingAction, setPendingAction] = useState(null);
   useEffect(() => {
     initializeStorage();
+    if (typeof initCloudSync === "function") {
+      initCloudSync();
+    }
   }, []);
   const showToast = (msg) => {
     setToastMessage(msg);

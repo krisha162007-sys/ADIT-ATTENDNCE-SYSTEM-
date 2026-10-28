@@ -301,6 +301,24 @@ export default function LoginView({ onLoginSuccess, showToast }) {
             <span>{loading ? 'Authenticating...' : 'Login'}</span>
             <ArrowRight size={17} />
           </button>
+
+          {/* Quick Access Credentials & Device Sync Info */}
+          <div style={{
+            marginTop: '20px',
+            padding: '12px 14px',
+            backgroundColor: '#f1f5f9',
+            borderRadius: '10px',
+            fontSize: '12px',
+            color: '#475569',
+            lineHeight: '1.5'
+          }}>
+            <div style={{ fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>
+              🔑 Default Portal Credentials:
+            </div>
+            <div><strong>Admin:</strong> admin &bull; Pass: 1234 or admin123</div>
+            <div><strong>Faculty:</strong> FAC_PS &bull; Pass: faculty123</div>
+            <div><strong>Student:</strong> 26IT001 &bull; Pass: 26IT001 or 1234</div>
+          </div>
         </form>
       </div>
     </div>

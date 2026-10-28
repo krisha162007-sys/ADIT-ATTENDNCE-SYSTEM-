@@ -35,6 +35,7 @@ def build():
     all_files = [
         'src/services/attendanceStorage.js',
         'src/services/timetableStorage.js',
+        'src/services/cloudSync.js',
         'src/components/Header.jsx',
         'src/components/Sidebar.jsx',
         'src/components/Dashboard.jsx',

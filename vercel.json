@@ -6,7 +6,7 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!libs/|assets/|.*\\.[\\w]+$).*)",
+      "source": "/((?!api/|libs/|assets/|.*\\.[\\w]+$).*)",
       "destination": "/index.html"
     }
   ],
