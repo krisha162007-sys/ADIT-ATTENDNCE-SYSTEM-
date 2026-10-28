@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { X, UserCheck, Save, Mail, Phone, BookOpen, Building2, Briefcase, Check } from 'lucide-react';
-import { getDepartments } from '../services/attendanceStorage';
+import { getDepartments, generateSuggestedFacultyId } from '../services/attendanceStorage';
 
 export default function FacultyEditModal({ faculty, departments: propDepts, onClose, onSave, showToast }) {
   const departments = (propDepts && propDepts.length > 0) ? propDepts : getDepartments();
 
   const [formData, setFormData] = useState({
-    id: faculty?.id || '',
+    id: faculty?.id || (faculty?.name ? generateSuggestedFacultyId(faculty.name) : ''),
     name: faculty?.name || '',
     dept: faculty?.dept || (departments[0]?.name || 'Information Technology'),
     designation: faculty?.designation || 'Associate Professor',
@@ -21,8 +21,12 @@ export default function FacultyEditModal({ faculty, departments: propDepts, onCl
       alert('Faculty name is required.');
       return;
     }
-    onSave(formData);
-    if (showToast) showToast(`Faculty details updated for ${formData.name}`);
+    const finalData = {
+      ...formData,
+      id: formData.id ? formData.id.trim().toUpperCase() : generateSuggestedFacultyId(formData.name)
+    };
+    onSave(finalData);
+    if (showToast) showToast(`Faculty details updated for ${finalData.name}`);
     onClose();
   };
 
@@ -41,19 +45,47 @@ export default function FacultyEditModal({ faculty, departments: propDepts, onCl
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
-                <UserCheck size={14} style={{ color: 'var(--blue-primary)' }} />
-                Faculty Name *
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="e.g. Prof. Priya Shah"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
+                  <UserCheck size={14} style={{ color: 'var(--blue-primary)' }} />
+                  Faculty Name *
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. Prof. Priya Shah"
+                  value={formData.name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const prevSuggested = generateSuggestedFacultyId(formData.name);
+                    const shouldAutoUpdateId = !formData.id || formData.id === prevSuggested;
+                    setFormData({
+                      ...formData,
+                      name: val,
+                      id: shouldAutoUpdateId ? generateSuggestedFacultyId(val) : formData.id
+                    });
+                  }}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700', fontSize: '13px' }}>
+                  Faculty ID / Code *
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. FAC_PS, FAC_PB"
+                  value={formData.id}
+                  onChange={(e) => setFormData({ ...formData, id: e.target.value.trim().toUpperCase() })}
+                  required
+                />
+                <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                  Links timetable slots across devices.
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

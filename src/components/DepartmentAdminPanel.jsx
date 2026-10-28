@@ -48,6 +48,7 @@ import {
   saveSubject, 
   deleteSubject,
   getStudents
+  generateSuggestedFacultyId
 } from '../services/attendanceStorage';
 import {
   getAllFacultyTimetables, 
@@ -130,6 +131,7 @@ export default function DepartmentAdminPanel({
   // Forms
   const [deptEditForm, setDeptEditForm] = useState(null);
   const [facultyForm, setFacultyForm] = useState({
+    id: '',
     name: '',
     designation: 'Assistant Professor',
     email: '',
@@ -377,7 +379,7 @@ export default function DepartmentAdminPanel({
     notifyTimetableSync();
     setFaculties([...updated]);
     setShowAddFacultyModal(false);
-    setFacultyForm({ name: '', designation: 'Assistant Professor', email: '', phone: '', subjects: '', dept: '' });
+    setFacultyForm({ id: '', name: '', designation: 'Assistant Professor', email: '', phone: '', subjects: '', dept: '' });
     if (showToast) showToast(`${facultyForm.name} added to ${newFac.dept}!`);
     // Notify parent/sibling panels that faculty list changed
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
@@ -1571,16 +1573,41 @@ export default function DepartmentAdminPanel({
 
             <form onSubmit={handleAddFaculty}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty Name *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="e.g. Prof. Priya Shah"
-                    value={facultyForm.name}
-                    onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
-                    required
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty Name *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Prof. Priya Shah"
+                      value={facultyForm.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const prevSuggested = typeof generateSuggestedFacultyId === 'function' ? generateSuggestedFacultyId(facultyForm.name) : '';
+                        const shouldAutoUpdateId = !facultyForm.id || facultyForm.id === prevSuggested;
+                        setFacultyForm({
+                          ...facultyForm,
+                          name: val,
+                          id: shouldAutoUpdateId && typeof generateSuggestedFacultyId === 'function' ? generateSuggestedFacultyId(val) : (facultyForm.id || '')
+                        });
+                      }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty ID / Code *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. FAC_PS, FAC_PB"
+                      value={facultyForm.id || ''}
+                      onChange={(e) => setFacultyForm({ ...facultyForm, id: e.target.value.trim().toUpperCase() })}
+                      required
+                    />
+                    <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                      Links timetable slots across devices.
+                    </span>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -2188,14 +2215,17 @@ export default function DepartmentAdminPanel({
                 </div>
 
                 <div className="form-group">
-                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty ID</label>
+                  <label style={{ fontSize: '12.5px', fontWeight: '700' }}>Faculty ID / Code *</label>
                   <input
                     type="text"
                     className="form-control"
-                    value={editingFacultyForm.id}
-                    disabled
-                    style={{ backgroundColor: '#f8fafc', color: '#64748b' }}
+                    value={editingFacultyForm.id || ''}
+                    onChange={(e) => setEditingFacultyForm({ ...editingFacultyForm, id: e.target.value.trim().toUpperCase() })}
+                    required
                   />
+                  <span style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                    Canonical faculty identifier. Editing this updates all linked timetable slots automatically.
+                  </span>
                 </div>
 
                 <div className="form-group">

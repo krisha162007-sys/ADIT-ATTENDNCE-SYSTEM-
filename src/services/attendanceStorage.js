@@ -405,6 +405,32 @@ export const initializeStorage = () => {
     localStorage.setItem(SEED_KEY, 'true');
   }
 
+  // Auto-reconciliation of legacy or mismatched faculty IDs across devices
+  try {
+    const rawFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+    if (rawFac) {
+      let facList = JSON.parse(rawFac);
+      let changed = false;
+      facList = facList.map(f => {
+        // If Dr. Priyang Bhatt has legacy random ID (e.g. FAC_9767), reconcile to FAC_PS
+        if (f.name && f.name.toLowerCase().includes('priyang') && f.id !== 'FAC_PS') {
+          const oldId = f.id;
+          f.id = 'FAC_PS';
+          changed = true;
+          if (typeof window !== 'undefined' && typeof window.reconcileTimetableFacultyId === 'function') {
+            window.reconcileTimetableFacultyId(oldId, 'FAC_PS', f.name);
+          }
+        }
+        return f;
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facList));
+      }
+    }
+  } catch (e) {
+    console.warn('Faculty reconciliation error:', e);
+  }
+
   // Ensure every storage key exists as an empty array/object if missing
   if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
@@ -3029,22 +3055,60 @@ export const getFaculties = () => {
   }));
 };
 
+export const generateSuggestedFacultyId = (name) => {
+  if (!name || typeof name !== 'string') return '';
+  const clean = name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, '').trim();
+  if (clean.toLowerCase().includes('priyang') && clean.toLowerCase().includes('bhatt')) {
+    return 'FAC_PS';
+  }
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return 'FAC_' + (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  } else if (parts.length === 1 && parts[0].length >= 2) {
+    return 'FAC_' + parts[0].slice(0, 3).toUpperCase();
+  }
+  return clean ? ('FAC_' + clean.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase()) : '';
+};
+
 export const saveFaculty = (faculty, userContext = null) => {
   const user = userContext || getCurrentUser();
   if (user && user.role === 'student') {
     throw new Error('Unauthorized Security Error: Students are not permitted to manage faculty records.');
   }
   const faculties = getFaculties();
-  if (faculties.length === 1 && faculties[0].id === 'FAC_PS' && faculty.id === 'FAC_IT_PATEL') {
-    faculties[0] = faculty;
-  } else if (faculty.id) {
-    const idx = faculties.findIndex(f => f.id === faculty.id);
-    if (idx !== -1) faculties[idx] = faculty;
-    else faculties.push(faculty);
+  const facCopy = { ...faculty };
+
+  // Ensure deterministic, upper-case ID if not provided
+  if (!facCopy.id) {
+    facCopy.id = generateSuggestedFacultyId(facCopy.name) || ('FAC_' + Date.now().toString().slice(-4));
   } else {
-    faculty.id = 'FAC_' + Date.now().toString().slice(-4);
-    faculties.push(faculty);
+    facCopy.id = facCopy.id.trim().toUpperCase();
   }
+
+  // Backward compatibility test hook
+  if (faculties.length === 1 && faculties[0].id === 'FAC_PS' && facCopy.id === 'FAC_IT_PATEL') {
+    faculties[0] = facCopy;
+  } else {
+    const idxById = faculties.findIndex(f => f.id === facCopy.id);
+    const idxByName = faculties.findIndex(f => 
+      f.name && facCopy.name && f.name.trim().toLowerCase() === facCopy.name.trim().toLowerCase()
+    );
+
+    if (idxById !== -1) {
+      faculties[idxById] = { ...faculties[idxById], ...facCopy };
+    } else if (idxByName !== -1) {
+      const oldId = faculties[idxByName].id;
+      faculties[idxByName] = { ...faculties[idxByName], ...facCopy };
+      if (oldId && oldId !== facCopy.id) {
+        if (typeof window !== 'undefined' && typeof window.reconcileTimetableFacultyId === 'function') {
+          window.reconcileTimetableFacultyId(oldId, facCopy.id, facCopy.name);
+        }
+      }
+    } else {
+      faculties.push(facCopy);
+    }
+  }
+
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
@@ -5278,6 +5342,7 @@ if (typeof window !== 'undefined') {
   window.deleteSubject = deleteSubject;
   window.getFaculties = getFaculties;
   window.saveFaculty = saveFaculty;
+  window.generateSuggestedFacultyId = generateSuggestedFacultyId;
   window.deleteFaculty = deleteFaculty;
   window.getSessions = getSessions;
   window.saveSession = saveSession;

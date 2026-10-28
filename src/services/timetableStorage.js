@@ -1457,13 +1457,89 @@ export const getAllFacultyTimetables = () => {
   return result;
 };
 
+// Reconcile faculty ID changes across timetable entries
+export const reconcileTimetableFacultyId = (oldId, newId, facultyName = null) => {
+  if (!oldId && !facultyName) return;
+  const entries = getTimetableEntries();
+  let changed = false;
+  const normOldId = oldId ? String(oldId).trim().toUpperCase() : null;
+  const normNewId = newId ? String(newId).trim().toUpperCase() : null;
+  const normName = facultyName ? String(facultyName).trim().toLowerCase() : null;
+
+  entries.forEach(e => {
+    const entryId = e.facultyId ? String(e.facultyId).trim().toUpperCase() : '';
+    const entryName = e.facultyName ? String(e.facultyName).trim().toLowerCase() : '';
+    const matchId = normOldId && entryId === normOldId;
+    const matchName = normName && entryName === normName;
+    if (matchId || matchName) {
+      if (normNewId && entryId !== normNewId) {
+        e.facultyId = normNewId;
+        changed = true;
+      }
+      if (facultyName && e.facultyName !== facultyName) {
+        e.facultyName = facultyName;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) {
+    localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
+  }
+};
+
 // Legacy API wrappers pointing to central storage
 export const getFacultyTimetable = (facultyId) => {
   const all = getAllFacultyTimetables();
+  if (all[facultyId] && Object.values(all[facultyId]).some(daySlots => Object.keys(daySlots).length > 0)) {
+    return JSON.parse(JSON.stringify(all[facultyId]));
+  }
+
+  // Cross-device resilient fallback: look up by faculty name or normalized ID
+  const entries = getTimetableEntries();
+  let targetName = null;
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('adit_attendance_faculties') : null;
+    if (raw) {
+      const faculties = JSON.parse(raw);
+      const fac = faculties.find(f => f.id === facultyId || (facultyId && f.id && String(f.id).trim().toUpperCase() === String(facultyId).trim().toUpperCase()));
+      if (fac) targetName = fac.name;
+    }
+  } catch (err) {}
+
+  const result = {};
+  TIMETABLE_DAYS.forEach(day => result[day] = {});
+  let found = false;
+
+  const normTargetId = facultyId ? String(facultyId).trim().toUpperCase() : '';
+  const normTargetName = targetName ? String(targetName).trim().toLowerCase() : '';
+
+  entries.forEach(e => {
+    const entryId = e.facultyId ? String(e.facultyId).trim().toUpperCase() : '';
+    const entryName = e.facultyName ? String(e.facultyName).trim().toLowerCase() : '';
+    const matchId = normTargetId && entryId === normTargetId;
+    const matchName = normTargetName && entryName === normTargetName;
+
+    if (matchId || matchName) {
+      found = true;
+      if (!result[e.day]) result[e.day] = {};
+      const isMulti = e.span > 1 || e.isMultiSlot || e.duration === '2 Hours';
+      result[e.day][e.timeSlot] = {
+        ...e,
+        subject: e.subject || e.subjectName || e.subjectId || '',
+        name: e.name || e.subjectFullName || e.subjectName || '',
+        type: isMulti ? 'Lab' : 'Lecture'
+      };
+    }
+  });
+
+  if (found) {
+    return result;
+  }
+
   if (all[facultyId]) return JSON.parse(JSON.stringify(all[facultyId]));
-  const empty = {};
-  TIMETABLE_DAYS.forEach(day => empty[day] = {});
-  return empty;
+  return result;
 };
 
 export const getClassTimetable = (sem, div, deptId = null) => {
@@ -4355,6 +4431,7 @@ if (typeof window !== 'undefined') {
   window.normalizeTimeSlot = normalizeTimeSlot;
   window.getTimetableEntries = getTimetableEntries;
   window.getFacultyTimetable = getFacultyTimetable;
+  window.reconcileTimetableFacultyId = reconcileTimetableFacultyId;
   window.notifyTimetableSync = notifyTimetableSync;
   window.clearAllEntries = clearAllEntries;
   window.updateFacultySlot = updateFacultySlot;

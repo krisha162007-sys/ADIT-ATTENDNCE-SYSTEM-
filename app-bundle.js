@@ -348,6 +348,29 @@ const initializeStorage = () => {
     if (!localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME)) localStorage.setItem(STORAGE_KEYS.COLLEGE_NAME, "A D Patel Institute of Technology");
     localStorage.setItem(SEED_KEY, "true");
   }
+  try {
+    const rawFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+    if (rawFac) {
+      let facList = JSON.parse(rawFac);
+      let changed = false;
+      facList = facList.map((f) => {
+        if (f.name && f.name.toLowerCase().includes("priyang") && f.id !== "FAC_PS") {
+          const oldId = f.id;
+          f.id = "FAC_PS";
+          changed = true;
+          if (typeof window !== "undefined" && typeof window.reconcileTimetableFacultyId === "function") {
+            window.reconcileTimetableFacultyId(oldId, "FAC_PS", f.name);
+          }
+        }
+        return f;
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facList));
+      }
+    }
+  } catch (e) {
+    console.warn("Faculty reconciliation error:", e);
+  }
   if (localStorage.getItem(STORAGE_KEYS.STUDENTS) === null) {
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
   }
@@ -2491,21 +2514,52 @@ const getFaculties = () => {
     password: f.password || "faculty123"
   }));
 };
+const generateSuggestedFacultyId = (name) => {
+  if (!name || typeof name !== "string") return "";
+  const clean = name.replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, "").trim();
+  if (clean.toLowerCase().includes("priyang") && clean.toLowerCase().includes("bhatt")) {
+    return "FAC_PS";
+  }
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return "FAC_" + (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  } else if (parts.length === 1 && parts[0].length >= 2) {
+    return "FAC_" + parts[0].slice(0, 3).toUpperCase();
+  }
+  return clean ? "FAC_" + clean.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3).toUpperCase() : "";
+};
 const saveFaculty = (faculty, userContext = null) => {
   const user = userContext || getCurrentUser();
   if (user && user.role === "student") {
     throw new Error("Unauthorized Security Error: Students are not permitted to manage faculty records.");
   }
   const faculties = getFaculties();
-  if (faculties.length === 1 && faculties[0].id === "FAC_PS" && faculty.id === "FAC_IT_PATEL") {
-    faculties[0] = faculty;
-  } else if (faculty.id) {
-    const idx = faculties.findIndex((f) => f.id === faculty.id);
-    if (idx !== -1) faculties[idx] = faculty;
-    else faculties.push(faculty);
+  const facCopy = { ...faculty };
+  if (!facCopy.id) {
+    facCopy.id = generateSuggestedFacultyId(facCopy.name) || "FAC_" + Date.now().toString().slice(-4);
   } else {
-    faculty.id = "FAC_" + Date.now().toString().slice(-4);
-    faculties.push(faculty);
+    facCopy.id = facCopy.id.trim().toUpperCase();
+  }
+  if (faculties.length === 1 && faculties[0].id === "FAC_PS" && facCopy.id === "FAC_IT_PATEL") {
+    faculties[0] = facCopy;
+  } else {
+    const idxById = faculties.findIndex((f) => f.id === facCopy.id);
+    const idxByName = faculties.findIndex(
+      (f) => f.name && facCopy.name && f.name.trim().toLowerCase() === facCopy.name.trim().toLowerCase()
+    );
+    if (idxById !== -1) {
+      faculties[idxById] = { ...faculties[idxById], ...facCopy };
+    } else if (idxByName !== -1) {
+      const oldId = faculties[idxByName].id;
+      faculties[idxByName] = { ...faculties[idxByName], ...facCopy };
+      if (oldId && oldId !== facCopy.id) {
+        if (typeof window !== "undefined" && typeof window.reconcileTimetableFacultyId === "function") {
+          window.reconcileTimetableFacultyId(oldId, facCopy.id, facCopy.name);
+        }
+      }
+    } else {
+      faculties.push(facCopy);
+    }
   }
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== "undefined") {
@@ -4301,6 +4355,7 @@ if (typeof window !== "undefined") {
   window.deleteSubject = deleteSubject;
   window.getFaculties = getFaculties;
   window.saveFaculty = saveFaculty;
+  window.generateSuggestedFacultyId = generateSuggestedFacultyId;
   window.deleteFaculty = deleteFaculty;
   window.getSessions = getSessions;
   window.saveSession = saveSession;
@@ -5622,12 +5677,77 @@ const getAllFacultyTimetables = () => {
   });
   return result;
 };
+const reconcileTimetableFacultyId = (oldId, newId, facultyName = null) => {
+  if (!oldId && !facultyName) return;
+  const entries = getTimetableEntries();
+  let changed = false;
+  const normOldId = oldId ? String(oldId).trim().toUpperCase() : null;
+  const normNewId = newId ? String(newId).trim().toUpperCase() : null;
+  const normName = facultyName ? String(facultyName).trim().toLowerCase() : null;
+  entries.forEach((e) => {
+    const entryId = e.facultyId ? String(e.facultyId).trim().toUpperCase() : "";
+    const entryName = e.facultyName ? String(e.facultyName).trim().toLowerCase() : "";
+    const matchId = normOldId && entryId === normOldId;
+    const matchName = normName && entryName === normName;
+    if (matchId || matchName) {
+      if (normNewId && entryId !== normNewId) {
+        e.facultyId = normNewId;
+        changed = true;
+      }
+      if (facultyName && e.facultyName !== facultyName) {
+        e.facultyName = facultyName;
+        changed = true;
+      }
+    }
+  });
+  if (changed) {
+    localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+    notifyTimetableSync();
+  }
+};
 const getFacultyTimetable = (facultyId) => {
   const all = getAllFacultyTimetables();
+  if (all[facultyId] && Object.values(all[facultyId]).some((daySlots) => Object.keys(daySlots).length > 0)) {
+    return JSON.parse(JSON.stringify(all[facultyId]));
+  }
+  const entries = getTimetableEntries();
+  let targetName = null;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("adit_attendance_faculties") : null;
+    if (raw) {
+      const faculties = JSON.parse(raw);
+      const fac = faculties.find((f) => f.id === facultyId || facultyId && f.id && String(f.id).trim().toUpperCase() === String(facultyId).trim().toUpperCase());
+      if (fac) targetName = fac.name;
+    }
+  } catch (err) {
+  }
+  const result = {};
+  TIMETABLE_DAYS.forEach((day) => result[day] = {});
+  let found = false;
+  const normTargetId = facultyId ? String(facultyId).trim().toUpperCase() : "";
+  const normTargetName = targetName ? String(targetName).trim().toLowerCase() : "";
+  entries.forEach((e) => {
+    const entryId = e.facultyId ? String(e.facultyId).trim().toUpperCase() : "";
+    const entryName = e.facultyName ? String(e.facultyName).trim().toLowerCase() : "";
+    const matchId = normTargetId && entryId === normTargetId;
+    const matchName = normTargetName && entryName === normTargetName;
+    if (matchId || matchName) {
+      found = true;
+      if (!result[e.day]) result[e.day] = {};
+      const isMulti = e.span > 1 || e.isMultiSlot || e.duration === "2 Hours";
+      result[e.day][e.timeSlot] = {
+        ...e,
+        subject: e.subject || e.subjectName || e.subjectId || "",
+        name: e.name || e.subjectFullName || e.subjectName || "",
+        type: isMulti ? "Lab" : "Lecture"
+      };
+    }
+  });
+  if (found) {
+    return result;
+  }
   if (all[facultyId]) return JSON.parse(JSON.stringify(all[facultyId]));
-  const empty = {};
-  TIMETABLE_DAYS.forEach((day) => empty[day] = {});
-  return empty;
+  return result;
 };
 const getClassTimetable = (sem, div, deptId = null) => {
   const entries = getEntriesByClass(deptId, sem, div);
@@ -8168,6 +8288,7 @@ if (typeof window !== "undefined") {
   window.normalizeTimeSlot = normalizeTimeSlot;
   window.getTimetableEntries = getTimetableEntries;
   window.getFacultyTimetable = getFacultyTimetable;
+  window.reconcileTimetableFacultyId = reconcileTimetableFacultyId;
   window.notifyTimetableSync = notifyTimetableSync;
   window.clearAllEntries = clearAllEntries;
   window.updateFacultySlot = updateFacultySlot;
@@ -10460,7 +10581,7 @@ function ManageMaster({ showToast }) {
 function FacultyEditModal({ faculty, departments: propDepts, onClose, onSave, showToast }) {
   const departments = propDepts && propDepts.length > 0 ? propDepts : getDepartments();
   const [formData, setFormData] = useState({
-    id: faculty?.id || "",
+    id: faculty?.id || (faculty?.name ? generateSuggestedFacultyId(faculty.name) : ""),
     name: faculty?.name || "",
     dept: faculty?.dept || (departments[0]?.name || "Information Technology"),
     designation: faculty?.designation || "Associate Professor",
@@ -10474,21 +10595,44 @@ function FacultyEditModal({ faculty, departments: propDepts, onClose, onSave, sh
       alert("Faculty name is required.");
       return;
     }
-    onSave(formData);
-    if (showToast) showToast(`Faculty details updated for ${formData.name}`);
+    const finalData = {
+      ...formData,
+      id: formData.id ? formData.id.trim().toUpperCase() : generateSuggestedFacultyId(formData.name)
+    };
+    onSave(finalData);
+    if (showToast) showToast(`Faculty details updated for ${finalData.name}`);
     onClose();
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "520px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 20 }), faculty?.id ? "Edit Faculty Details" : "Add Faculty Member"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 14, style: { color: "var(--blue-primary)" } }), "Faculty Name *"), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "520px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "var(--navy-primary)" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 20 }), faculty?.id ? "Edit Faculty Details" : "Add Faculty Member"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: onClose }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(UserCheck, { size: 14, style: { color: "var(--blue-primary)" } }), "Faculty Name *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
       className: "form-control",
       placeholder: "e.g. Prof. Priya Shah",
       value: formData.name,
-      onChange: (e) => setFormData({ ...formData, name: e.target.value }),
+      onChange: (e) => {
+        const val = e.target.value;
+        const prevSuggested = generateSuggestedFacultyId(formData.name);
+        const shouldAutoUpdateId = !formData.id || formData.id === prevSuggested;
+        setFormData({
+          ...formData,
+          name: val,
+          id: shouldAutoUpdateId ? generateSuggestedFacultyId(val) : formData.id
+        });
+      },
       required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Department / Home Category *"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, "Faculty ID / Code *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. FAC_PS, FAC_PB",
+      value: formData.id,
+      onChange: (e) => setFormData({ ...formData, id: e.target.value.trim().toUpperCase() }),
+      required: true
+    }
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Links timetable slots across devices."))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "13px" } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, style: { color: "var(--blue-primary)" } }), "Department / Home Category *"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -15127,6 +15271,7 @@ function DepartmentAdminPanel({
   const [removeWarningAcknowledged, setRemoveWarningAcknowledged] = useState(false);
   const [deptEditForm, setDeptEditForm] = useState(null);
   const [facultyForm, setFacultyForm] = useState({
+    id: "",
     name: "",
     designation: "Assistant Professor",
     email: "",
@@ -15343,7 +15488,7 @@ function DepartmentAdminPanel({
     notifyTimetableSync();
     setFaculties([...updated]);
     setShowAddFacultyModal(false);
-    setFacultyForm({ name: "", designation: "Assistant Professor", email: "", phone: "", subjects: "", dept: "" });
+    setFacultyForm({ id: "", name: "", designation: "Assistant Professor", email: "", phone: "", subjects: "", dept: "" });
     if (showToast) showToast(`${facultyForm.name} added to ${newFac.dept}!`);
     window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
   };
@@ -16056,17 +16201,36 @@ function DepartmentAdminPanel({
       value: deptEditForm.hodPhone,
       onChange: (e) => setDeptEditForm({ ...deptEditForm, hodPhone: e.target.value })
     }
-  )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowEditDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Department Changes"))))), showAddFacultyModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(UserPlus, { size: 18 }), "Add Faculty to ", isAllDepts ? "College Roster" : currentDept.name), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowAddFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddFaculty }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty Name *"), /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowEditDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Save Department Changes"))))), showAddFacultyModal && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "modal-card", style: { maxWidth: "480px" } }, /* @__PURE__ */ React.createElement("div", { className: "modal-header" }, /* @__PURE__ */ React.createElement("h3", { style: { display: "flex", alignItems: "center", gap: "8px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement(UserPlus, { size: 18 }), "Add Faculty to ", isAllDepts ? "College Roster" : currentDept.name), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary btn-sm", onClick: () => setShowAddFacultyModal(false) }, /* @__PURE__ */ React.createElement(X, { size: 16 }))), /* @__PURE__ */ React.createElement("form", { onSubmit: handleAddFaculty }, /* @__PURE__ */ React.createElement("div", { className: "modal-body", style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty Name *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
       className: "form-control",
       placeholder: "e.g. Prof. Priya Shah",
       value: facultyForm.name,
-      onChange: (e) => setFacultyForm({ ...facultyForm, name: e.target.value }),
+      onChange: (e) => {
+        const val = e.target.value;
+        const prevSuggested = typeof generateSuggestedFacultyId === "function" ? generateSuggestedFacultyId(facultyForm.name) : "";
+        const shouldAutoUpdateId = !facultyForm.id || facultyForm.id === prevSuggested;
+        setFacultyForm({
+          ...facultyForm,
+          name: val,
+          id: shouldAutoUpdateId && typeof generateSuggestedFacultyId === "function" ? generateSuggestedFacultyId(val) : facultyForm.id || ""
+        });
+      },
       required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty ID / Code *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "text",
+      className: "form-control",
+      placeholder: "e.g. FAC_PS, FAC_PB",
+      value: facultyForm.id || "",
+      onChange: (e) => setFacultyForm({ ...facultyForm, id: e.target.value.trim().toUpperCase() }),
+      required: true
+    }
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Links timetable slots across devices."))), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
@@ -16321,16 +16485,16 @@ function DepartmentAdminPanel({
       onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, name: e.target.value }),
       required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty ID"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Faculty ID / Code *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
       className: "form-control",
-      value: editingFacultyForm.id,
-      disabled: true,
-      style: { backgroundColor: "#f8fafc", color: "#64748b" }
+      value: editingFacultyForm.id || "",
+      onChange: (e) => setEditingFacultyForm({ ...editingFacultyForm, id: e.target.value.trim().toUpperCase() }),
+      required: true
     }
-  )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b", marginTop: "2px", display: "block" } }, "Canonical faculty identifier. Editing this updates all linked timetable slots automatically.")), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "12.5px", fontWeight: "700" } }, "Home Department / Category *"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
