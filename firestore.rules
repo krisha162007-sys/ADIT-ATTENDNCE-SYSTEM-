@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Authorization Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        request.auth.token.email.matches('.*admin.*@adit\\.ac\\.in')
+      );
+    }
+
+    function isFaculty() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'faculty' ||
+        request.auth.token.email.matches('.*@adit\\.ac\\.in')
+      );
+    }
+
+    function isSelfFaculty(facultyId) {
+      return isFaculty() && (
+        request.auth.token.facultyId == facultyId ||
+        request.auth.uid == facultyId
+      );
+    }
+
+    function isStudent() {
+      return isAuthenticated() && request.auth.token.role == 'student';
+    }
+
+    function isSelfStudent(enrollmentNo) {
+      return isStudent() && (
+        request.auth.token.enrollmentNo == enrollmentNo ||
+        request.auth.uid == enrollmentNo
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. Departments Master Collection
+    // -------------------------------------------------------------------------
+    match /adit_departments/{deptId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Faculties Collection
+    // Persistent Canonical IDs across all devices (e.g. FAC_PS)
+    // -------------------------------------------------------------------------
+    match /adit_faculties/{facultyId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isSelfFaculty(facultyId);
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. Classes Master Collection
+    // -------------------------------------------------------------------------
+    match /adit_classes/{classId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. Subjects Master Collection
+    // -------------------------------------------------------------------------
+    match /adit_subjects/{subjectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Students Collection
+    // -------------------------------------------------------------------------
+    match /adit_students/{enrollmentNo} {
+      allow read: if isAdmin() || isFaculty() || isSelfStudent(enrollmentNo);
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. Timetable Entries Collection
+    // -------------------------------------------------------------------------
+    match /adit_timetable_entries/{entryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. Attendance Sessions Collection
+    // Faculty can record attendance for their sessions; students read their records.
+    // -------------------------------------------------------------------------
+    match /adit_sessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (isFaculty() && request.resource.data.facultyId == request.auth.token.facultyId);
+      allow update: if isAdmin() || (isFaculty() && resource.data.facultyId == request.auth.token.facultyId);
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. Exceptions, Allocations & System Configuration
+    // -------------------------------------------------------------------------
+    match /adit_exceptions/{exceptionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /adit_allocations/{allocationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /adit_system/{systemDoc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

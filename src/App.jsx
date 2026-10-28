@@ -41,6 +41,20 @@ export default function App() {
     if (typeof initCloudSync === 'function') {
       initCloudSync();
     }
+    // Initialize Cloud Firestore multi-device synchronization
+    if (typeof initFirebase === 'function') {
+      try {
+        initFirebase();
+        if (typeof startRealtimeSync === 'function') {
+          startRealtimeSync();
+        }
+        if (typeof migrateLocalDataToFirestore === 'function') {
+          migrateLocalDataToFirestore().catch(e => console.warn('[Firestore] Sync notice:', e));
+        }
+      } catch (err) {
+        console.warn('[Firebase] Initialization notice:', err);
+      }
+    }
   }, []);
 
   const showToast = (msg) => {

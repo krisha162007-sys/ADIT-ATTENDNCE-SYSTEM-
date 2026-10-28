@@ -838,6 +838,9 @@ export const saveTimetableEntry = (entry) => {
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== 'undefined' && typeof window.syncDocToFirestore === 'function') {
+    window.syncDocToFirestore('adit_timetable_entries', entry.id, entry).catch(() => {});
+  }
   return entry;
 };
 
@@ -846,6 +849,9 @@ export const deleteTimetableEntry = (id) => {
   entries = entries.filter(e => e.id !== id);
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== 'undefined' && typeof window.deleteDocFromFirestore === 'function') {
+    window.deleteDocFromFirestore('adit_timetable_entries', id).catch(() => {});
+  }
 };
 
 export const clearAllEntries = () => {
@@ -4526,4 +4532,7 @@ if (typeof window !== 'undefined') {
   window.downloadColumnarTimetableTemplate = downloadColumnarTimetableTemplate;
   window.resolveDepartment = resolveDepartment;
   window.isDepartmentMatch = isDepartmentMatch;
+  window.saveTimetableEntry = saveTimetableEntry;
+  window.deleteTimetableEntry = deleteTimetableEntry;
+  window.getTimetableEntries = getTimetableEntries;
 }

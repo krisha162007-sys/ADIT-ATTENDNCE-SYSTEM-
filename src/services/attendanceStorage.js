@@ -1096,6 +1096,9 @@ export const saveClass = (classData, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+    if (typeof window.syncDocToFirestore === 'function' && savedClass) {
+      window.syncDocToFirestore('adit_classes', savedClass.id, savedClass).catch(() => {});
+    }
   }
   return { ...savedClass, success: true, class: savedClass, classes };
 };
@@ -1129,6 +1132,9 @@ export const deleteClass = (classId, deleteStudents = false, userContext = null)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-classes-updated'));
     window.dispatchEvent(new CustomEvent('adit-students-updated'));
+    if (typeof window.deleteDocFromFirestore === 'function' && classId) {
+      window.deleteDocFromFirestore('adit_classes', classId).catch(() => {});
+    }
   }
   return classes;
 };
@@ -2862,6 +2868,9 @@ export const saveSession = (session, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+    if (typeof window.syncDocToFirestore === 'function' && saved && saved.id) {
+      window.syncDocToFirestore('adit_sessions', saved.id, saved).catch(() => {});
+    }
   }
   allSessions.saved = saved;
   allSessions.id = saved.id;
@@ -2899,6 +2908,9 @@ export const deleteSession = (sessionId, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(filtered));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+    if (typeof window.deleteDocFromFirestore === 'function' && sessionId) {
+      window.deleteDocFromFirestore('adit_sessions', sessionId).catch(() => {});
+    }
   }
   return filtered;
 };
@@ -3112,6 +3124,9 @@ export const saveFaculty = (faculty, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+    if (typeof window.syncDocToFirestore === 'function' && facCopy && facCopy.id) {
+      window.syncDocToFirestore('adit_faculties', facCopy.id, facCopy).catch(() => {});
+    }
   }
   return faculties;
 };
@@ -3125,6 +3140,9 @@ export const deleteFaculty = (facultyId, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
+    if (typeof window.deleteDocFromFirestore === 'function' && facultyId) {
+      window.deleteDocFromFirestore('adit_faculties', facultyId).catch(() => {});
+    }
   }
   return faculties;
 };

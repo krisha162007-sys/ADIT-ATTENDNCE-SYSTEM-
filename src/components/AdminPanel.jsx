@@ -742,6 +742,59 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
               </p>
             </div>
 
+            {/* 0. GOOGLE CLOUD FIRESTORE INTEGRATION (adit-attendance-system) */}
+            <div className="card" style={{ padding: '24px', marginBottom: '20px', borderLeft: '5px solid #d97706', border: '1px solid #fed7aa', backgroundColor: '#fffbeb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Database size={20} style={{ color: '#d97706' }} />
+                  Google Cloud Firestore (Project: <code>adit-attendance-system</code>)
+                </h3>
+                <span style={{
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  padding: '3px 10px',
+                  borderRadius: '20px',
+                  backgroundColor: '#fef3c7',
+                  color: '#b45309',
+                  border: '1px solid #fde68a'
+                }}>
+                  ● Cloud Database Integrated
+                </span>
+              </div>
+              <p style={{ fontSize: '12.5px', color: '#78350f', marginTop: '6px', lineHeight: '1.5' }}>
+                Cloud Firestore is configured as the shared source of truth across all devices. Faculties, students, classes, timetables, and attendance records sync directly with project <strong>adit-attendance-system</strong>.
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handlePushToFirestore}
+                  disabled={firestoreLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#d97706', borderColor: '#b45309' }}
+                >
+                  <UploadCloud size={14} />
+                  {firestoreLoading ? 'Syncing...' : 'Push All to Cloud Firestore'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handlePullFromFirestore}
+                  disabled={firestoreLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Download size={14} />
+                  Pull Latest from Cloud Firestore
+                </button>
+              </div>
+
+              {firestoreStatus && (
+                <div style={{ marginTop: '12px', fontSize: '12.5px', fontWeight: '700', color: firestoreStatus.startsWith('✓') ? '#15803d' : '#b45309' }}>
+                  {firestoreStatus}
+                </div>
+              )}
+            </div>
+
             {/* 1. CLOUD SYNC & MULTI-DEVICE PERSISTENCE */}
             <div className="card" style={{ padding: '24px', marginBottom: '20px', border: '1px solid #bfdbfe', backgroundColor: '#f8faff' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>

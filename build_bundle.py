@@ -36,6 +36,8 @@ def build():
         'src/services/attendanceStorage.js',
         'src/services/timetableStorage.js',
         'src/services/cloudSync.js',
+        'src/services/firebase.js',
+        'src/services/firestoreSync.js',
         'src/components/Header.jsx',
         'src/components/Sidebar.jsx',
         'src/components/Dashboard.jsx',
@@ -144,6 +146,7 @@ if (rootElement) {
   <script src="/libs/xlsx.min.js"></script>
   <script src="/libs/pdf.min.js"></script>
   <script src="/libs/tesseract.min.js"></script>
+  <script src="/libs/firebase.min.js"></script>
 
   <script>
     if (window.pdfjsLib) {{
