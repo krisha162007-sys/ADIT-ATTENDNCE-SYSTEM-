@@ -38,6 +38,7 @@ def build():
         'src/services/cloudSync.js',
         'src/services/firebase.js',
         'src/services/firestoreSync.js',
+        'src/services/rtdbSync.js',
         'src/components/Header.jsx',
         'src/components/Sidebar.jsx',
         'src/components/Dashboard.jsx',

@@ -29,7 +29,7 @@ export const CLOUD_SYNC_CONFIG_KEY = 'adit_cloud_sync_config';
  */
 export const getCloudSyncConfig = () => {
   if (typeof localStorage === 'undefined') {
-    return { enabled: false, syncUrl: '', autoSync: true, lastSyncTime: null, lastStatus: 'idle' };
+    return { enabled: true, syncUrl: 'https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app', autoSync: true, lastSyncTime: null, lastStatus: 'idle' };
   }
   try {
     const raw = localStorage.getItem(CLOUD_SYNC_CONFIG_KEY);
@@ -45,7 +45,7 @@ export const getCloudSyncConfig = () => {
     }
     return JSON.parse(raw);
   } catch (err) {
-    return { enabled: false, syncUrl: '', autoSync: true, lastSyncTime: null, lastStatus: 'idle' };
+    return { enabled: true, syncUrl: 'https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app', autoSync: true, lastSyncTime: null, lastStatus: 'idle' };
   }
 };
 
@@ -216,8 +216,8 @@ export const pushToCloud = async (targetUrl = null) => {
 
     // Support Firebase Realtime Database (ends with .json) or standard REST API
     const cleanUrl = endpoint.trim();
-    const finalUrl = cleanUrl.includes('firebaseio.com') && !cleanUrl.endsWith('.json')
-      ? `${cleanUrl.replace(/\/$/, '')}/system_state.json`
+    const finalUrl = (cleanUrl.includes('firebaseio.com') || cleanUrl.includes('firebasedatabase.app')) && !cleanUrl.endsWith('.json')
+      ? `${cleanUrl.replace(/\/$/, '')}/adit_system_state.json`
       : cleanUrl;
 
     const res = await fetch(finalUrl, {
@@ -263,8 +263,8 @@ export const pullFromCloud = async (targetUrl = null, force = false) => {
 
   try {
     const cleanUrl = endpoint.trim();
-    const finalUrl = cleanUrl.includes('firebaseio.com') && !cleanUrl.endsWith('.json')
-      ? `${cleanUrl.replace(/\/$/, '')}/system_state.json`
+    const finalUrl = (cleanUrl.includes('firebaseio.com') || cleanUrl.includes('firebasedatabase.app')) && !cleanUrl.endsWith('.json')
+      ? `${cleanUrl.replace(/\/$/, '')}/adit_system_state.json`
       : cleanUrl;
 
     const res = await fetch(finalUrl, {

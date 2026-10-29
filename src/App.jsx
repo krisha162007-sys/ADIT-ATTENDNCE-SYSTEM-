@@ -41,12 +41,18 @@ export default function App() {
     if (typeof initCloudSync === 'function') {
       initCloudSync();
     }
-    // Initialize Cloud Firestore multi-device synchronization
+    // Initialize Firebase Realtime Database & Multi-Device Synchronization
     if (typeof initFirebase === 'function') {
       try {
         initFirebase();
+        if (typeof startRealtimeDatabaseSync === 'function') {
+          startRealtimeDatabaseSync();
+        }
         if (typeof startRealtimeSync === 'function') {
           startRealtimeSync();
+        }
+        if (typeof migrateLocalDataToRtdb === 'function') {
+          migrateLocalDataToRtdb().catch(e => console.warn('[RTDB] Startup sync notice:', e));
         }
         if (typeof migrateLocalDataToFirestore === 'function') {
           migrateLocalDataToFirestore().catch(e => console.warn('[Firestore] Sync notice:', e));

@@ -1,11 +1,13 @@
 // src/services/firebase.js
-// Centralized Reusable Firebase & Cloud Firestore Engine
+// Centralized Reusable Firebase & Cloud Database Engine
 // Project ID: adit-attendance-system
+// Realtime Database URL: https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app
 
 // Modular SDK imports (used by Vite in production/bundler builds)
 import * as firebaseApp from 'firebase/app';
 import * as firebaseFirestore from 'firebase/firestore';
 import * as firebaseAuth from 'firebase/auth';
+import * as firebaseDatabase from 'firebase/database';
 
 /**
  * Global bridge resolving Firebase primitives across both
@@ -37,7 +39,20 @@ const getFirebasePrimitives = () => {
     signInWithEmailAndPassword: firebaseAuth.signInWithEmailAndPassword,
     signOut: firebaseAuth.signOut,
     onAuthStateChanged: firebaseAuth.onAuthStateChanged,
-    createUserWithEmailAndPassword: firebaseAuth.createUserWithEmailAndPassword
+    createUserWithEmailAndPassword: firebaseAuth.createUserWithEmailAndPassword,
+    getDatabase: firebaseDatabase.getDatabase,
+    ref: firebaseDatabase.ref,
+    set: firebaseDatabase.set,
+    get: firebaseDatabase.get,
+    child: firebaseDatabase.child,
+    update: firebaseDatabase.update,
+    remove: firebaseDatabase.remove,
+    onValue: firebaseDatabase.onValue,
+    off: firebaseDatabase.off,
+    push: firebaseDatabase.push,
+    rtdbServerTimestamp: firebaseDatabase.serverTimestamp,
+    goOnline: firebaseDatabase.goOnline,
+    goOffline: firebaseDatabase.goOffline
   };
 };
 
@@ -45,6 +60,7 @@ const getFirebasePrimitives = () => {
  * Project ID and Default Configuration for Firebase Project: adit-attendance-system
  */
 export const FIREBASE_PROJECT_ID = 'adit-attendance-system';
+export const DEFAULT_DATABASE_URL = 'https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app';
 
 const getEnvVar = (key) => {
   try {
@@ -66,6 +82,7 @@ export const getFirebaseConfig = () => {
   const storageBucket = getEnvVar('VITE_FIREBASE_STORAGE_BUCKET') || `${FIREBASE_PROJECT_ID}.appspot.com`;
   const messagingSenderId = getEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID') || '';
   const appId = getEnvVar('VITE_FIREBASE_APP_ID') || '';
+  const databaseURL = getEnvVar('VITE_FIREBASE_DATABASE_URL') || (typeof window !== 'undefined' && window.__ADIT_FIREBASE_DATABASE_URL) || DEFAULT_DATABASE_URL;
 
   return {
     apiKey,
@@ -73,13 +90,15 @@ export const getFirebaseConfig = () => {
     projectId,
     storageBucket,
     messagingSenderId,
-    appId
+    appId,
+    databaseURL
   };
 };
 
 // Singleton references
 let appInstance = null;
 let firestoreDb = null;
+let realtimeDb = null;
 let authInstance = null;
 
 /**
@@ -109,6 +128,17 @@ export const initFirebase = (customConfig = null) => {
     }
   }
 
+  // Initialize Realtime Database
+  if (appInstance && !realtimeDb && typeof f.getDatabase === 'function') {
+    try {
+      const dbUrl = (customConfig && customConfig.databaseURL) || getFirebaseConfig().databaseURL || DEFAULT_DATABASE_URL;
+      realtimeDb = f.getDatabase(appInstance, dbUrl);
+    } catch (err) {
+      console.warn('[Firebase] Realtime Database init notice:', err.message);
+    }
+  }
+
+  // Initialize Firestore
   if (appInstance && !firestoreDb && typeof f.getFirestore === 'function') {
     try {
       firestoreDb = f.getFirestore(appInstance);
@@ -117,6 +147,7 @@ export const initFirebase = (customConfig = null) => {
     }
   }
 
+  // Initialize Auth
   if (appInstance && !authInstance && typeof f.getAuth === 'function') {
     try {
       authInstance = f.getAuth(appInstance);
@@ -130,6 +161,11 @@ export const initFirebase = (customConfig = null) => {
 
 export const getFirebaseApp = () => appInstance || initFirebase();
 
+export const getRealtimeDatabase = () => {
+  if (!realtimeDb) initFirebase();
+  return realtimeDb;
+};
+
 export const getFirestoreDb = () => {
   if (!firestoreDb) initFirebase();
   return firestoreDb;
@@ -142,15 +178,17 @@ export const getFirebaseAuth = () => {
 
 export const isFirebaseConfigured = () => {
   const cfg = getFirebaseConfig();
-  return Boolean(cfg.apiKey && cfg.projectId);
+  return Boolean(cfg.databaseURL || (cfg.apiKey && cfg.projectId));
 };
 
 // Global browser window bindings
 if (typeof window !== 'undefined') {
   window.initFirebase = initFirebase;
   window.getFirebaseApp = getFirebaseApp;
+  window.getRealtimeDatabase = getRealtimeDatabase;
   window.getFirestoreDb = getFirestoreDb;
   window.getFirebaseAuth = getFirebaseAuth;
   window.isFirebaseConfigured = isFirebaseConfigured;
   window.FIREBASE_PROJECT_ID = FIREBASE_PROJECT_ID;
+  window.DEFAULT_DATABASE_URL = DEFAULT_DATABASE_URL;
 }

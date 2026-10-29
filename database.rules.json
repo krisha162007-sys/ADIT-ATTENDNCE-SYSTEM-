@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "adit_system": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_departments": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_faculties": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_classes": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_subjects": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_students": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_timetable_entries": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    },
+    "adit_sessions": {
+      ".read": "auth != null",
+      "$session_id": {
+        ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin' || (auth.token.role === 'faculty' && (!data.exists() || data.child('facultyId').val() === auth.uid || data.child('facultyId').val() === auth.token.facultyId || newData.child('facultyId').val() === auth.uid || newData.child('facultyId').val() === auth.token.facultyId)))"
+      }
+    },
+    "adit_exceptions": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin' || auth.token.role === 'faculty')"
+    },
+    "adit_system_state": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.role === 'admin' || auth.uid === 'admin')"
+    }
+  }
+}

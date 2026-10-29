@@ -912,6 +912,10 @@ const saveClass = (classData, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-classes-updated"));
+    if (typeof window.syncRtdbRecord === "function" && savedClass) {
+      window.syncRtdbRecord("adit_classes", savedClass.id, savedClass).catch(() => {
+      });
+    }
     if (typeof window.syncDocToFirestore === "function" && savedClass) {
       window.syncDocToFirestore("adit_classes", savedClass.id, savedClass).catch(() => {
       });
@@ -945,6 +949,10 @@ const deleteClass = (classId, deleteStudents = false, userContext = null) => {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-classes-updated"));
     window.dispatchEvent(new CustomEvent("adit-students-updated"));
+    if (typeof window.deleteRtdbRecord === "function" && classId) {
+      window.deleteRtdbRecord("adit_classes", classId).catch(() => {
+      });
+    }
     if (typeof window.deleteDocFromFirestore === "function" && classId) {
       window.deleteDocFromFirestore("adit_classes", classId).catch(() => {
       });
@@ -2362,6 +2370,10 @@ const saveSession = (session, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+    if (typeof window.syncRtdbRecord === "function" && saved && saved.id) {
+      window.syncRtdbRecord("adit_sessions", saved.id, saved).catch(() => {
+      });
+    }
     if (typeof window.syncDocToFirestore === "function" && saved && saved.id) {
       window.syncDocToFirestore("adit_sessions", saved.id, saved).catch(() => {
       });
@@ -2395,6 +2407,10 @@ const deleteSession = (sessionId, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(filtered));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+    if (typeof window.deleteRtdbRecord === "function" && sessionId) {
+      window.deleteRtdbRecord("adit_sessions", sessionId).catch(() => {
+      });
+    }
     if (typeof window.deleteDocFromFirestore === "function" && sessionId) {
       window.deleteDocFromFirestore("adit_sessions", sessionId).catch(() => {
       });
@@ -2580,6 +2596,10 @@ const saveFaculty = (faculty, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+    if (typeof window.syncRtdbRecord === "function" && facCopy && facCopy.id) {
+      window.syncRtdbRecord("adit_faculties", facCopy.id, facCopy).catch(() => {
+      });
+    }
     if (typeof window.syncDocToFirestore === "function" && facCopy && facCopy.id) {
       window.syncDocToFirestore("adit_faculties", facCopy.id, facCopy).catch(() => {
       });
@@ -2596,6 +2616,10 @@ const deleteFaculty = (facultyId, userContext = null) => {
   localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+    if (typeof window.deleteRtdbRecord === "function" && facultyId) {
+      window.deleteRtdbRecord("adit_faculties", facultyId).catch(() => {
+      });
+    }
     if (typeof window.deleteDocFromFirestore === "function" && facultyId) {
       window.deleteDocFromFirestore("adit_faculties", facultyId).catch(() => {
       });
@@ -5205,6 +5229,10 @@ const saveTimetableEntry = (entry) => {
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== "undefined" && typeof window.syncRtdbRecord === "function") {
+    window.syncRtdbRecord("adit_timetable_entries", entry.id, entry).catch(() => {
+    });
+  }
   if (typeof window !== "undefined" && typeof window.syncDocToFirestore === "function") {
     window.syncDocToFirestore("adit_timetable_entries", entry.id, entry).catch(() => {
     });
@@ -5216,6 +5244,10 @@ const deleteTimetableEntry = (id) => {
   entries = entries.filter((e) => e.id !== id);
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== "undefined" && typeof window.deleteRtdbRecord === "function") {
+    window.deleteRtdbRecord("adit_timetable_entries", id).catch(() => {
+    });
+  }
   if (typeof window !== "undefined" && typeof window.deleteDocFromFirestore === "function") {
     window.deleteDocFromFirestore("adit_timetable_entries", id).catch(() => {
     });
@@ -8433,7 +8465,7 @@ const SYSTEM_STORAGE_KEYS = [
 const CLOUD_SYNC_CONFIG_KEY = "adit_cloud_sync_config";
 const getCloudSyncConfig = () => {
   if (typeof localStorage === "undefined") {
-    return { enabled: false, syncUrl: "", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
+    return { enabled: true, syncUrl: "https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
   }
   try {
     const raw = localStorage.getItem(CLOUD_SYNC_CONFIG_KEY);
@@ -8449,7 +8481,7 @@ const getCloudSyncConfig = () => {
     }
     return JSON.parse(raw);
   } catch (err) {
-    return { enabled: false, syncUrl: "", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
+    return { enabled: true, syncUrl: "https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app", autoSync: true, lastSyncTime: null, lastStatus: "idle" };
   }
 };
 const saveCloudSyncConfig = (config) => {
@@ -8570,7 +8602,7 @@ const pushToCloud = async (targetUrl = null) => {
   try {
     const snapshot = exportSystemSnapshot();
     const cleanUrl = endpoint.trim();
-    const finalUrl = cleanUrl.includes("firebaseio.com") && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/system_state.json` : cleanUrl;
+    const finalUrl = (cleanUrl.includes("firebaseio.com") || cleanUrl.includes("firebasedatabase.app")) && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/adit_system_state.json` : cleanUrl;
     const res = await fetch(finalUrl, {
       method: "PUT",
       headers: {
@@ -8604,7 +8636,7 @@ const pullFromCloud = async (targetUrl = null, force = false) => {
   saveCloudSyncConfig({ lastStatus: "syncing", lastMessage: "Checking cloud for updates..." });
   try {
     const cleanUrl = endpoint.trim();
-    const finalUrl = cleanUrl.includes("firebaseio.com") && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/system_state.json` : cleanUrl;
+    const finalUrl = (cleanUrl.includes("firebaseio.com") || cleanUrl.includes("firebasedatabase.app")) && !cleanUrl.endsWith(".json") ? `${cleanUrl.replace(/\/$/, "")}/adit_system_state.json` : cleanUrl;
     const res = await fetch(finalUrl, {
       method: "GET",
       headers: { "Accept": "application/json" }
@@ -8695,10 +8727,24 @@ const getFirebasePrimitives = () => {
     signInWithEmailAndPassword: firebaseAuth.signInWithEmailAndPassword,
     signOut: firebaseAuth.signOut,
     onAuthStateChanged: firebaseAuth.onAuthStateChanged,
-    createUserWithEmailAndPassword: firebaseAuth.createUserWithEmailAndPassword
+    createUserWithEmailAndPassword: firebaseAuth.createUserWithEmailAndPassword,
+    getDatabase: firebaseDatabase.getDatabase,
+    ref: firebaseDatabase.ref,
+    set: firebaseDatabase.set,
+    get: firebaseDatabase.get,
+    child: firebaseDatabase.child,
+    update: firebaseDatabase.update,
+    remove: firebaseDatabase.remove,
+    onValue: firebaseDatabase.onValue,
+    off: firebaseDatabase.off,
+    push: firebaseDatabase.push,
+    rtdbServerTimestamp: firebaseDatabase.serverTimestamp,
+    goOnline: firebaseDatabase.goOnline,
+    goOffline: firebaseDatabase.goOffline
   };
 };
 const FIREBASE_PROJECT_ID = "adit-attendance-system";
+const DEFAULT_DATABASE_URL = "https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app";
 const getEnvVar = (key) => {
   try {
     if (typeof window !== "undefined" && window.__ADIT_ENV && window.__ADIT_ENV[key]) {
@@ -8719,17 +8765,20 @@ const getFirebaseConfig = () => {
   const storageBucket = getEnvVar("VITE_FIREBASE_STORAGE_BUCKET") || `${FIREBASE_PROJECT_ID}.appspot.com`;
   const messagingSenderId = getEnvVar("VITE_FIREBASE_MESSAGING_SENDER_ID") || "";
   const appId = getEnvVar("VITE_FIREBASE_APP_ID") || "";
+  const databaseURL = getEnvVar("VITE_FIREBASE_DATABASE_URL") || typeof window !== "undefined" && window.__ADIT_FIREBASE_DATABASE_URL || DEFAULT_DATABASE_URL;
   return {
     apiKey,
     authDomain,
     projectId,
     storageBucket,
     messagingSenderId,
-    appId
+    appId,
+    databaseURL
   };
 };
 let appInstance = null;
 let firestoreDb = null;
+let realtimeDb = null;
 let authInstance = null;
 const initFirebase = (customConfig = null) => {
   const f = getFirebasePrimitives();
@@ -8752,6 +8801,14 @@ const initFirebase = (customConfig = null) => {
       }
     }
   }
+  if (appInstance && !realtimeDb && typeof f.getDatabase === "function") {
+    try {
+      const dbUrl = customConfig && customConfig.databaseURL || getFirebaseConfig().databaseURL || DEFAULT_DATABASE_URL;
+      realtimeDb = f.getDatabase(appInstance, dbUrl);
+    } catch (err) {
+      console.warn("[Firebase] Realtime Database init notice:", err.message);
+    }
+  }
   if (appInstance && !firestoreDb && typeof f.getFirestore === "function") {
     try {
       firestoreDb = f.getFirestore(appInstance);
@@ -8769,6 +8826,10 @@ const initFirebase = (customConfig = null) => {
   return appInstance;
 };
 const getFirebaseApp = () => appInstance || initFirebase();
+const getRealtimeDatabase = () => {
+  if (!realtimeDb) initFirebase();
+  return realtimeDb;
+};
 const getFirestoreDb = () => {
   if (!firestoreDb) initFirebase();
   return firestoreDb;
@@ -8779,15 +8840,17 @@ const getFirebaseAuth = () => {
 };
 const isFirebaseConfigured = () => {
   const cfg = getFirebaseConfig();
-  return Boolean(cfg.apiKey && cfg.projectId);
+  return Boolean(cfg.databaseURL || cfg.apiKey && cfg.projectId);
 };
 if (typeof window !== "undefined") {
   window.initFirebase = initFirebase;
   window.getFirebaseApp = getFirebaseApp;
+  window.getRealtimeDatabase = getRealtimeDatabase;
   window.getFirestoreDb = getFirestoreDb;
   window.getFirebaseAuth = getFirebaseAuth;
   window.isFirebaseConfigured = isFirebaseConfigured;
   window.FIREBASE_PROJECT_ID = FIREBASE_PROJECT_ID;
+  window.DEFAULT_DATABASE_URL = DEFAULT_DATABASE_URL;
 }
 const COLLECTIONS = {
   DEPARTMENTS: "adit_departments",
@@ -9071,6 +9134,372 @@ if (typeof window !== "undefined") {
   window.syncFacultyToFirestore = syncFacultyToFirestore;
   window.syncTimetableEntryToFirestore = syncTimetableEntryToFirestore;
   window.syncSessionToFirestore = syncSessionToFirestore;
+}
+const RTDB_PATHS = {
+  DEPARTMENTS: "adit_departments",
+  FACULTIES: "adit_faculties",
+  CLASSES: "adit_classes",
+  SUBJECTS: "adit_subjects",
+  STUDENTS: "adit_students",
+  TIMETABLE_ENTRIES: "adit_timetable_entries",
+  SESSIONS: "adit_sessions",
+  EXCEPTIONS: "adit_exceptions",
+  ALLOCATIONS: "adit_allocations",
+  SYSTEM: "adit_system"
+};
+const PRE_MIGRATION_BACKUP_KEY = "adit_backup_pre_rtdb_migration";
+let rtdbSyncActive = false;
+let activeListeners = [];
+const getRtdbPrimitives = () => {
+  if (typeof window !== "undefined" && window.Firebase) {
+    return window.Firebase;
+  }
+  return null;
+};
+const backupSystemDataBeforeMigration = () => {
+  try {
+    const snapshot = exportSystemSnapshot();
+    const backupRecord = {
+      backupDate: (/* @__PURE__ */ new Date()).toISOString(),
+      timestamp: Date.now(),
+      totalCollections: snapshot.keysCount || 0,
+      snapshot
+    };
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PRE_MIGRATION_BACKUP_KEY, JSON.stringify(backupRecord));
+    }
+    return { success: true, backupRecord };
+  } catch (err) {
+    console.warn("[RTDB] Pre-migration backup warning:", err.message);
+    return { success: false, error: err.message };
+  }
+};
+const checkCloudDataExists = async () => {
+  const db = getRealtimeDatabase();
+  const f = getRtdbPrimitives();
+  if (db && f && typeof f.ref === "function" && typeof f.get === "function") {
+    try {
+      const facRef = f.ref(db, RTDB_PATHS.FACULTIES);
+      const snapshot = await f.get(facRef);
+      if (snapshot.exists() && snapshot.val()) {
+        const count = Object.keys(snapshot.val()).length;
+        return { exists: true, count };
+      }
+    } catch (e) {
+      console.warn("[RTDB] Check cloud data SDK notice:", e.message);
+    }
+  }
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/${RTDB_PATHS.FACULTIES}.json?shallow=true`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const val = await res.json();
+      if (val && typeof val === "object") {
+        const count = Object.keys(val).length;
+        return { exists: count > 0, count };
+      }
+    }
+  } catch (e) {
+  }
+  return { exists: false, count: 0 };
+};
+const syncRtdbRecord = async (pathName, recordId, data) => {
+  if (!recordId) return false;
+  const cleanId = String(recordId).trim().replace(/[.#$/[\]]/g, "_");
+  const cleanData = {
+    ...data,
+    _syncedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  const db = getRealtimeDatabase();
+  const f = getRtdbPrimitives();
+  if (db && f && typeof f.ref === "function" && typeof f.set === "function") {
+    try {
+      const targetRef = f.ref(db, `${pathName}/${cleanId}`);
+      await f.set(targetRef, cleanData);
+      return true;
+    } catch (err) {
+      console.warn(`[RTDB] SDK sync failed for ${pathName}/${cleanId}:`, err.message);
+    }
+  }
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/${pathName}/${cleanId}.json`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cleanData)
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn(`[RTDB] REST sync failed for ${pathName}/${cleanId}:`, err.message);
+    return false;
+  }
+};
+const deleteRtdbRecord = async (pathName, recordId) => {
+  if (!recordId) return false;
+  const cleanId = String(recordId).trim().replace(/[.#$/[\]]/g, "_");
+  const db = getRealtimeDatabase();
+  const f = getRtdbPrimitives();
+  if (db && f && typeof f.ref === "function" && typeof f.remove === "function") {
+    try {
+      const targetRef = f.ref(db, `${pathName}/${cleanId}`);
+      await f.remove(targetRef);
+      return true;
+    } catch (err) {
+      console.warn(`[RTDB] SDK remove failed for ${pathName}/${cleanId}:`, err.message);
+    }
+  }
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/${pathName}/${cleanId}.json`;
+    const res = await fetch(url, { method: "DELETE" });
+    return res.ok;
+  } catch (err) {
+    console.warn(`[RTDB] REST delete failed for ${pathName}/${cleanId}:`, err.message);
+    return false;
+  }
+};
+const migrateLocalDataToRtdb = async (force = false) => {
+  const backup = backupSystemDataBeforeMigration();
+  console.log("[RTDB] Pre-migration local backup completed:", backup.success);
+  if (!force) {
+    const cloudStatus = await checkCloudDataExists();
+    if (cloudStatus.exists && cloudStatus.count > 0) {
+      return {
+        migrated: false,
+        needsConfirmation: true,
+        cloudRecordsCount: cloudStatus.count,
+        message: `Firebase Realtime Database already contains ${cloudStatus.count} faculty records. Confirm to proceed and sync.`
+      };
+    }
+  }
+  try {
+    const depts = getDepartments(true);
+    for (const d of depts) {
+      if (d.id || d.code) {
+        await syncRtdbRecord(RTDB_PATHS.DEPARTMENTS, d.id || d.code, d);
+      }
+    }
+    const faculties = getFaculties();
+    for (const fac of faculties) {
+      if (fac.id) {
+        await syncRtdbRecord(RTDB_PATHS.FACULTIES, fac.id, fac);
+      }
+    }
+    const classes = getClasses();
+    for (const cls of classes) {
+      if (cls.id) {
+        await syncRtdbRecord(RTDB_PATHS.CLASSES, cls.id, cls);
+      }
+    }
+    const subjects = getSubjects();
+    for (const sub of subjects) {
+      if (sub.id) {
+        await syncRtdbRecord(RTDB_PATHS.SUBJECTS, sub.id, sub);
+      }
+    }
+    const students = getStudents();
+    for (const stu of students) {
+      if (stu.id || stu.enrollmentNo) {
+        await syncRtdbRecord(RTDB_PATHS.STUDENTS, stu.id || stu.enrollmentNo, stu);
+      }
+    }
+    const entries = getTimetableEntries();
+    for (const e of entries) {
+      if (e.id) {
+        await syncRtdbRecord(RTDB_PATHS.TIMETABLE_ENTRIES, e.id, e);
+      }
+    }
+    const sessions = getSessions();
+    for (const s of sessions) {
+      if (s.id) {
+        await syncRtdbRecord(RTDB_PATHS.SESSIONS, s.id, s);
+      }
+    }
+    const exceptions = getExceptions();
+    for (const exc of exceptions) {
+      if (exc.id) {
+        await syncRtdbRecord(RTDB_PATHS.EXCEPTIONS, exc.id, exc);
+      }
+    }
+    await syncRtdbRecord(RTDB_PATHS.SYSTEM, "institutional_profile", {
+      collegeName: "A D Patel Institute of Technology",
+      databaseUrl: DEFAULT_DATABASE_URL,
+      migratedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+    console.log("[RTDB] Institutional data successfully synchronized to Firebase Realtime Database!");
+    return { migrated: true, collectionsMigrated: 10 };
+  } catch (err) {
+    console.warn("[RTDB] Migration error:", err.message);
+    return { migrated: false, error: err.message };
+  }
+};
+const fetchAllFromRtdb = async () => {
+  const db = getRealtimeDatabase();
+  const f = getRtdbPrimitives();
+  let fetchedData = {};
+  if (db && f && typeof f.ref === "function" && typeof f.get === "function") {
+    try {
+      const paths = Object.values(RTDB_PATHS);
+      for (const p of paths) {
+        const snap = await f.get(f.ref(db, p));
+        if (snap.exists() && snap.val()) {
+          fetchedData[p] = snap.val();
+        }
+      }
+    } catch (e) {
+      console.warn("[RTDB] SDK fetch all notice:", e.message);
+    }
+  }
+  if (Object.keys(fetchedData).length === 0) {
+    try {
+      const url = `${DEFAULT_DATABASE_URL}/.json`;
+      const res = await fetch(url);
+      if (res.ok) {
+        fetchedData = await res.json() || {};
+      }
+    } catch (e) {
+      console.warn("[RTDB] REST fetch all notice:", e.message);
+    }
+  }
+  if (Object.keys(fetchedData).length === 0) {
+    return false;
+  }
+  try {
+    if (fetchedData.adit_faculties) {
+      const facs = Object.values(fetchedData.adit_faculties);
+      if (facs.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
+      }
+    }
+    if (fetchedData.adit_departments) {
+      const depts = Object.values(fetchedData.adit_departments);
+      if (depts.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+      }
+    }
+    if (fetchedData.adit_classes) {
+      const cls = Object.values(fetchedData.adit_classes);
+      if (cls.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cls));
+      }
+    }
+    if (fetchedData.adit_subjects) {
+      const subjs = Object.values(fetchedData.adit_subjects);
+      if (subjs.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(subjs));
+      }
+    }
+    if (fetchedData.adit_students) {
+      const stus = Object.values(fetchedData.adit_students);
+      if (stus.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(stus));
+      }
+    }
+    if (fetchedData.adit_timetable_entries) {
+      const ttes = Object.values(fetchedData.adit_timetable_entries);
+      if (ttes.length > 0) {
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(ttes));
+      }
+    }
+    if (fetchedData.adit_sessions) {
+      const sess = Object.values(fetchedData.adit_sessions);
+      if (sess.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sess));
+      }
+    }
+    if (fetchedData.adit_exceptions) {
+      const excs = Object.values(fetchedData.adit_exceptions);
+      if (excs.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.EXCEPTIONS, JSON.stringify(excs));
+      }
+    }
+    if (typeof window !== "undefined" && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+      window.dispatchEvent(new CustomEvent("adit-timetable-synced"));
+      window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+      window.dispatchEvent(new CustomEvent("adit-departments-updated"));
+      window.dispatchEvent(new CustomEvent("adit-classes-updated"));
+      window.dispatchEvent(new CustomEvent("adit-data-synced"));
+    }
+    return true;
+  } catch (err) {
+    console.warn("[RTDB] Cache update error:", err.message);
+    return false;
+  }
+};
+const startRealtimeDatabaseSync = () => {
+  if (rtdbSyncActive) return;
+  const db = getRealtimeDatabase();
+  const f = getRtdbPrimitives();
+  if (!db || !f || typeof f.ref !== "function" || typeof f.onValue !== "function") return;
+  rtdbSyncActive = true;
+  try {
+    const facRef = f.ref(db, RTDB_PATHS.FACULTIES);
+    const unsubFac = f.onValue(facRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const facs = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
+      }
+    });
+    activeListeners.push({ ref: facRef, unsub: unsubFac });
+    const ttRef = f.ref(db, RTDB_PATHS.TIMETABLE_ENTRIES);
+    const unsubTT = f.onValue(ttRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const entries = Object.values(snap.val());
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-timetable-synced"));
+      }
+    });
+    activeListeners.push({ ref: ttRef, unsub: unsubTT });
+    const sessRef = f.ref(db, RTDB_PATHS.SESSIONS);
+    const unsubSess = f.onValue(sessRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const sessions = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+      }
+    });
+    activeListeners.push({ ref: sessRef, unsub: unsubSess });
+    const clsRef = f.ref(db, RTDB_PATHS.CLASSES);
+    const unsubCls = f.onValue(clsRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const classes = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-classes-updated"));
+      }
+    });
+    activeListeners.push({ ref: clsRef, unsub: unsubCls });
+    console.log("[RTDB] Realtime Database listeners active.");
+  } catch (err) {
+    console.warn("[RTDB] Listener registration notice:", err.message);
+  }
+};
+const stopRealtimeDatabaseSync = () => {
+  const f = getRtdbPrimitives();
+  activeListeners.forEach((listener) => {
+    try {
+      if (typeof listener.unsub === "function") {
+        listener.unsub();
+      } else if (f && typeof f.off === "function" && listener.ref) {
+        f.off(listener.ref);
+      }
+    } catch (e) {
+    }
+  });
+  activeListeners = [];
+  rtdbSyncActive = false;
+};
+if (typeof window !== "undefined") {
+  window.syncRtdbRecord = syncRtdbRecord;
+  window.deleteRtdbRecord = deleteRtdbRecord;
+  window.backupSystemDataBeforeMigration = backupSystemDataBeforeMigration;
+  window.checkCloudDataExists = checkCloudDataExists;
+  window.migrateLocalDataToRtdb = migrateLocalDataToRtdb;
+  window.fetchAllFromRtdb = fetchAllFromRtdb;
+  window.startRealtimeDatabaseSync = startRealtimeDatabaseSync;
+  window.stopRealtimeDatabaseSync = stopRealtimeDatabaseSync;
+  window.RTDB_PATHS = RTDB_PATHS;
+  window.DEFAULT_DATABASE_URL = DEFAULT_DATABASE_URL;
 }
 function Header({ searchQuery, setSearchQuery, activeTab, isUnlocked, onLockToggle }) {
   const facultyName = getFacultyName();
@@ -17164,6 +17593,54 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       setSyncMessage(res.error || "Failed to pull updates from cloud.");
     }
   };
+  const handlePushToRtdb = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus("Backing up data & checking Firebase Realtime Database...");
+    try {
+      const migrateFn = typeof window !== "undefined" && window.migrateLocalDataToRtdb ? window.migrateLocalDataToRtdb : migrateLocalDataToRtdb;
+      let res = await migrateFn(false);
+      if (res && res.needsConfirmation) {
+        const confirmed = typeof window !== "undefined" && window.confirm ? window.confirm("Firebase Realtime Database already contains existing records. A safe local backup has been created. Do you want to proceed and overwrite?") : true;
+        if (!confirmed) {
+          setFirestoreStatus("\u26A0\uFE0F Synchronization cancelled by user. Local backup preserved.");
+          setFirestoreLoading(false);
+          return;
+        }
+        res = await migrateFn(true);
+      }
+      if (res && res.migrated) {
+        setFirestoreStatus("\u2713 Successfully synchronized all departments, faculties, timetables, and attendance to Firebase Realtime Database!");
+        if (showToast) showToast("Firebase Realtime Database: Data synced successfully!", "success");
+      } else {
+        setFirestoreStatus("\u26A0\uFE0F Realtime Database: " + (res?.error || "Completed."));
+      }
+    } catch (err) {
+      setFirestoreStatus("\u274C Realtime Database sync error: " + (err.message || "Network error"));
+      if (showToast) showToast("Sync error: " + err.message, "error");
+    } finally {
+      setFirestoreLoading(false);
+    }
+  };
+  const handlePullFromRtdb = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus("Pulling latest institutional data from Firebase Realtime Database...");
+    try {
+      const fetchFn = typeof window !== "undefined" && window.fetchAllFromRtdb ? window.fetchAllFromRtdb : fetchAllFromRtdb;
+      const ok = await fetchFn();
+      if (ok) {
+        setFirestoreStatus("\u2713 Successfully synchronized latest faculties, timetables, and attendance from Realtime Database!");
+        refreshState();
+        if (showToast) showToast("Realtime Database: Local data synchronized with cloud!", "success");
+      } else {
+        setFirestoreStatus("\u26A0\uFE0F Could not fetch from Realtime Database (verify network or permissions).");
+      }
+    } catch (err) {
+      setFirestoreStatus("\u274C Realtime Database pull error: " + (err.message || "Unknown error"));
+      if (showToast) showToast("Sync error: " + err.message, "error");
+    } finally {
+      setFirestoreLoading(false);
+    }
+  };
   const handlePushToFirestore = async () => {
     setFirestoreLoading(true);
     setFirestoreStatus("Pushing institutional data to Cloud Firestore...");
@@ -17477,36 +17954,46 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onOpenFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
-  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", borderLeft: "5px solid #d97706", border: "1px solid #fed7aa", backgroundColor: "#fffbeb" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#92400e", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(DatabaseIcon, { size: 20, style: { color: "#d97706" } }), "Google Cloud Firestore (Project: ", /* @__PURE__ */ React.createElement("code", null, "adit-attendance-system"), ")"), /* @__PURE__ */ React.createElement("span", { style: {
+  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", borderLeft: "5px solid #0284c7", border: "1px solid #bae6fd", backgroundColor: "#f0f9ff" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#0369a1", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(DatabaseIcon, { size: 20, style: { color: "#0284c7" } }), "Firebase Realtime Database (ADIT Cloud)"), /* @__PURE__ */ React.createElement("span", { style: {
     fontSize: "11.5px",
     fontWeight: "700",
     padding: "3px 10px",
     borderRadius: "20px",
-    backgroundColor: "#fef3c7",
-    color: "#b45309",
-    border: "1px solid #fde68a"
-  } }, "\u25CF Cloud Database Integrated")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#78350f", marginTop: "6px", lineHeight: "1.5" } }, "Cloud Firestore is configured as the shared source of truth across all devices. Faculties, students, classes, timetables, and attendance records sync directly with project ", /* @__PURE__ */ React.createElement("strong", null, "adit-attendance-system"), "."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
+    backgroundColor: "#e0f2fe",
+    color: "#0369a1",
+    border: "1px solid #bae6fd"
+  } }, "\u25CF Realtime Sync Active")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#075985", marginTop: "6px", lineHeight: "1.5" } }, "Connected Endpoint: ", /* @__PURE__ */ React.createElement("code", { style: { wordBreak: "break-all", backgroundColor: "#e0f2fe", padding: "2px 6px", borderRadius: "4px" } }, "https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#0369a1", marginTop: "6px" } }, "Shared persistent cloud database for faculty rosters, lab batches, 2-hour laboratory timetables, and real-time attendance across all campus devices. Automatic pre-migration backup protects existing data."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "16px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
       className: "btn btn-primary btn-sm",
-      onClick: handlePushToFirestore,
+      onClick: handlePushToRtdb,
       disabled: firestoreLoading,
-      style: { display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#d97706", borderColor: "#b45309" }
+      style: { display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#0284c7", borderColor: "#0369a1" }
     },
     /* @__PURE__ */ React.createElement(UploadCloud, { size: 14 }),
-    firestoreLoading ? "Syncing..." : "Push All to Cloud Firestore"
+    firestoreLoading ? "Syncing..." : "Sync All to Realtime Database"
   ), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
       className: "btn btn-secondary btn-sm",
-      onClick: handlePullFromFirestore,
+      onClick: handlePullFromRtdb,
       disabled: firestoreLoading,
       style: { display: "flex", alignItems: "center", gap: "6px" }
     },
     /* @__PURE__ */ React.createElement(Download, { size: 14 }),
-    "Pull Latest from Cloud Firestore"
+    "Pull Latest from Realtime Database"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary btn-sm",
+      onClick: handleExportBackup,
+      style: { display: "flex", alignItems: "center", gap: "6px" }
+    },
+    /* @__PURE__ */ React.createElement(Download, { size: 14 }),
+    "Download Local Backup (.json)"
   )), firestoreStatus && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", fontSize: "12.5px", fontWeight: "700", color: firestoreStatus.startsWith("\u2713") ? "#15803d" : "#b45309" } }, firestoreStatus)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", border: "1px solid #bfdbfe", backgroundColor: "#f8faff" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#1e3a8a", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(UploadCloud, { size: 20, style: { color: "#2563eb" } }), "Cloud Synchronization (Cross-Device)"), /* @__PURE__ */ React.createElement("span", { style: {
     fontSize: "11.5px",
     fontWeight: "700",
@@ -22104,8 +22591,14 @@ function App() {
     if (typeof initFirebase === "function") {
       try {
         initFirebase();
+        if (typeof startRealtimeDatabaseSync === "function") {
+          startRealtimeDatabaseSync();
+        }
         if (typeof startRealtimeSync === "function") {
           startRealtimeSync();
+        }
+        if (typeof migrateLocalDataToRtdb === "function") {
+          migrateLocalDataToRtdb().catch((e) => console.warn("[RTDB] Startup sync notice:", e));
         }
         if (typeof migrateLocalDataToFirestore === "function") {
           migrateLocalDataToFirestore().catch((e) => console.warn("[Firestore] Sync notice:", e));

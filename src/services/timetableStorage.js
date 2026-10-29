@@ -838,6 +838,9 @@ export const saveTimetableEntry = (entry) => {
   }
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== 'undefined' && typeof window.syncRtdbRecord === 'function') {
+    window.syncRtdbRecord('adit_timetable_entries', entry.id, entry).catch(() => {});
+  }
   if (typeof window !== 'undefined' && typeof window.syncDocToFirestore === 'function') {
     window.syncDocToFirestore('adit_timetable_entries', entry.id, entry).catch(() => {});
   }
@@ -849,6 +852,9 @@ export const deleteTimetableEntry = (id) => {
   entries = entries.filter(e => e.id !== id);
   localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
   notifyTimetableSync();
+  if (typeof window !== 'undefined' && typeof window.deleteRtdbRecord === 'function') {
+    window.deleteRtdbRecord('adit_timetable_entries', id).catch(() => {});
+  }
   if (typeof window !== 'undefined' && typeof window.deleteDocFromFirestore === 'function') {
     window.deleteDocFromFirestore('adit_timetable_entries', id).catch(() => {});
   }

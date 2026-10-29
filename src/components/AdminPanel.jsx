@@ -74,6 +74,12 @@ import {
   migrateLocalDataToFirestore, 
   fetchAllFromFirestore 
 } from '../services/firestoreSync';
+import { 
+  migrateLocalDataToRtdb, 
+  fetchAllFromRtdb, 
+  backupSystemDataBeforeMigration,
+  DEFAULT_DATABASE_URL 
+} from '../services/rtdbSync';
 
 // Sidebar Menu Items
 const SettingsIcon = typeof Settings !== 'undefined' ? Settings : (typeof LucideIcons !== 'undefined' ? LucideIcons.Settings : null);
@@ -244,6 +250,64 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
       refreshState();
     } else {
       setSyncMessage(res.error || 'Failed to pull updates from cloud.');
+    }
+  };
+
+  const handlePushToRtdb = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus('Backing up data & checking Firebase Realtime Database...');
+    try {
+      const migrateFn = (typeof window !== 'undefined' && window.migrateLocalDataToRtdb) 
+        ? window.migrateLocalDataToRtdb 
+        : migrateLocalDataToRtdb;
+      
+      let res = await migrateFn(false);
+      if (res && res.needsConfirmation) {
+        const confirmed = typeof window !== 'undefined' && window.confirm 
+          ? window.confirm('Firebase Realtime Database already contains existing records. A safe local backup has been created. Do you want to proceed and overwrite?') 
+          : true;
+        if (!confirmed) {
+          setFirestoreStatus('⚠️ Synchronization cancelled by user. Local backup preserved.');
+          setFirestoreLoading(false);
+          return;
+        }
+        res = await migrateFn(true);
+      }
+
+      if (res && res.migrated) {
+        setFirestoreStatus('✓ Successfully synchronized all departments, faculties, timetables, and attendance to Firebase Realtime Database!');
+        if (showToast) showToast('Firebase Realtime Database: Data synced successfully!', 'success');
+      } else {
+        setFirestoreStatus('⚠️ Realtime Database: ' + (res?.error || 'Completed.'));
+      }
+    } catch (err) {
+      setFirestoreStatus('❌ Realtime Database sync error: ' + (err.message || 'Network error'));
+      if (showToast) showToast('Sync error: ' + err.message, 'error');
+    } finally {
+      setFirestoreLoading(false);
+    }
+  };
+
+  const handlePullFromRtdb = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus('Pulling latest institutional data from Firebase Realtime Database...');
+    try {
+      const fetchFn = (typeof window !== 'undefined' && window.fetchAllFromRtdb)
+        ? window.fetchAllFromRtdb
+        : fetchAllFromRtdb;
+      const ok = await fetchFn();
+      if (ok) {
+        setFirestoreStatus('✓ Successfully synchronized latest faculties, timetables, and attendance from Realtime Database!');
+        refreshState();
+        if (showToast) showToast('Realtime Database: Local data synchronized with cloud!', 'success');
+      } else {
+        setFirestoreStatus('⚠️ Could not fetch from Realtime Database (verify network or permissions).');
+      }
+    } catch (err) {
+      setFirestoreStatus('❌ Realtime Database pull error: ' + (err.message || 'Unknown error'));
+      if (showToast) showToast('Sync error: ' + err.message, 'error');
+    } finally {
+      setFirestoreLoading(false);
     }
   };
 
@@ -813,49 +877,61 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
               </p>
             </div>
 
-            {/* 0. GOOGLE CLOUD FIRESTORE INTEGRATION (adit-attendance-system) */}
-            <div className="card" style={{ padding: '24px', marginBottom: '20px', borderLeft: '5px solid #d97706', border: '1px solid #fed7aa', backgroundColor: '#fffbeb' }}>
+            {/* 0. FIREBASE REALTIME DATABASE INTEGRATION */}
+            <div className="card" style={{ padding: '24px', marginBottom: '20px', borderLeft: '5px solid #0284c7', border: '1px solid #bae6fd', backgroundColor: '#f0f9ff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <DatabaseIcon size={20} style={{ color: '#d97706' }} />
-                  Google Cloud Firestore (Project: <code>adit-attendance-system</code>)
+                <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <DatabaseIcon size={20} style={{ color: '#0284c7' }} />
+                  Firebase Realtime Database (ADIT Cloud)
                 </h3>
                 <span style={{
                   fontSize: '11.5px',
                   fontWeight: '700',
                   padding: '3px 10px',
                   borderRadius: '20px',
-                  backgroundColor: '#fef3c7',
-                  color: '#b45309',
-                  border: '1px solid #fde68a'
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  border: '1px solid #bae6fd'
                 }}>
-                  ● Cloud Database Integrated
+                  ● Realtime Sync Active
                 </span>
               </div>
-              <p style={{ fontSize: '12.5px', color: '#78350f', marginTop: '6px', lineHeight: '1.5' }}>
-                Cloud Firestore is configured as the shared source of truth across all devices. Faculties, students, classes, timetables, and attendance records sync directly with project <strong>adit-attendance-system</strong>.
+              <div style={{ fontSize: '12.5px', color: '#075985', marginTop: '6px', lineHeight: '1.5' }}>
+                Connected Endpoint: <code style={{ wordBreak: 'break-all', backgroundColor: '#e0f2fe', padding: '2px 6px', borderRadius: '4px' }}>https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app</code>
+              </div>
+              <p style={{ fontSize: '12px', color: '#0369a1', marginTop: '6px' }}>
+                Shared persistent cloud database for faculty rosters, lab batches, 2-hour laboratory timetables, and real-time attendance across all campus devices. Automatic pre-migration backup protects existing data.
               </p>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginTop: '16px' }}>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  onClick={handlePushToFirestore}
+                  onClick={handlePushToRtdb}
                   disabled={firestoreLoading}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#d97706', borderColor: '#b45309' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0284c7', borderColor: '#0369a1' }}
                 >
                   <UploadCloud size={14} />
-                  {firestoreLoading ? 'Syncing...' : 'Push All to Cloud Firestore'}
+                  {firestoreLoading ? 'Syncing...' : 'Sync All to Realtime Database'}
                 </button>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
-                  onClick={handlePullFromFirestore}
+                  onClick={handlePullFromRtdb}
                   disabled={firestoreLoading}
                   style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Download size={14} />
-                  Pull Latest from Cloud Firestore
+                  Pull Latest from Realtime Database
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleExportBackup}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Download size={14} />
+                  Download Local Backup (.json)
                 </button>
               </div>
 
