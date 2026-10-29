@@ -25,7 +25,8 @@ import {
   ArrowRight,
   UserPlus,
   BookPlus,
-  ArrowLeft
+  ArrowLeft,
+  Database
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -69,9 +70,14 @@ import ClassTimetablePanel from './ClassTimetablePanel';
 import ClassManagementPanel from './ClassManagementPanel';
 import TimetableUploadModal from './TimetableUploadModal';
 import DepartmentAdminPanel from './DepartmentAdminPanel';
+import { 
+  migrateLocalDataToFirestore, 
+  fetchAllFromFirestore 
+} from '../services/firestoreSync';
 
 // Sidebar Menu Items
 const SettingsIcon = typeof Settings !== 'undefined' ? Settings : (typeof LucideIcons !== 'undefined' ? LucideIcons.Settings : null);
+const DatabaseIcon = (typeof Database !== 'undefined' ? Database : ((typeof LucideIcons !== 'undefined' && LucideIcons.Database) ? LucideIcons.Database : null)) || ((props) => React.createElement('span', { ...props }, '🗄️'));
 
 const adminMenuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: typeof LayoutDashboard !== 'undefined' ? LayoutDashboard : null },
@@ -98,6 +104,10 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
   const [syncMessage, setSyncMessage] = useState('');
   const [syncTokenInput, setSyncTokenInput] = useState('');
   const [generatedToken, setGeneratedToken] = useState('');
+
+  // Google Cloud Firestore State
+  const [firestoreLoading, setFirestoreLoading] = useState(false);
+  const [firestoreStatus, setFirestoreStatus] = useState('');
   const [classesList, setClassesList] = useState(getClasses());
 
   // Master data states
@@ -234,6 +244,67 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
       refreshState();
     } else {
       setSyncMessage(res.error || 'Failed to pull updates from cloud.');
+    }
+  };
+
+  const handlePushToFirestore = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus('Pushing institutional data to Cloud Firestore...');
+    try {
+      const syncFn = (typeof window !== 'undefined' && window.migrateLocalDataToFirestore) 
+        ? window.migrateLocalDataToFirestore 
+        : migrateLocalDataToFirestore;
+      if (typeof syncFn === 'function') {
+        const res = await syncFn(true);
+        if (res && res.migrated) {
+          setFirestoreStatus('✓ Successfully pushed all departments, faculties, timetables, and sessions to Cloud Firestore (adit-attendance-system)!');
+          if (showToast) {
+            showToast('Cloud Firestore: Institutional data pushed successfully!', 'success');
+          }
+        } else {
+          setFirestoreStatus('⚠️ Cloud Firestore push: ' + (res?.error || res?.reason || 'Verified up to date.'));
+        }
+      } else {
+        setFirestoreStatus('⚠️ Cloud Firestore synchronizer not loaded.');
+      }
+    } catch (err) {
+      setFirestoreStatus('❌ Failed to push to Cloud Firestore: ' + (err.message || 'Unknown error'));
+      if (showToast) {
+        showToast('Firestore error: ' + err.message, 'error');
+      }
+    } finally {
+      setFirestoreLoading(false);
+    }
+  };
+
+  const handlePullFromFirestore = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus('Pulling latest institutional data from Cloud Firestore...');
+    try {
+      const fetchFn = (typeof window !== 'undefined' && (window.syncAllFromFirestore || window.fetchAllFromFirestore))
+        ? (window.syncAllFromFirestore || window.fetchAllFromFirestore)
+        : fetchAllFromFirestore;
+      if (typeof fetchFn === 'function') {
+        const ok = await fetchFn();
+        if (ok) {
+          setFirestoreStatus('✓ Successfully synchronized latest faculties, timetables, and attendance sessions from Cloud Firestore!');
+          refreshState();
+          if (showToast) {
+            showToast('Cloud Firestore: Local data synchronized with cloud!', 'success');
+          }
+        } else {
+          setFirestoreStatus('⚠️ Could not complete Cloud Firestore pull (verify network or permissions).');
+        }
+      } else {
+        setFirestoreStatus('⚠️ Cloud Firestore pull function not loaded.');
+      }
+    } catch (err) {
+      setFirestoreStatus('❌ Failed to pull from Cloud Firestore: ' + (err.message || 'Unknown error'));
+      if (showToast) {
+        showToast('Firestore error: ' + err.message, 'error');
+      }
+    } finally {
+      setFirestoreLoading(false);
     }
   };
 
@@ -746,7 +817,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
             <div className="card" style={{ padding: '24px', marginBottom: '20px', borderLeft: '5px solid #d97706', border: '1px solid #fed7aa', backgroundColor: '#fffbeb' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Database size={20} style={{ color: '#d97706' }} />
+                  <DatabaseIcon size={20} style={{ color: '#d97706' }} />
                   Google Cloud Firestore (Project: <code>adit-attendance-system</code>)
                 </h3>
                 <span style={{
@@ -1171,4 +1242,8 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
 
     </div>
   );
+}
+
+if (typeof window !== 'undefined') {
+  window.AdminPanel = AdminPanel;
 }

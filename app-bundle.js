@@ -17027,6 +17027,7 @@ function DepartmentAdminPanel({
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowAddDeptModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, /* @__PURE__ */ React.createElement(Check, { size: 16 }), " Create Department"))))));
 }
 const SettingsIcon = typeof Settings !== "undefined" ? Settings : typeof LucideIcons !== "undefined" ? LucideIcons.Settings : null;
+const DatabaseIcon = (typeof Database !== "undefined" ? Database : typeof LucideIcons !== "undefined" && LucideIcons.Database ? LucideIcons.Database : null) || ((props) => React.createElement("span", { ...props }, "\u{1F5C4}\uFE0F"));
 const adminMenuItems = [
   { id: "dashboard", label: "Dashboard", icon: typeof LayoutDashboard !== "undefined" ? LayoutDashboard : null },
   { id: "timetable", label: "Faculty Timetable", icon: typeof Calendar !== "undefined" ? Calendar : null },
@@ -17047,6 +17048,8 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
   const [syncMessage, setSyncMessage] = useState("");
   const [syncTokenInput, setSyncTokenInput] = useState("");
   const [generatedToken, setGeneratedToken] = useState("");
+  const [firestoreLoading, setFirestoreLoading] = useState(false);
+  const [firestoreStatus, setFirestoreStatus] = useState("");
   const [classesList, setClassesList] = useState(getClasses());
   const [departments, setDepartments] = useState(getDepartments());
   const [subjects, setSubjects] = useState(getSubjects());
@@ -17159,6 +17162,61 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       refreshState();
     } else {
       setSyncMessage(res.error || "Failed to pull updates from cloud.");
+    }
+  };
+  const handlePushToFirestore = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus("Pushing institutional data to Cloud Firestore...");
+    try {
+      const syncFn = typeof window !== "undefined" && window.migrateLocalDataToFirestore ? window.migrateLocalDataToFirestore : migrateLocalDataToFirestore;
+      if (typeof syncFn === "function") {
+        const res = await syncFn(true);
+        if (res && res.migrated) {
+          setFirestoreStatus("\u2713 Successfully pushed all departments, faculties, timetables, and sessions to Cloud Firestore (adit-attendance-system)!");
+          if (showToast) {
+            showToast("Cloud Firestore: Institutional data pushed successfully!", "success");
+          }
+        } else {
+          setFirestoreStatus("\u26A0\uFE0F Cloud Firestore push: " + (res?.error || res?.reason || "Verified up to date."));
+        }
+      } else {
+        setFirestoreStatus("\u26A0\uFE0F Cloud Firestore synchronizer not loaded.");
+      }
+    } catch (err) {
+      setFirestoreStatus("\u274C Failed to push to Cloud Firestore: " + (err.message || "Unknown error"));
+      if (showToast) {
+        showToast("Firestore error: " + err.message, "error");
+      }
+    } finally {
+      setFirestoreLoading(false);
+    }
+  };
+  const handlePullFromFirestore = async () => {
+    setFirestoreLoading(true);
+    setFirestoreStatus("Pulling latest institutional data from Cloud Firestore...");
+    try {
+      const fetchFn = typeof window !== "undefined" && (window.syncAllFromFirestore || window.fetchAllFromFirestore) ? window.syncAllFromFirestore || window.fetchAllFromFirestore : fetchAllFromFirestore;
+      if (typeof fetchFn === "function") {
+        const ok = await fetchFn();
+        if (ok) {
+          setFirestoreStatus("\u2713 Successfully synchronized latest faculties, timetables, and attendance sessions from Cloud Firestore!");
+          refreshState();
+          if (showToast) {
+            showToast("Cloud Firestore: Local data synchronized with cloud!", "success");
+          }
+        } else {
+          setFirestoreStatus("\u26A0\uFE0F Could not complete Cloud Firestore pull (verify network or permissions).");
+        }
+      } else {
+        setFirestoreStatus("\u26A0\uFE0F Cloud Firestore pull function not loaded.");
+      }
+    } catch (err) {
+      setFirestoreStatus("\u274C Failed to pull from Cloud Firestore: " + (err.message || "Unknown error"));
+      if (showToast) {
+        showToast("Firestore error: " + err.message, "error");
+      }
+    } finally {
+      setFirestoreLoading(false);
     }
   };
   const handleExportBackup = () => {
@@ -17419,7 +17477,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onOpenFacultyTimetable: () => setAdminTab("faculty"),
       showToast
     }
-  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", borderLeft: "5px solid #d97706", border: "1px solid #fed7aa", backgroundColor: "#fffbeb" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#92400e", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(Database, { size: 20, style: { color: "#d97706" } }), "Google Cloud Firestore (Project: ", /* @__PURE__ */ React.createElement("code", null, "adit-attendance-system"), ")"), /* @__PURE__ */ React.createElement("span", { style: {
+  ), adminTab === "settings" && /* @__PURE__ */ React.createElement("div", { className: "admin-subview", style: { maxWidth: "640px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontSize: "26px", fontWeight: "800", color: "#0f172a" } }, "Admin & Security Settings"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13.5px", color: "#64748b", marginTop: "4px" } }, "Manage master administrator PIN code, data synchronization, and college branding.")), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", borderLeft: "5px solid #d97706", border: "1px solid #fed7aa", backgroundColor: "#fffbeb" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#92400e", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(DatabaseIcon, { size: 20, style: { color: "#d97706" } }), "Google Cloud Firestore (Project: ", /* @__PURE__ */ React.createElement("code", null, "adit-attendance-system"), ")"), /* @__PURE__ */ React.createElement("span", { style: {
     fontSize: "11.5px",
     fontWeight: "700",
     padding: "3px 10px",
@@ -17635,6 +17693,9 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
       onChange: (e) => setSubjectForm({ ...subjectForm, credits: parseInt(e.target.value) || 4 })
     }
   )))), /* @__PURE__ */ React.createElement("div", { className: "modal-footer" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn btn-secondary", onClick: () => setShowSubjectModal(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Subject"))))));
+}
+if (typeof window !== "undefined") {
+  window.AdminPanel = AdminPanel;
 }
 var SUBJECT_COLOR_THEMES = {
   purple: { bg: "#fbf7ff", border: "#ddd6fe", text: "#5b21b6", badgeBg: "#ede9fe", badgeText: "#6d28d9" },
