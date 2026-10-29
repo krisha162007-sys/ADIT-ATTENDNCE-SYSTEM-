@@ -151,7 +151,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
     setAllocations(getAllocations());
   };
 
-  // Listen for faculty and timetable updates
+  // Listen for real-time cloud data updates (faculties, timetables, students, classes, departments)
   React.useEffect(() => {
     const handleFacultyUpdated = () => {
       setFaculties([...getFaculties()]);
@@ -159,11 +159,34 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
     const handleTimetableSynced = () => {
       setAllocations(getAllocations());
     };
+    const handleStudentsUpdated = () => {
+      setStudents([...getStudents()]);
+    };
+    const handleClassesUpdated = () => {
+      setClassesList([...getClasses()]);
+    };
+    const handleDepartmentsUpdated = () => {
+      setDepartments([...getDepartments()]);
+    };
+    const handleDataSynced = () => {
+      refreshState();
+      setClassesList([...getClasses()]);
+    };
+
     window.addEventListener('adit-faculty-updated', handleFacultyUpdated);
     window.addEventListener('adit-timetable-synced', handleTimetableSynced);
+    window.addEventListener('adit-students-updated', handleStudentsUpdated);
+    window.addEventListener('adit-classes-updated', handleClassesUpdated);
+    window.addEventListener('adit-departments-updated', handleDepartmentsUpdated);
+    window.addEventListener('adit-data-synced', handleDataSynced);
+
     return () => {
       window.removeEventListener('adit-faculty-updated', handleFacultyUpdated);
       window.removeEventListener('adit-timetable-synced', handleTimetableSynced);
+      window.removeEventListener('adit-students-updated', handleStudentsUpdated);
+      window.removeEventListener('adit-classes-updated', handleClassesUpdated);
+      window.removeEventListener('adit-departments-updated', handleDepartmentsUpdated);
+      window.removeEventListener('adit-data-synced', handleDataSynced);
     };
   }, []);
 
@@ -299,6 +322,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
       if (ok) {
         setFirestoreStatus('✓ Successfully synchronized latest faculties, timetables, and attendance from Realtime Database!');
         refreshState();
+        setClassesList([...getClasses()]);
         if (showToast) showToast('Realtime Database: Local data synchronized with cloud!', 'success');
       } else {
         setFirestoreStatus('⚠️ Could not fetch from Realtime Database (verify network or permissions).');

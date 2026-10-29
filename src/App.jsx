@@ -51,9 +51,29 @@ export default function App() {
         if (typeof startRealtimeSync === 'function') {
           startRealtimeSync();
         }
-        if (typeof migrateLocalDataToRtdb === 'function') {
-          migrateLocalDataToRtdb().catch(e => console.warn('[RTDB] Startup sync notice:', e));
-        }
+        // Automated startup cloud synchronization
+        const doStartupSync = async () => {
+          if (typeof checkCloudDataExists === 'function' && typeof fetchAllFromRtdb === 'function') {
+            try {
+              const cloudStatus = await checkCloudDataExists();
+              if (cloudStatus && cloudStatus.exists && cloudStatus.count > 0) {
+                console.log('[RTDB] Cloud records detected on startup. Pulling latest data...');
+                await fetchAllFromRtdb();
+              } else {
+                // If cloud is empty and local device has institutional records, auto-seed cloud
+                const localStudents = typeof getStudents === 'function' ? getStudents() : [];
+                const localClasses = typeof getClasses === 'function' ? getClasses() : [];
+                if ((localStudents.length > 8 || localClasses.length > 2) && typeof migrateLocalDataToRtdb === 'function') {
+                  console.log('[RTDB] Clean cloud detected & rich local data present. Auto-migrating to cloud...');
+                  await migrateLocalDataToRtdb(true);
+                }
+              }
+            } catch (syncErr) {
+              console.warn('[RTDB] Startup cloud sync notice:', syncErr.message);
+            }
+          }
+        };
+        doStartupSync();
         if (typeof migrateLocalDataToFirestore === 'function') {
           migrateLocalDataToFirestore().catch(e => console.warn('[Firestore] Sync notice:', e));
         }

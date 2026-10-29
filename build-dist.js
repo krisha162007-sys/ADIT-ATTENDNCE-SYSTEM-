@@ -73,12 +73,31 @@ if (fs.existsSync(cleanupSrc)) {
   console.log('✓ Copied cleanup_session.html to dist');
 }
 
-// 5. Ensure index.html in dist has correct links
+// 5. Inject environment variables into dist/index.html
 const distIndex = path.join(distDir, 'index.html');
-if (!fs.existsSync(distIndex)) {
-  const rootIndex = path.join(rootDir, 'index.html');
-  fs.copyFileSync(rootIndex, distIndex);
-  console.log('✓ Copied root index.html to dist/index.html');
+const rootIndex = path.join(rootDir, 'index.html');
+const baseHtml = fs.existsSync(distIndex) ? fs.readFileSync(distIndex, 'utf8') : fs.readFileSync(rootIndex, 'utf8');
+
+const envObj = {
+  VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY || '',
+  VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'adit-attendance-system.firebaseapp.com',
+  VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID || 'adit-attendance-system',
+  VITE_FIREBASE_STORAGE_BUCKET: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'adit-attendance-system.appspot.com',
+  VITE_FIREBASE_MESSAGING_SENDER_ID: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID || '',
+  VITE_FIREBASE_DATABASE_URL: process.env.VITE_FIREBASE_DATABASE_URL || 'https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app'
+};
+
+const envScript = `<script id="adit-env">window.__ADIT_ENV = ${JSON.stringify(envObj, null, 2)};</script>`;
+
+let finalHtml = baseHtml;
+if (finalHtml.includes('id="adit-env"')) {
+  finalHtml = finalHtml.replace(/<script id="adit-env">[\s\S]*?<\/script>/, envScript);
+} else {
+  finalHtml = finalHtml.replace('<script src="/app-bundle.js">', `${envScript}\n  <script src="/app-bundle.js">`);
 }
+
+fs.writeFileSync(distIndex, finalHtml, 'utf8');
+console.log('✓ Injected production environment variables into dist/index.html');
 
 console.log('--- Production Distribution Packaging Completed Successfully ---');

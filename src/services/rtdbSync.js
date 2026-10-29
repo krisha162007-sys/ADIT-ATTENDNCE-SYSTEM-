@@ -196,11 +196,21 @@ export const migrateLocalDataToRtdb = async (force = false) => {
   }
 
   try {
+    let syncedCount = 0;
+    let failedCount = 0;
+
+    const recordSync = async (path, id, obj) => {
+      const ok = await syncRtdbRecord(path, id, obj);
+      if (ok) syncedCount++;
+      else failedCount++;
+      return ok;
+    };
+
     // 3. Migrate Departments
     const depts = getDepartments(true);
     for (const d of depts) {
       if (d.id || d.code) {
-        await syncRtdbRecord(RTDB_PATHS.DEPARTMENTS, d.id || d.code, d);
+        await recordSync(RTDB_PATHS.DEPARTMENTS, d.id || d.code, d);
       }
     }
 
@@ -208,7 +218,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const faculties = getFaculties();
     for (const fac of faculties) {
       if (fac.id) {
-        await syncRtdbRecord(RTDB_PATHS.FACULTIES, fac.id, fac);
+        await recordSync(RTDB_PATHS.FACULTIES, fac.id, fac);
       }
     }
 
@@ -216,7 +226,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const classes = getClasses();
     for (const cls of classes) {
       if (cls.id) {
-        await syncRtdbRecord(RTDB_PATHS.CLASSES, cls.id, cls);
+        await recordSync(RTDB_PATHS.CLASSES, cls.id, cls);
       }
     }
 
@@ -224,7 +234,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const subjects = getSubjects();
     for (const sub of subjects) {
       if (sub.id) {
-        await syncRtdbRecord(RTDB_PATHS.SUBJECTS, sub.id, sub);
+        await recordSync(RTDB_PATHS.SUBJECTS, sub.id, sub);
       }
     }
 
@@ -232,7 +242,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const students = getStudents();
     for (const stu of students) {
       if (stu.id || stu.enrollmentNo) {
-        await syncRtdbRecord(RTDB_PATHS.STUDENTS, stu.id || stu.enrollmentNo, stu);
+        await recordSync(RTDB_PATHS.STUDENTS, stu.id || stu.enrollmentNo, stu);
       }
     }
 
@@ -240,7 +250,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const entries = getTimetableEntries();
     for (const e of entries) {
       if (e.id) {
-        await syncRtdbRecord(RTDB_PATHS.TIMETABLE_ENTRIES, e.id, e);
+        await recordSync(RTDB_PATHS.TIMETABLE_ENTRIES, e.id, e);
       }
     }
 
@@ -248,7 +258,7 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const sessions = getSessions();
     for (const s of sessions) {
       if (s.id) {
-        await syncRtdbRecord(RTDB_PATHS.SESSIONS, s.id, s);
+        await recordSync(RTDB_PATHS.SESSIONS, s.id, s);
       }
     }
 
@@ -256,19 +266,25 @@ export const migrateLocalDataToRtdb = async (force = false) => {
     const exceptions = getExceptions();
     for (const exc of exceptions) {
       if (exc.id) {
-        await syncRtdbRecord(RTDB_PATHS.EXCEPTIONS, exc.id, exc);
+        await recordSync(RTDB_PATHS.EXCEPTIONS, exc.id, exc);
       }
     }
 
     // 11. System Institutional Profile
-    await syncRtdbRecord(RTDB_PATHS.SYSTEM, 'institutional_profile', {
+    await recordSync(RTDB_PATHS.SYSTEM, 'institutional_profile', {
       collegeName: 'A D Patel Institute of Technology',
       databaseUrl: DEFAULT_DATABASE_URL,
       migratedAt: new Date().toISOString()
     });
 
-    console.log('[RTDB] Institutional data successfully synchronized to Firebase Realtime Database!');
-    return { migrated: true, collectionsMigrated: 10 };
+    if (syncedCount === 0 && failedCount > 0) {
+      const errMsg = 'Permission denied by Firebase Realtime Database. Please update Realtime Database Rules in Firebase Console to allow read/write.';
+      console.warn('[RTDB] Migration failed:', errMsg);
+      return { migrated: false, error: errMsg };
+    }
+
+    console.log(`[RTDB] Institutional data successfully synchronized to Firebase Realtime Database (${syncedCount} records synced, ${failedCount} errors)!`);
+    return { migrated: true, syncedCount, failedCount, collectionsMigrated: 10 };
   } catch (err) {
     console.warn('[RTDB] Migration error:', err.message);
     return { migrated: false, error: err.message };
@@ -387,6 +403,7 @@ export const fetchAllFromRtdb = async () => {
       window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
       window.dispatchEvent(new CustomEvent('adit-departments-updated'));
       window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+      window.dispatchEvent(new CustomEvent('adit-students-updated'));
       window.dispatchEvent(new CustomEvent('adit-data-synced'));
     }
 
@@ -448,10 +465,54 @@ export const startRealtimeDatabaseSync = () => {
       if (snap.exists() && snap.val()) {
         const classes = Object.values(snap.val());
         localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
-        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('adit-classes-updated'));
+          window.dispatchEvent(new CustomEvent('adit-data-synced'));
+        }
       }
     });
     activeListeners.push({ ref: clsRef, unsub: unsubCls });
+
+    // Students listener (Synchronizes student enrollments and class rosters in real time)
+    const stuRef = f.ref(db, RTDB_PATHS.STUDENTS);
+    const unsubStu = f.onValue(stuRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const students = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('adit-students-updated'));
+          window.dispatchEvent(new CustomEvent('adit-data-synced'));
+        }
+      }
+    });
+    activeListeners.push({ ref: stuRef, unsub: unsubStu });
+
+    // Departments listener
+    const deptRef = f.ref(db, RTDB_PATHS.DEPARTMENTS);
+    const unsubDept = f.onValue(deptRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const depts = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.DEPARTMENTS, JSON.stringify(depts));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('adit-departments-updated'));
+          window.dispatchEvent(new CustomEvent('adit-data-synced'));
+        }
+      }
+    });
+    activeListeners.push({ ref: deptRef, unsub: unsubDept });
+
+    // Subjects listener
+    const subRef = f.ref(db, RTDB_PATHS.SUBJECTS);
+    const unsubSub = f.onValue(subRef, (snap) => {
+      if (snap.exists() && snap.val()) {
+        const subs = Object.values(snap.val());
+        localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(subs));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('adit-data-synced'));
+        }
+      }
+    });
+    activeListeners.push({ ref: subRef, unsub: unsubSub });
 
     console.log('[RTDB] Realtime Database listeners active.');
   } catch (err) {

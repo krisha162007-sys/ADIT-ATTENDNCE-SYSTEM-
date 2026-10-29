@@ -1374,6 +1374,13 @@ h1, h2, h3, h4, h5, h6 {
   </script>
 
   <!-- Pre-compiled app (no Babel needed!) -->
+  <!-- Environment configuration bridge for Cloud Synchronization -->
+  <script id="adit-env">
+    window.__ADIT_ENV = window.__ADIT_ENV || {
+      VITE_FIREBASE_PROJECT_ID: "adit-attendance-system",
+      VITE_FIREBASE_DATABASE_URL: "https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+  </script>
   <script src="/app-bundle.js"></script>
 </body>
 </html>
