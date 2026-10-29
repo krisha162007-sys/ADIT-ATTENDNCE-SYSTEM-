@@ -149,6 +149,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
     setFaculties(getFaculties());
     setStudents(getStudents());
     setAllocations(getAllocations());
+    setClassesList(getClasses());
   };
 
   // Listen for real-time cloud data updates (faculties, timetables, students, classes, departments)
@@ -960,8 +961,34 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
               </div>
 
               {firestoreStatus && (
-                <div style={{ marginTop: '12px', fontSize: '12.5px', fontWeight: '700', color: firestoreStatus.startsWith('✓') ? '#15803d' : '#b45309' }}>
-                  {firestoreStatus}
+                <div style={{
+                  marginTop: '14px',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  lineHeight: '1.5',
+                  backgroundColor: firestoreStatus.startsWith('✓') ? '#ecfdf5' : '#fff1f2',
+                  border: firestoreStatus.startsWith('✓') ? '1px solid #a7f3d0' : '1px solid #fecdd3',
+                  color: firestoreStatus.startsWith('✓') ? '#15803d' : '#b91c1c'
+                }}>
+                  <div>{firestoreStatus}</div>
+                  {firestoreStatus.includes('Permission denied') && (
+                    <div style={{ marginTop: '10px', fontSize: '12px', color: '#7f1d1d', backgroundColor: '#ffffff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #fca5a5' }}>
+                      <div style={{ fontWeight: '700', marginBottom: '4px' }}>👉 How to Fix in 30 Seconds:</div>
+                      <div>1. Open your <a href="https://console.firebase.google.com/project/adit-attendance-system/database/adit-attendance-system-default-rtdb/rules" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: '700' }}>Firebase Console Realtime Database Rules Tab</a></div>
+                      <div>2. Paste the rules below and click <strong>Publish</strong>:</div>
+                      <pre style={{ margin: '6px 0', padding: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', border: '1px solid #cbd5e1', fontFamily: 'monospace', fontSize: '11.5px', color: '#0f172a' }}>
+{`{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}`}
+                      </pre>
+                      <div style={{ color: '#475569', fontSize: '11px', marginTop: '4px' }}>💡 Alternatively, you can use the <strong>Quick Transfer Token</strong> below to copy all 71 students to another device instantly.</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

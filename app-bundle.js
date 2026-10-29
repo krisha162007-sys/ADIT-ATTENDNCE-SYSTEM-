@@ -17554,6 +17554,7 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     setFaculties(getFaculties());
     setStudents(getStudents());
     setAllocations(getAllocations());
+    setClassesList(getClasses());
   };
   React.useEffect(() => {
     const handleFacultyUpdated = () => {
@@ -18068,7 +18069,22 @@ function AdminPanel({ showToast, onExit, initialTab = "faculty" }) {
     },
     /* @__PURE__ */ React.createElement(Download, { size: 14 }),
     "Download Local Backup (.json)"
-  )), firestoreStatus && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", fontSize: "12.5px", fontWeight: "700", color: firestoreStatus.startsWith("\u2713") ? "#15803d" : "#b45309" } }, firestoreStatus)), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", border: "1px solid #bfdbfe", backgroundColor: "#f8faff" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#1e3a8a", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(UploadCloud, { size: 20, style: { color: "#2563eb" } }), "Cloud Synchronization (Cross-Device)"), /* @__PURE__ */ React.createElement("span", { style: {
+  )), firestoreStatus && /* @__PURE__ */ React.createElement("div", { style: {
+    marginTop: "14px",
+    padding: "12px 14px",
+    borderRadius: "8px",
+    fontSize: "12.5px",
+    fontWeight: "600",
+    lineHeight: "1.5",
+    backgroundColor: firestoreStatus.startsWith("\u2713") ? "#ecfdf5" : "#fff1f2",
+    border: firestoreStatus.startsWith("\u2713") ? "1px solid #a7f3d0" : "1px solid #fecdd3",
+    color: firestoreStatus.startsWith("\u2713") ? "#15803d" : "#b91c1c"
+  } }, /* @__PURE__ */ React.createElement("div", null, firestoreStatus), firestoreStatus.includes("Permission denied") && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", fontSize: "12px", color: "#7f1d1d", backgroundColor: "#ffffff", padding: "10px 12px", borderRadius: "6px", border: "1px solid #fca5a5" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "700", marginBottom: "4px" } }, "\u{1F449} How to Fix in 30 Seconds:"), /* @__PURE__ */ React.createElement("div", null, "1. Open your ", /* @__PURE__ */ React.createElement("a", { href: "https://console.firebase.google.com/project/adit-attendance-system/database/adit-attendance-system-default-rtdb/rules", target: "_blank", rel: "noopener noreferrer", style: { color: "#2563eb", textDecoration: "underline", fontWeight: "700" } }, "Firebase Console Realtime Database Rules Tab")), /* @__PURE__ */ React.createElement("div", null, "2. Paste the rules below and click ", /* @__PURE__ */ React.createElement("strong", null, "Publish"), ":"), /* @__PURE__ */ React.createElement("pre", { style: { margin: "6px 0", padding: "8px", backgroundColor: "#f1f5f9", borderRadius: "4px", border: "1px solid #cbd5e1", fontFamily: "monospace", fontSize: "11.5px", color: "#0f172a" } }, `{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}`), /* @__PURE__ */ React.createElement("div", { style: { color: "#475569", fontSize: "11px", marginTop: "4px" } }, "\u{1F4A1} Alternatively, you can use the ", /* @__PURE__ */ React.createElement("strong", null, "Quick Transfer Token"), " below to copy all 71 students to another device instantly.")))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", marginBottom: "20px", border: "1px solid #bfdbfe", backgroundColor: "#f8faff" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "16px", fontWeight: "800", color: "#1e3a8a", display: "flex", alignItems: "center", gap: "8px", margin: 0 } }, /* @__PURE__ */ React.createElement(UploadCloud, { size: 20, style: { color: "#2563eb" } }), "Cloud Synchronization (Cross-Device)"), /* @__PURE__ */ React.createElement("span", { style: {
     fontSize: "11.5px",
     fontWeight: "700",
     padding: "3px 10px",

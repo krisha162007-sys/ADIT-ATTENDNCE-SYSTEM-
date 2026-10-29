@@ -97,7 +97,11 @@ if (finalHtml.includes('id="adit-env"')) {
   finalHtml = finalHtml.replace('<script src="/app-bundle.js">', `${envScript}\n  <script src="/app-bundle.js">`);
 }
 
+// Add cache-busting version parameter to app-bundle.js
+const buildVersion = Date.now();
+finalHtml = finalHtml.replace(/\/app-bundle\.js(\?v=\w+)?/g, `/app-bundle.js?v=${buildVersion}`);
+
 fs.writeFileSync(distIndex, finalHtml, 'utf8');
-console.log('✓ Injected production environment variables into dist/index.html');
+console.log(`✓ Injected production environment variables and cache buster (?v=${buildVersion}) into dist/index.html`);
 
 console.log('--- Production Distribution Packaging Completed Successfully ---');
