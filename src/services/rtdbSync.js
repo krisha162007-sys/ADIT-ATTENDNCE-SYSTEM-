@@ -334,7 +334,12 @@ export const fetchAllFromRtdb = async () => {
   try {
     // 1. Faculties
     if (fetchedData.adit_faculties) {
-      const facs = Object.values(fetchedData.adit_faculties);
+      let facs = Object.values(fetchedData.adit_faculties);
+      if (fetchedData.adit_faculties.FAC_PB && fetchedData.adit_faculties.FAC_PS) {
+        deleteRtdbRecord(RTDB_PATHS.FACULTIES, 'FAC_PB').catch(() => {});
+      }
+      const dedupFn = (typeof window !== 'undefined' && window.deduplicateFaculties) ? window.deduplicateFaculties : null;
+      if (dedupFn) facs = dedupFn(facs);
       if (facs.length > 0) {
         localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
       }
@@ -430,7 +435,12 @@ export const startRealtimeDatabaseSync = () => {
     const facRef = f.ref(db, RTDB_PATHS.FACULTIES);
     const unsubFac = f.onValue(facRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const facs = Object.values(snap.val());
+        let facs = Object.values(snap.val());
+        if (snap.val().FAC_PB && snap.val().FAC_PS) {
+          deleteRtdbRecord(RTDB_PATHS.FACULTIES, 'FAC_PB').catch(() => {});
+        }
+        const dedupFn = (typeof window !== 'undefined' && window.deduplicateFaculties) ? window.deduplicateFaculties : null;
+        if (dedupFn) facs = dedupFn(facs);
         localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
         if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
       }

@@ -370,6 +370,58 @@ const generateDBMSSessions = () => {
 
 export const DEFAULT_SESSIONS = [];
 
+// Deduplicate faculties by canonical ID and normalized full name
+export const deduplicateFaculties = (facList) => {
+  if (!Array.isArray(facList)) return [];
+  const uniqueMap = new Map();
+
+  facList.forEach(f => {
+    if (!f) return;
+    const item = { ...f };
+
+    // Canonicalize Dr. Priyang Bhatt (HOD)
+    const isPriyang = item.name && item.name.toLowerCase().includes('priyang') && item.name.toLowerCase().includes('bhatt');
+    if (isPriyang) {
+      item.id = 'FAC_PS';
+    }
+
+    const normId = String(item.id || '').trim().toUpperCase();
+    const cleanName = String(item.name || '')
+      .replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
+      .trim()
+      .toLowerCase();
+
+    const key = normId || cleanName;
+    if (!key) return;
+
+    if (uniqueMap.has(key)) {
+      const existing = uniqueMap.get(key);
+      uniqueMap.set(key, { ...existing, ...item, id: normId || existing.id });
+    } else {
+      let nameMatchedKey = null;
+      for (const [k, v] of uniqueMap.entries()) {
+        const vCleanName = String(v.name || '')
+          .replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
+          .trim()
+          .toLowerCase();
+        if (cleanName && vCleanName === cleanName) {
+          nameMatchedKey = k;
+          break;
+        }
+      }
+
+      if (nameMatchedKey) {
+        const existing = uniqueMap.get(nameMatchedKey);
+        uniqueMap.set(nameMatchedKey, { ...existing, ...item, id: normId || existing.id });
+      } else {
+        uniqueMap.set(key, item);
+      }
+    }
+  });
+
+  return Array.from(uniqueMap.values());
+};
+
 // Helper to initialize LocalStorage if empty or outdated
 export const initializeStorage = () => {
   // Sanitize college branding if outdated
@@ -405,26 +457,22 @@ export const initializeStorage = () => {
     localStorage.setItem(SEED_KEY, 'true');
   }
 
-  // Auto-reconciliation of legacy or mismatched faculty IDs across devices
+  // Auto-reconciliation and strict deduplication of faculty records across devices
   try {
     const rawFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
     if (rawFac) {
-      let facList = JSON.parse(rawFac);
-      let changed = false;
-      facList = facList.map(f => {
-        // If Dr. Priyang Bhatt has legacy random ID (e.g. FAC_9767), reconcile to FAC_PS
-        if (f.name && f.name.toLowerCase().includes('priyang') && f.id !== 'FAC_PS') {
-          const oldId = f.id;
-          f.id = 'FAC_PS';
-          changed = true;
-          if (typeof window !== 'undefined' && typeof window.reconcileTimetableFacultyId === 'function') {
-            window.reconcileTimetableFacultyId(oldId, 'FAC_PS', f.name);
+      const facList = JSON.parse(rawFac);
+      if (Array.isArray(facList)) {
+        // Purge legacy alias FAC_PB from cloud if present
+        if (typeof window !== 'undefined' && typeof window.deleteRtdbRecord === 'function') {
+          if (facList.some(f => f && f.id === 'FAC_PB')) {
+            window.deleteRtdbRecord('adit_faculties', 'FAC_PB').catch(() => {});
           }
         }
-        return f;
-      });
-      if (changed) {
-        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facList));
+        const deduped = deduplicateFaculties(facList);
+        if (deduped.length !== facList.length || JSON.stringify(deduped) !== rawFac) {
+          localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(deduped));
+        }
       }
     }
   } catch (e) {
@@ -3064,8 +3112,15 @@ export const calculateAnalytics = (targetSubjectId = null) => {
 // Faculties API
 export const getFaculties = () => {
   initializeStorage();
-  const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FACULTIES) || JSON.stringify(DEFAULT_FACULTIES));
-  return list.map(f => ({
+  const raw = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+  const list = raw ? JSON.parse(raw) : DEFAULT_FACULTIES;
+  const deduped = deduplicateFaculties(list);
+  if (deduped.length !== list.length) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(deduped));
+    } catch (e) {}
+  }
+  return deduped.map(f => ({
     ...f,
     password: f.password || 'faculty123'
   }));
@@ -3125,7 +3180,8 @@ export const saveFaculty = (faculty, userContext = null) => {
     }
   }
 
-  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  const dedupedFaculties = deduplicateFaculties(faculties);
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(dedupedFaculties));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('adit-faculty-updated'));
     if (typeof window.syncRtdbRecord === 'function' && facCopy && facCopy.id) { window.syncRtdbRecord('adit_faculties', facCopy.id, facCopy).catch(() => {}); }
@@ -5429,4 +5485,5 @@ if (typeof window !== 'undefined') {
   window.canonicalizeBatch = canonicalizeBatch;
   window.getBatchesForClass = getBatchesForClass;
   window.cleanupBatchDefinitions = cleanupBatchDefinitions;
+  window.deduplicateFaculties = deduplicateFaculties;
 }

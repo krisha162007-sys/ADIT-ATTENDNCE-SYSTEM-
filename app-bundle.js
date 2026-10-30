@@ -322,6 +322,42 @@ const generateDBMSSessions = () => {
   });
 };
 const DEFAULT_SESSIONS = [];
+const deduplicateFaculties = (facList) => {
+  if (!Array.isArray(facList)) return [];
+  const uniqueMap = /* @__PURE__ */ new Map();
+  facList.forEach((f) => {
+    if (!f) return;
+    const item = { ...f };
+    const isPriyang = item.name && item.name.toLowerCase().includes("priyang") && item.name.toLowerCase().includes("bhatt");
+    if (isPriyang) {
+      item.id = "FAC_PS";
+    }
+    const normId = String(item.id || "").trim().toUpperCase();
+    const cleanName = String(item.name || "").replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, "").trim().toLowerCase();
+    const key = normId || cleanName;
+    if (!key) return;
+    if (uniqueMap.has(key)) {
+      const existing = uniqueMap.get(key);
+      uniqueMap.set(key, { ...existing, ...item, id: normId || existing.id });
+    } else {
+      let nameMatchedKey = null;
+      for (const [k, v] of uniqueMap.entries()) {
+        const vCleanName = String(v.name || "").replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, "").trim().toLowerCase();
+        if (cleanName && vCleanName === cleanName) {
+          nameMatchedKey = k;
+          break;
+        }
+      }
+      if (nameMatchedKey) {
+        const existing = uniqueMap.get(nameMatchedKey);
+        uniqueMap.set(nameMatchedKey, { ...existing, ...item, id: normId || existing.id });
+      } else {
+        uniqueMap.set(key, item);
+      }
+    }
+  });
+  return Array.from(uniqueMap.values());
+};
 const initializeStorage = () => {
   const storedCollege = localStorage.getItem(STORAGE_KEYS.COLLEGE_NAME);
   if (!storedCollege || storedCollege.includes("G H Patel") || storedCollege.includes("GCET") || storedCollege.includes("GH Patel")) {
@@ -351,21 +387,18 @@ const initializeStorage = () => {
   try {
     const rawFac = localStorage.getItem(STORAGE_KEYS.FACULTIES);
     if (rawFac) {
-      let facList = JSON.parse(rawFac);
-      let changed = false;
-      facList = facList.map((f) => {
-        if (f.name && f.name.toLowerCase().includes("priyang") && f.id !== "FAC_PS") {
-          const oldId = f.id;
-          f.id = "FAC_PS";
-          changed = true;
-          if (typeof window !== "undefined" && typeof window.reconcileTimetableFacultyId === "function") {
-            window.reconcileTimetableFacultyId(oldId, "FAC_PS", f.name);
+      const facList = JSON.parse(rawFac);
+      if (Array.isArray(facList)) {
+        if (typeof window !== "undefined" && typeof window.deleteRtdbRecord === "function") {
+          if (facList.some((f) => f && f.id === "FAC_PB")) {
+            window.deleteRtdbRecord("adit_faculties", "FAC_PB").catch(() => {
+            });
           }
         }
-        return f;
-      });
-      if (changed) {
-        localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facList));
+        const deduped = deduplicateFaculties(facList);
+        if (deduped.length !== facList.length || JSON.stringify(deduped) !== rawFac) {
+          localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(deduped));
+        }
       }
     }
   } catch (e) {
@@ -2540,8 +2573,16 @@ const calculateAnalytics = (targetSubjectId = null) => {
 };
 const getFaculties = () => {
   initializeStorage();
-  const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FACULTIES) || JSON.stringify(DEFAULT_FACULTIES));
-  return list.map((f) => ({
+  const raw = localStorage.getItem(STORAGE_KEYS.FACULTIES);
+  const list = raw ? JSON.parse(raw) : DEFAULT_FACULTIES;
+  const deduped = deduplicateFaculties(list);
+  if (deduped.length !== list.length) {
+    try {
+      localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(deduped));
+    } catch (e) {
+    }
+  }
+  return deduped.map((f) => ({
     ...f,
     password: f.password || "faculty123"
   }));
@@ -2593,7 +2634,8 @@ const saveFaculty = (faculty, userContext = null) => {
       faculties.push(facCopy);
     }
   }
-  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(faculties));
+  const dedupedFaculties = deduplicateFaculties(faculties);
+  localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(dedupedFaculties));
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
     if (typeof window.syncRtdbRecord === "function" && facCopy && facCopy.id) {
@@ -4458,6 +4500,7 @@ if (typeof window !== "undefined") {
   window.canonicalizeBatch = canonicalizeBatch;
   window.getBatchesForClass = getBatchesForClass;
   window.cleanupBatchDefinitions = cleanupBatchDefinitions;
+  window.deduplicateFaculties = deduplicateFaculties;
 }
 const TT_STORAGE_KEYS = {
   TIMETABLE: "adit_attendance_timetable",
@@ -8526,7 +8569,18 @@ const importSystemSnapshot = (snapshot) => {
     if (key.startsWith("adit_") || SYSTEM_STORAGE_KEYS.includes(key)) {
       const val = payload[key];
       if (val !== void 0 && val !== null) {
-        const strVal = typeof val === "string" ? val : JSON.stringify(val);
+        let finalVal = val;
+        if (key === "adit_attendance_faculties") {
+          try {
+            const parsed = typeof val === "string" ? JSON.parse(val) : val;
+            const dedupFn = typeof window !== "undefined" && window.deduplicateFaculties ? window.deduplicateFaculties : null;
+            if (dedupFn && Array.isArray(parsed)) {
+              finalVal = dedupFn(parsed);
+            }
+          } catch (e) {
+          }
+        }
+        const strVal = typeof finalVal === "string" ? finalVal : JSON.stringify(finalVal);
         localStorage.setItem(key, strVal);
         restoredCount++;
       }
@@ -9378,7 +9432,13 @@ const fetchAllFromRtdb = async () => {
   }
   try {
     if (fetchedData.adit_faculties) {
-      const facs = Object.values(fetchedData.adit_faculties);
+      let facs = Object.values(fetchedData.adit_faculties);
+      if (fetchedData.adit_faculties.FAC_PB && fetchedData.adit_faculties.FAC_PS) {
+        deleteRtdbRecord(RTDB_PATHS.FACULTIES, "FAC_PB").catch(() => {
+        });
+      }
+      const dedupFn = typeof window !== "undefined" && window.deduplicateFaculties ? window.deduplicateFaculties : null;
+      if (dedupFn) facs = dedupFn(facs);
       if (facs.length > 0) {
         localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
       }
@@ -9450,7 +9510,13 @@ const startRealtimeDatabaseSync = () => {
     const facRef = f.ref(db, RTDB_PATHS.FACULTIES);
     const unsubFac = f.onValue(facRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const facs = Object.values(snap.val());
+        let facs = Object.values(snap.val());
+        if (snap.val().FAC_PB && snap.val().FAC_PS) {
+          deleteRtdbRecord(RTDB_PATHS.FACULTIES, "FAC_PB").catch(() => {
+          });
+        }
+        const dedupFn = typeof window !== "undefined" && window.deduplicateFaculties ? window.deduplicateFaculties : null;
+        if (dedupFn) facs = dedupFn(facs);
         localStorage.setItem(STORAGE_KEYS.FACULTIES, JSON.stringify(facs));
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-faculty-updated"));
       }
@@ -16256,11 +16322,21 @@ function DepartmentAdminPanel({
     };
   }, [departments, selectedDeptName, isAllDepts, students]);
   const deptFaculties = useMemo(() => {
-    return faculties.filter((f) => {
+    const filtered = faculties.filter((f) => {
       const matchDept = isAllDepts || !f.dept || isDepartmentMatch(f.dept, selectedDeptName) || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
       const matchQuery = !q || f.name.toLowerCase().includes(q) || f.id && f.id.toLowerCase().includes(q) || f.dept && f.dept.toLowerCase().includes(q) || f.subjects && f.subjects.toLowerCase().includes(q) || f.designation && f.designation.toLowerCase().includes(q) || f.email && f.email.toLowerCase().includes(q);
       return matchDept && matchQuery;
+    });
+    const seen = /* @__PURE__ */ new Set();
+    return filtered.filter((f) => {
+      const normId = String(f.id || "").trim().toUpperCase();
+      const cleanName = String(f.name || "").replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, "").trim().toLowerCase();
+      const key = normId || cleanName;
+      if (!key || seen.has(normId) || cleanName && seen.has(cleanName)) return false;
+      if (normId) seen.add(normId);
+      if (cleanName) seen.add(cleanName);
+      return true;
     });
   }, [faculties, currentDept, facultySearch, isAllDepts, selectedDeptName]);
   const deptSubjects = useMemo(() => {

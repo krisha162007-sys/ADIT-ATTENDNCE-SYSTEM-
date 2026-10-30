@@ -108,7 +108,17 @@ export const importSystemSnapshot = (snapshot) => {
     if (key.startsWith('adit_') || SYSTEM_STORAGE_KEYS.includes(key)) {
       const val = payload[key];
       if (val !== undefined && val !== null) {
-        const strVal = typeof val === 'string' ? val : JSON.stringify(val);
+        let finalVal = val;
+        if (key === 'adit_attendance_faculties') {
+          try {
+            const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+            const dedupFn = (typeof window !== 'undefined' && window.deduplicateFaculties) ? window.deduplicateFaculties : null;
+            if (dedupFn && Array.isArray(parsed)) {
+              finalVal = dedupFn(parsed);
+            }
+          } catch (e) {}
+        }
+        const strVal = typeof finalVal === 'string' ? finalVal : JSON.stringify(finalVal);
         localStorage.setItem(key, strVal);
         restoredCount++;
       }

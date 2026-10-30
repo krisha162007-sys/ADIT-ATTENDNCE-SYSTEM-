@@ -202,7 +202,7 @@ export default function DepartmentAdminPanel({
 
   // Faculties belonging to this department (Category) or all if 'ALL'
   const deptFaculties = useMemo(() => {
-    return faculties.filter(f => {
+    const filtered = faculties.filter(f => {
       const matchDept = isAllDepts || !f.dept || isDepartmentMatch(f.dept, selectedDeptName) || isDepartmentMatch(f.dept, currentDept.name);
       const q = facultySearch.toLowerCase().trim();
       const matchQuery = !q || 
@@ -213,6 +213,21 @@ export default function DepartmentAdminPanel({
         (f.designation && f.designation.toLowerCase().includes(q)) ||
         (f.email && f.email.toLowerCase().includes(q));
       return matchDept && matchQuery;
+    });
+
+    // Enforce uniqueness to prevent duplicate rows for any faculty member or HOD
+    const seen = new Set();
+    return filtered.filter(f => {
+      const normId = String(f.id || '').trim().toUpperCase();
+      const cleanName = String(f.name || '')
+        .replace(/^(Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)\s*/i, '')
+        .trim()
+        .toLowerCase();
+      const key = normId || cleanName;
+      if (!key || seen.has(normId) || (cleanName && seen.has(cleanName))) return false;
+      if (normId) seen.add(normId);
+      if (cleanName) seen.add(cleanName);
+      return true;
     });
   }, [faculties, currentDept, facultySearch, isAllDepts, selectedDeptName]);
 
