@@ -9893,10 +9893,9 @@ function EnterAttendance({ onSaved, showToast }) {
       alert("Please select a subject!");
       return;
     }
-    if (!topic.trim()) {
-      if (!window.confirm("Topic field is empty. Do you want to submit attendance without entering a topic?")) {
-        return;
-      }
+    if (!topic || !topic.trim()) {
+      alert("Topic / Syllabus Covered is required. Please specify what was taught in this session before saving.");
+      return;
     }
     const newSession = {
       date,
@@ -10849,7 +10848,7 @@ function AttendanceSheetView({
         style: { whiteSpace: "nowrap", fontWeight: "700" }
       },
       "+ Record Attendance"
-    )), /* @__PURE__ */ React.createElement("div", { className: "erp-table-scroll-container" }, /* @__PURE__ */ React.createElement("table", { className: "erp-attendance-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-sr" }, "Sr No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-enroll" }, "Enrollment No"), subjectSessions.map((sess, sessIdx) => {
+    )), /* @__PURE__ */ React.createElement("div", { className: "erp-table-scroll-container" }, /* @__PURE__ */ React.createElement("table", { className: "erp-attendance-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-sr" }, "Sr No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-enroll" }, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-sticky-name" }, "Student Name"), subjectSessions.map((sess, sessIdx) => {
       const datePart = formatDateHeader(sess.date);
       const sameDateSessions = subjectSessions.filter((s) => s.date === sess.date);
       const slotPart = sess.startTime ? `${sess.startTime}` : sess.timeSlot ? sess.timeSlot.split("-")[0].trim() : `L${sessIdx + 1}`;
@@ -10872,7 +10871,7 @@ Session ID: ${sess.id}`
     }), /* @__PURE__ */ React.createElement("th", { className: "erp-th-enroll-repeat" }, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Present"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Exceptions (EX)"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Out of"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Percentage"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement(
       "td",
       {
-        colSpan: subjectSessions.length + 7,
+        colSpan: subjectSessions.length + 8,
         style: { textAlign: "center", padding: "40px 20px", color: "#64748b" }
       },
       /* @__PURE__ */ React.createElement("div", { style: { fontSize: "15px", fontWeight: "600", marginBottom: "6px" } }, "No students found for this academic group."),
@@ -10888,6 +10887,13 @@ Session ID: ${sess.id}`
           title: `Roll #${student.rollNo || idx + 1}: ${student.name} (${student.batch || "Batch A"})`
         },
         student.enrollmentNo
+      ), /* @__PURE__ */ React.createElement(
+        "td",
+        {
+          className: "erp-td-sticky-name",
+          title: `Roll #${student.rollNo || idx + 1}: ${student.name}`
+        },
+        student.name
       ), subjectSessions.map((sess) => {
         const rawStatus = sess.records && (sess.records[student.id] || student.enrollmentNo && sess.records[student.enrollmentNo]) || "";
         const excCheck = isStudentExcusedForSession(student.id, sess.date, sess.timeSlot, selectedSubjectId, sess.batch);
@@ -10953,7 +10959,7 @@ Session ID: ${sess.id}`
           return total > 0 ? pct.toFixed(pct === 100 ? 0 : 2) + "%" : "0.00%";
         })()
       ));
-    })), filteredStudents.length > 0 && subjectSessions.length > 0 && /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "erp-footer-row" }, /* @__PURE__ */ React.createElement("td", { colSpan: 2, style: { textAlign: "right", fontWeight: "800", paddingRight: "12px" } }, "Total Present:"), subjectSessions.map((sess) => {
+    })), filteredStudents.length > 0 && subjectSessions.length > 0 && /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "erp-footer-row" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3, style: { textAlign: "right", fontWeight: "800", paddingRight: "12px" } }, "Total Present:"), subjectSessions.map((sess) => {
       let count = 0;
       filteredStudents.forEach((st) => {
         const s = sess.records && (sess.records[st.id] || st.enrollmentNo && sess.records[st.enrollmentNo]);
@@ -19020,6 +19026,17 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       setUnmarkedAlert(msg);
       return;
     }
+    if (!attTopic || !attTopic.trim()) {
+      const msg = "Topic / Syllabus Covered is required. Please specify what was taught in this session before saving.";
+      if (showToast) showToast(msg, "error");
+      setUnmarkedAlert(msg);
+      const topicInput = document.getElementById("att-topic-input");
+      if (topicInput) {
+        topicInput.focus();
+        topicInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
     const unmarkList = classStudents.filter((s) => {
       const st = attRecords[s.id];
       return !st || st !== "present" && st !== "absent" && st !== "od";
@@ -20564,17 +20581,26 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       onChange: (e) => setIsExtraLecture(e.target.checked),
       style: { width: "17px", height: "17px", accentColor: "#2563eb", cursor: "pointer" }
     }
-  ), /* @__PURE__ */ React.createElement("span", null, "Extra / Compensatory Lecture"))), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "13px", fontWeight: "700", color: "#334155", marginBottom: "6px" } }, "Topic / Syllabus Covered (Optional)"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("span", null, "Extra / Compensatory Lecture"))), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement("label", { htmlFor: "att-topic-input", style: { display: "block", fontSize: "13px", fontWeight: "800", color: "#0f172a", marginBottom: "6px" } }, "Topic / Syllabus Covered ", /* @__PURE__ */ React.createElement("span", { style: { color: "#ef4444" } }, "*"), " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#dc2626", fontWeight: "700" } }, "(Required)")), /* @__PURE__ */ React.createElement(
     "input",
     {
+      id: "att-topic-input",
       type: "text",
       className: "form-control",
-      placeholder: "e.g. Unit 3: Relational Algebra & SQL Query Optimization",
+      placeholder: "e.g. Unit 3: Relational Algebra & SQL Query Optimization (Compulsory)",
       value: attTopic,
-      onChange: (e) => setAttTopic(e.target.value),
-      style: { height: "42px", fontSize: "13.5px" }
+      onChange: (e) => {
+        setAttTopic(e.target.value);
+        if (unmarkedAlert && unmarkedAlert.includes("Topic")) setUnmarkedAlert(null);
+      },
+      style: {
+        height: "42px",
+        fontSize: "13.5px",
+        border: !attTopic.trim() ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
+        backgroundColor: !attTopic.trim() ? "#fffafa" : "#ffffff"
+      }
     }
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "18px" } }, /* @__PURE__ */ React.createElement(
+  ), !attTopic.trim() && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#ef4444", fontWeight: "600", marginTop: "4px", display: "block" } }, "* Topic / Syllabus Covered is compulsory. Please enter what was taught before submitting attendance."))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid #e2e8f0", paddingTop: "18px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -20933,7 +20959,18 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         "View"
       ))
     );
-  })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "24px", display: "flex", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap", borderTop: "1px solid #e2e8f0", paddingTop: "18px" } }, /* @__PURE__ */ React.createElement(
+  })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "24px", display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "18px" } }, !attTopic.trim() && /* @__PURE__ */ React.createElement("div", { style: {
+    padding: "10px 14px",
+    borderRadius: "8px",
+    backgroundColor: "#fef2f2",
+    border: "1px solid #fecaca",
+    color: "#991b1b",
+    fontSize: "13px",
+    fontWeight: "600",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+  } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 16, color: "#dc2626" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("strong", null, "Topic / Syllabus Covered is required:"), " Please scroll up to enter the topic taught before saving attendance.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -21009,7 +21046,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     },
     /* @__PURE__ */ React.createElement(Save, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, isSavingAttendance ? "Saving Attendance..." : "Submit & Save Attendance")
-  )))), facultyTab === "register" && /* @__PURE__ */ React.createElement(
+  ))))), facultyTab === "register" && /* @__PURE__ */ React.createElement(
     AttendanceSheetView,
     {
       currentUser,

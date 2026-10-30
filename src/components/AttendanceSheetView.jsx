@@ -1003,6 +1003,7 @@ export default function AttendanceSheetView({
                 <tr>
                   <th className="erp-th-sticky-sr">Sr No</th>
                   <th className="erp-th-sticky-enroll">Enrollment No</th>
+                  <th className="erp-th-sticky-name">Student Name</th>
                   
                   {/* Dynamic Lecture Date Columns from Actual Sessions */}
                   {subjectSessions.map((sess, sessIdx) => {
@@ -1037,7 +1038,7 @@ export default function AttendanceSheetView({
                 {filteredStudents.length === 0 ? (
                   <tr>
                     <td 
-                      colSpan={subjectSessions.length + 7} 
+                      colSpan={subjectSessions.length + 8} 
                       style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}
                     >
                       <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '6px' }}>
@@ -1065,6 +1066,14 @@ export default function AttendanceSheetView({
                           title={`Roll #${student.rollNo || (idx + 1)}: ${student.name} (${student.batch || 'Batch A'})`}
                         >
                           {student.enrollmentNo}
+                        </td>
+
+                        {/* Student Name */}
+                        <td 
+                          className="erp-td-sticky-name" 
+                          title={`Roll #${student.rollNo || (idx + 1)}: ${student.name}`}
+                        >
+                          {student.name}
                         </td>
 
                         {/* Dynamic Lecture Date Cells: P / A / EX */}
@@ -1153,7 +1162,7 @@ export default function AttendanceSheetView({
               {filteredStudents.length > 0 && subjectSessions.length > 0 && (
                 <tfoot>
                   <tr className="erp-footer-row">
-                    <td colSpan={2} style={{ textAlign: 'right', fontWeight: '800', paddingRight: '12px' }}>
+                    <td colSpan={3} style={{ textAlign: 'right', fontWeight: '800', paddingRight: '12px' }}>
                       Total Present:
                     </td>
                     {subjectSessions.map(sess => {

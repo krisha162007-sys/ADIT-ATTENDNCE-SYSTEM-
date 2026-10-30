@@ -951,6 +951,18 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       return;
     }
 
+    if (!attTopic || !attTopic.trim()) {
+      const msg = 'Topic / Syllabus Covered is required. Please specify what was taught in this session before saving.';
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
+      const topicInput = document.getElementById('att-topic-input');
+      if (topicInput) {
+        topicInput.focus();
+        topicInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
     const unmarkList = classStudents.filter(s => {
       const st = attRecords[s.id];
       return !st || (st !== 'present' && st !== 'absent' && st !== 'od');
@@ -3376,17 +3388,31 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
                     {/* Topic Covered */}
                     <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                        Topic / Syllabus Covered (Optional)
+                      <label htmlFor="att-topic-input" style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
+                        Topic / Syllabus Covered <span style={{ color: '#ef4444' }}>*</span> <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: '700' }}>(Required)</span>
                       </label>
                       <input
+                        id="att-topic-input"
                         type="text"
                         className="form-control"
-                        placeholder="e.g. Unit 3: Relational Algebra & SQL Query Optimization"
+                        placeholder="e.g. Unit 3: Relational Algebra & SQL Query Optimization (Compulsory)"
                         value={attTopic}
-                        onChange={(e) => setAttTopic(e.target.value)}
-                        style={{ height: '42px', fontSize: '13.5px' }}
+                        onChange={(e) => {
+                          setAttTopic(e.target.value);
+                          if (unmarkedAlert && unmarkedAlert.includes('Topic')) setUnmarkedAlert(null);
+                        }}
+                        style={{
+                          height: '42px',
+                          fontSize: '13.5px',
+                          border: !attTopic.trim() ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                          backgroundColor: !attTopic.trim() ? '#fffafa' : '#ffffff'
+                        }}
                       />
+                      {!attTopic.trim() && (
+                        <span style={{ fontSize: '11.5px', color: '#ef4444', fontWeight: '600', marginTop: '4px', display: 'block' }}>
+                          * Topic / Syllabus Covered is compulsory. Please enter what was taught before submitting attendance.
+                        </span>
+                      )}
                     </div>
                   </div>
                 
@@ -3867,7 +3893,25 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
               )}
 
               {/* Bottom Submit Action Bar */}
-              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap', borderTop: '1px solid #e2e8f0', paddingTop: '18px' }}>
+              <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '18px' }}>
+                {!attTopic.trim() && (
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#991b1b',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <AlertCircle size={16} color="#dc2626" />
+                    <span><strong>Topic / Syllabus Covered is required:</strong> Please scroll up to enter the topic taught before saving attendance.</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -3944,6 +3988,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                   <Save size={16} />
                   <span>{isSavingAttendance ? 'Saving Attendance...' : 'Submit & Save Attendance'}</span>
                 </button>
+              </div>
               </div>
             </div>
 

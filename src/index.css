@@ -765,6 +765,13 @@ h1, h2, h3, h4, h5, h6 {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  .erp-th-sticky-sr, .erp-td-sticky-sr,
+  .erp-th-sticky-enroll, .erp-td-sticky-enroll,
+  .erp-th-sticky-name, .erp-td-sticky-name {
+    position: static !important;
+    box-shadow: none !important;
+  }
 }
 
 /* ==========================================================================
@@ -844,7 +851,18 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.01em;
 }
 
-.erp-th-sticky-sr,
+.erp-th-sticky-sr {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background-color: #f8fafc;
+  min-width: 44px;
+  width: 44px;
+  border-right: 1px solid #cbd5e1 !important;
+  font-weight: 700;
+  text-align: center;
+}
+
 .erp-td-sticky-sr {
   position: sticky;
   left: 0;
@@ -854,26 +872,75 @@ h1, h2, h3, h4, h5, h6 {
   width: 44px;
   border-right: 1px solid #cbd5e1 !important;
   font-weight: 700;
+  text-align: center;
 }
 
-.erp-th-sticky-enroll,
+.erp-th-sticky-enroll {
+  position: sticky;
+  left: 44px;
+  z-index: 4;
+  background-color: #f8fafc;
+  min-width: 130px;
+  width: 130px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  color: #1e293b;
+  border-right: 1px solid #cbd5e1 !important;
+}
+
 .erp-td-sticky-enroll {
   position: sticky;
   left: 44px;
   z-index: 3;
   background-color: #f8fafc;
-  min-width: 135px;
-  width: 135px;
+  min-width: 130px;
+  width: 130px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 600;
   font-size: 12px;
   color: #1e293b;
+  border-right: 1px solid #cbd5e1 !important;
+}
+
+.erp-th-sticky-name {
+  position: sticky;
+  left: 174px;
+  z-index: 4;
+  background-color: #f8fafc;
+  min-width: 180px;
+  max-width: 260px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #0f172a;
+  text-align: left !important;
+  padding: 6px 12px !important;
   border-right: 2px solid #94a3b8 !important;
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.1);
 }
 
+.erp-td-sticky-name {
+  position: sticky;
+  left: 174px;
+  z-index: 3;
+  background-color: #f8fafc;
+  min-width: 180px;
+  max-width: 260px;
+  font-weight: 600;
+  font-size: 12px;
+  color: #0f172a;
+  text-align: left !important;
+  padding: 6px 12px !important;
+  border-right: 2px solid #94a3b8 !important;
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .erp-attendance-table tr:hover .erp-td-sticky-sr,
-.erp-attendance-table tr:hover .erp-td-sticky-enroll {
+.erp-attendance-table tr:hover .erp-td-sticky-enroll,
+.erp-attendance-table tr:hover .erp-td-sticky-name {
   background-color: #eff6ff;
 }
 

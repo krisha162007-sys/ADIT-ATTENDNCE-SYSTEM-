@@ -163,10 +163,9 @@ export default function EnterAttendance({ onSaved, showToast }) {
       alert('Please select a subject!');
       return;
     }
-    if (!topic.trim()) {
-      if (!window.confirm('Topic field is empty. Do you want to submit attendance without entering a topic?')) {
-        return;
-      }
+    if (!topic || !topic.trim()) {
+      alert('Topic / Syllabus Covered is required. Please specify what was taught in this session before saving.');
+      return;
     }
 
     const newSession = {
