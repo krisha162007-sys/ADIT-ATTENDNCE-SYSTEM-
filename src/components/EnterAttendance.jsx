@@ -159,6 +159,11 @@ export default function EnterAttendance({ onSaved, showToast }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (date > todayStr) {
+      alert('Cannot record attendance for future dates. Please select today or a past date.');
+      return;
+    }
     if (!subjectId) {
       alert('Please select a subject!');
       return;
@@ -303,7 +308,17 @@ export default function EnterAttendance({ onSaved, showToast }) {
               type="date"
               className="form-control"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={(e) => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const v = e.target.value;
+                if (v > todayStr) {
+                  alert('Cannot select a future date. Setting to today.');
+                  setDate(todayStr);
+                } else {
+                  setDate(v);
+                }
+              }}
               required
             />
           </div>
@@ -555,7 +570,9 @@ export default function EnterAttendance({ onSaved, showToast }) {
                           <span style={{ fontSize: '11px', color: '#64748b' }}>{student.email}</span>
                         )}
                       </td>
-                      <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{student.enrollmentNo}</td>
+                      <td style={{ fontSize: '12.5px', color: '#0f172a' }}>
+                        <strong style={{ fontWeight: '800' }}>{student.enrollmentNo}</strong>
+                      </td>
                       <td style={{ textAlign: 'center' }}>
                         <div className="attendance-toggle-group">
                           <button

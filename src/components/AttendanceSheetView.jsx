@@ -129,9 +129,9 @@ export default function AttendanceSheetView({
   const [selectedSemester, setSelectedSemester] = useState(() => {
     if (initialSemester) return initialSemester;
     if (isFaculty && authClasses && authClasses.length > 0) {
-      return authClasses[0].semester || '3rd Sem';
+      return authClasses[0].semester || '1st Sem';
     }
-    return '3rd Sem';
+    return '1st Sem';
   });
 
   const [selectedDivision, setSelectedDivision] = useState(() => {
@@ -139,7 +139,7 @@ export default function AttendanceSheetView({
     if (isFaculty && authClasses && authClasses.length > 0) {
       return authClasses[0].division || 'Div 1';
     }
-    return 'Div 3';
+    return 'Div 1';
   });
 
   const [selectedBatch, setSelectedBatch] = useState(initialBatch || 'ALL');
@@ -233,7 +233,7 @@ export default function AttendanceSheetView({
 
   const [selectedSubjectId, setSelectedSubjectId] = useState(() => {
     if (initialSubjectId) return initialSubjectId;
-    return availableSubjects[0]?.id || 'SUB_DS';
+    return availableSubjects[0]?.id || '';
   });
 
   // Ensure selectedSubjectId is valid when department/semester/division changes
@@ -269,17 +269,19 @@ export default function AttendanceSheetView({
       selectedSemester,
       selectedDivision,
       selectedSubjectId
-    );
+    ) || (activeSubject?.code && canFacultyTeachClassAndSubject(currentUser, selectedDepartment, selectedSemester, selectedDivision, activeSubject.code)) ||
+       (activeSubject?.shortName && canFacultyTeachClassAndSubject(currentUser, selectedDepartment, selectedSemester, selectedDivision, activeSubject.shortName));
+
     const facId = currentUser.facultyId || currentUser.id;
     const facName = (currentUser.name || '').trim().toLowerCase();
     const hasRecorded = allSessions.some(s => 
       (s.facultyId === facId || s.takenBy === facId || (s.facultyName && s.facultyName.trim().toLowerCase() === facName)) &&
-      (s.subjectId === selectedSubjectId || s.subjectName === selectedSubjectId) &&
+      (s.subjectId === selectedSubjectId || s.subjectName === selectedSubjectId || s.subjectId === activeSubject?.code || (activeSubject?.shortName && s.subjectId === activeSubject.shortName)) &&
       (!selectedDepartment || s.department === selectedDepartment) &&
       (!selectedDivision || selectedDivision === 'ALL' || normalizeDiv(s.division) === normalizeDiv(selectedDivision))
     );
     return canTeach || hasRecorded;
-  }, [isFaculty, currentUser, selectedDepartment, selectedSemester, selectedDivision, selectedSubjectId, allSessions]);
+  }, [isFaculty, currentUser, selectedDepartment, selectedSemester, selectedDivision, selectedSubjectId, activeSubject, allSessions]);
 
   // Auto-switch to authorized class if user somehow lands on unauthorized view
   const handleSwitchToAuthorized = () => {
@@ -316,10 +318,20 @@ export default function AttendanceSheetView({
     return allSessions
       .filter(s => {
         // Must match Subject (by ID, code, or name)
-        const matchSubject = s.subjectId === selectedSubjectId || 
-          s.subjectId === activeSubject.code || 
-          s.subjectName === activeSubject.name ||
-          (activeSubject.shortName && s.subjectName === activeSubject.shortName);
+        const sSubId = (s.subjectId || '').trim().toLowerCase();
+        const sSubName = (s.subjectName || '').trim().toLowerCase();
+        const selSubId = (selectedSubjectId || '').trim().toLowerCase();
+        const actCode = (activeSubject?.code || '').trim().toLowerCase();
+        const actName = (activeSubject?.name || '').trim().toLowerCase();
+        const actShort = (activeSubject?.shortName || '').trim().toLowerCase();
+        const actId = (activeSubject?.id || '').trim().toLowerCase();
+
+        const matchSubject = 
+          (selSubId && (sSubId === selSubId || sSubName === selSubId)) ||
+          (actId && (sSubId === actId || sSubName === actId)) ||
+          (actCode && (sSubId === actCode || sSubName === actCode)) ||
+          (actShort && (sSubId === actShort || sSubName === actShort)) ||
+          (actName && (sSubName === actName || sSubId === actName));
         if (!matchSubject) return false;
 
         // Match Semester if present on session
@@ -328,13 +340,13 @@ export default function AttendanceSheetView({
         }
 
         // Match Division if not ALL
-        if (selectedDivision !== 'ALL' && s.division) {
+        if (selectedDivision !== 'ALL' && s.division && s.division !== 'ALL') {
           if (normalizeDiv(s.division) !== normalizeDiv(selectedDivision)) return false;
         }
 
-        // Match Batch if not ALL
-        if (selectedBatch !== 'ALL' && !isBatchMatch(s.batch, selectedBatch)) {
-          return false;
+        // Match Batch: ALL sessions apply to all batches. A specific batch session applies if it matches selectedBatch or if selectedBatch is ALL.
+        if (selectedBatch !== 'ALL' && s.batch && s.batch !== 'ALL') {
+          if (!isBatchMatch(s.batch, selectedBatch)) return false;
         }
 
         return true;
@@ -1065,7 +1077,7 @@ export default function AttendanceSheetView({
                           className="erp-td-sticky-enroll" 
                           title={`Roll #${student.rollNo || (idx + 1)}: ${student.name} (${student.batch || 'Batch A'})`}
                         >
-                          {student.enrollmentNo}
+                          <strong style={{ fontWeight: '800', color: '#0f172a' }}>{student.enrollmentNo}</strong>
                         </td>
 
                         {/* Student Name */}
@@ -1117,7 +1129,9 @@ export default function AttendanceSheetView({
                         })}
 
                         {/* Right-side Metrics */}
-                        <td className="erp-td-enroll-repeat">{student.enrollmentNo}</td>
+                        <td className="erp-td-enroll-repeat">
+                          <strong style={{ fontWeight: '800', color: '#0f172a' }}>{student.enrollmentNo}</strong>
+                        </td>
                         <td className="erp-td-stat" style={{ fontWeight: '700' }}>{presentCount}</td>
                         <td className="erp-td-stat" style={{ fontWeight: '700', color: exceptionCount > 0 ? '#1e40af' : '#64748b' }}>
                           {exceptionCount > 0 ? `${exceptionCount} (EX)` : '0'}

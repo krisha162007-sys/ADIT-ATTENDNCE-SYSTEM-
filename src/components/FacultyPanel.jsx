@@ -303,22 +303,22 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   const [attEndTime, setAttEndTime] = useState('09:55');
   const [attTimeSlot, setAttTimeSlot] = useState('09:00 - 09:55');
 
-  const [attDept, setAttDept] = useState(() => currentFaculty?.dept || 'Computer Engineering');
-  const [attSem, setAttSem] = useState('3rd Sem');
+  const [attDept, setAttDept] = useState(() => currentFaculty?.dept || 'Information Technology');
+  const [attSem, setAttSem] = useState('');
   const [attDiv, setAttDiv] = useState('Div 1');
   const [attBatch, setAttBatch] = useState('ALL');
   const [attYear, setAttYear] = useState(DEFAULT_ACADEMIC_YEAR);
-  const [attSubjectId, setAttSubjectId] = useState('SUB_DS');
-  const [attSubjectName, setAttSubjectName] = useState('DATA STRUCTURES');
+  const [attSubjectId, setAttSubjectId] = useState('');
+  const [attSubjectName, setAttSubjectName] = useState('');
   const [attRoom, setAttRoom] = useState('Room 201');
 
   // Multi-lecture & Register Navigation Synchronization
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
-  const [regNavDept, setRegNavDept] = useState(() => currentFaculty?.dept || 'Computer Engineering');
-  const [regNavSem, setRegNavSem] = useState('3rd Sem');
+  const [regNavDept, setRegNavDept] = useState(() => currentFaculty?.dept || 'Information Technology');
+  const [regNavSem, setRegNavSem] = useState('');
   const [regNavDiv, setRegNavDiv] = useState('Div 1');
   const [regNavBatch, setRegNavBatch] = useState('ALL');
-  const [regNavSubId, setRegNavSubId] = useState('SUB_DS');
+  const [regNavSubId, setRegNavSubId] = useState('');
 
   // Dropdown data sources restricted strictly to authorized faculty scope
   const authorizedClasses = useMemo(() => {
@@ -329,13 +329,69 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     return getAuthorizedFacultySubjects(currentFaculty);
   }, [currentFaculty, timetableSyncTick]);
 
+  // Timetable entries allocated to this faculty
+  const facultyTimetableEntries = useMemo(() => {
+    const facId = currentFaculty?.id || currentFaculty?.facultyId;
+    return facId ? getEntriesByFaculty(facId) : [];
+  }, [currentFaculty, timetableSyncTick]);
+
+  // Strictly allocated subjects from timetable, profile, and authorized assignments
   const takeAvailableSubjects = useMemo(() => {
-    let list = (authorizedSubjects && authorizedSubjects.length > 0) ? [...authorizedSubjects] : getSubjects();
+    if (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') {
+      return getSubjects();
+    }
+
+    const allSubs = getSubjects();
+    const facId = currentFaculty?.id || currentFaculty?.facultyId;
+    const facName = (currentFaculty?.name || '').trim().toLowerCase();
+
+    // Collect all subject keys/names allocated in faculty's timetable
+    const allocatedKeys = new Set();
+
+    facultyTimetableEntries.forEach(e => {
+      if (e.subjectId) allocatedKeys.add(e.subjectId.trim().toLowerCase());
+      if (e.subject) allocatedKeys.add(e.subject.trim().toLowerCase());
+      if (e.subjectFullName) allocatedKeys.add(e.subjectFullName.trim().toLowerCase());
+      if (e.subjectName) allocatedKeys.add(e.subjectName.trim().toLowerCase());
+    });
+
+    if (currentFaculty.subjects) {
+      currentFaculty.subjects.split(',').forEach(s => {
+        const tr = s.trim().toLowerCase();
+        if (tr) allocatedKeys.add(tr);
+      });
+    }
+
+    allSubs.forEach(s => {
+      const matchFac = (s.facultyId && (s.facultyId === facId || s.facultyId === currentFaculty.id)) ||
+        (s.faculty && s.faculty.trim().toLowerCase() === facName);
+      if (matchFac) {
+        if (s.id) allocatedKeys.add(s.id.trim().toLowerCase());
+        if (s.code) allocatedKeys.add(s.code.trim().toLowerCase());
+        if (s.shortName) allocatedKeys.add(s.shortName.trim().toLowerCase());
+        if (s.name) allocatedKeys.add(s.name.trim().toLowerCase());
+      }
+    });
+
+    (authorizedSubjects || []).forEach(as => {
+      if (as.id) allocatedKeys.add(as.id.trim().toLowerCase());
+      if (as.code) allocatedKeys.add(as.code.trim().toLowerCase());
+      if (as.shortName) allocatedKeys.add(as.shortName.trim().toLowerCase());
+      if (as.name) allocatedKeys.add(as.name.trim().toLowerCase());
+    });
+
+    const list = allSubs.filter(s => {
+      return allocatedKeys.has((s.id || '').toLowerCase()) ||
+        allocatedKeys.has((s.code || '').toLowerCase()) ||
+        allocatedKeys.has((s.shortName || '').toLowerCase()) ||
+        allocatedKeys.has((s.name || '').toLowerCase());
+    });
+
+    // Elective classes explicitly assigned to this faculty
     const electiveClasses = getClasses().filter(c => c.isElective);
     electiveClasses.forEach(c => {
-      const matchFac = (currentFaculty.role === 'admin' || currentFaculty.id === 'FAC_ADMIN') ||
-        (c.facultyId && (c.facultyId === currentFaculty.id || c.facultyId === currentFaculty.facultyId)) ||
-        (c.facultyName && c.facultyName.trim().toLowerCase() === (currentFaculty.name || '').trim().toLowerCase());
+      const matchFac = (c.facultyId && (c.facultyId === facId || c.facultyId === currentFaculty.id)) ||
+        (c.facultyName && c.facultyName.trim().toLowerCase() === facName);
       if (matchFac && c.subjectId && !list.some(s => s.id === c.subjectId || s.name === c.subjectName)) {
         list.push({
           id: c.subjectId,
@@ -348,14 +404,11 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
         });
       }
     });
-    if (attSubjectId && !list.some(s => s.id === attSubjectId)) {
-      const allSub = getSubjects();
-      const s = allSub.find(sub => sub.id === attSubjectId || sub.code === attSubjectId);
-      if (s) list.push(s);
-      else list.push({ id: attSubjectId, name: attSubjectName || attSubjectId, shortName: attSubjectName || attSubjectId });
-    }
-    return list;
-  }, [authorizedSubjects, attSubjectId, attSubjectName]);
+
+    if (list.length > 0) return list;
+    if (authorizedSubjects && authorizedSubjects.length > 0) return authorizedSubjects;
+    return [];
+  }, [currentFaculty, facultyTimetableEntries, authorizedSubjects]);
 
   const takeAvailableDepts = useMemo(() => {
     const allDepts = getDepartments();
@@ -473,18 +526,31 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
   // Sync defaults when faculty changes
   useEffect(() => {
-    if (takeAvailableSubjects.length > 0 && !takeAvailableSubjects.some(s => s.id === attSubjectId)) {
-      setAttSubjectId(takeAvailableSubjects[0].id);
-      setAttSubjectName(takeAvailableSubjects[0].shortName || takeAvailableSubjects[0].name);
+    if (takeAvailableSubjects.length > 0 && (!attSubjectId || !takeAvailableSubjects.some(s => s.id === attSubjectId))) {
+      const first = takeAvailableSubjects[0];
+      setAttSubjectId(first.id);
+      setAttSubjectName(first.shortName || first.name);
+      setRegNavSubId(first.id);
+      if (first.sem) {
+        setAttSem(first.sem);
+        setRegNavSem(first.sem);
+      }
+      if (first.dept) {
+        setAttDept(first.dept);
+        setRegNavDept(first.dept);
+      }
     }
     if (takeAvailableDepts.length > 0 && !takeAvailableDepts.some(d => d.name === attDept)) {
       setAttDept(takeAvailableDepts[0].name);
+      setRegNavDept(takeAvailableDepts[0].name);
     }
     if (takeAvailableSemesters.length > 0 && !takeAvailableSemesters.includes(attSem)) {
       setAttSem(takeAvailableSemesters[0]);
+      setRegNavSem(takeAvailableSemesters[0]);
     }
     if (takeAvailableDivisions.length > 0 && !takeAvailableDivisions.includes(attDiv)) {
       setAttDiv(takeAvailableDivisions[0]);
+      setRegNavDiv(takeAvailableDivisions[0]);
     }
   }, [currentFaculty, takeAvailableSubjects, takeAvailableDepts, takeAvailableSemesters, takeAvailableDivisions]);
 
@@ -496,6 +562,9 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       if (lec.date) dateToUse = lec.date;
       else if (lec.day) dateToUse = getDateForDayName(lec.day);
       else dateToUse = todayDateStr;
+    }
+    if (dateToUse > todayDateStr) {
+      dateToUse = todayDateStr;
     }
     setAttDate(dateToUse);
 
@@ -636,6 +705,12 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     if (!attDate) {
       if (showToast) showToast('Please enter a session date.', 'error');
       setUnmarkedAlert('Please enter a session date.');
+      return;
+    }
+    if (attDate > todayDateStr) {
+      const msg = 'Attendance date cannot be in the future. Please select today or a past date.';
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
       return;
     }
     if (!attStartTime || !attEndTime) {
@@ -842,6 +917,14 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   // Submit attendance to database (Completely independent of timetable)
   const executeSaveAttendance = (recordsToSave) => {
     if (isSavingAttendance) return;
+
+    if (attDate > todayDateStr) {
+      const msg = 'Attendance date cannot be in the future. Please select today or a past date.';
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
+      return;
+    }
+
     setIsSavingAttendance(true);
 
     const slotStr = `${attStartTime} - ${attEndTime}`;
@@ -920,11 +1003,11 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
         showToast(`Attendance saved successfully! (${curPresent} Present, ${curAbsent} Absent${curException > 0 ? `, ${curException} Excused` : ''})`);
       }
 
-      // Synchronize register navigation state
+      // Synchronize register navigation state (default to ALL batches so all previous entries appear)
       setRegNavDept(attDept);
       setRegNavSem(attSem);
       setRegNavDiv(attDiv);
-      setRegNavBatch(attBatch);
+      setRegNavBatch('ALL');
       setRegNavSubId(attSubjectId);
 
       // Automatically transition to Attendance Register
@@ -943,6 +1026,13 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
   const handleSubmitAttendance = (e) => {
     if (e) e.preventDefault();
+
+    if (attDate > todayDateStr) {
+      const msg = 'Attendance date cannot be in the future. Please select today or a past date.';
+      if (showToast) showToast(msg, 'error');
+      setUnmarkedAlert(msg);
+      return;
+    }
 
     if (classStudents.length === 0) {
       const msg = 'Cannot save attendance: No students loaded for this class. Please click "Load Students" first.';
@@ -1479,6 +1569,13 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                   <button
                     type="button"
                     onClick={() => {
+                      if (item.id === 'register') {
+                        if (attDept) setRegNavDept(attDept);
+                        if (attSem) setRegNavSem(attSem);
+                        if (attDiv) setRegNavDiv(attDiv);
+                        setRegNavBatch('ALL');
+                        if (attSubjectId) setRegNavSubId(attSubjectId);
+                      }
                       setFacultyTab(item.id);
                       if (item.id === 'take') setAttendanceStep('setup');
                     }}
@@ -1612,7 +1709,14 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
                 <button
                   type="button"
-                  onClick={() => setFacultyTab('register')}
+                  onClick={() => {
+                    if (attDept) setRegNavDept(attDept);
+                    if (attSem) setRegNavSem(attSem);
+                    if (attDiv) setRegNavDiv(attDiv);
+                    setRegNavBatch('ALL');
+                    if (attSubjectId) setRegNavSubId(attSubjectId);
+                    setFacultyTab('register');
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1832,7 +1936,14 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
               <div 
                 className="card" 
                 style={{ padding: '20px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #e2e8f0' }}
-                onClick={() => setFacultyTab('register')}
+                onClick={() => {
+                  if (attDept) setRegNavDept(attDept);
+                  if (attSem) setRegNavSem(attSem);
+                  if (attDiv) setRegNavDiv(attDiv);
+                  setRegNavBatch('ALL');
+                  if (attSubjectId) setRegNavSubId(attSubjectId);
+                  setFacultyTab('register');
+                }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3080,7 +3191,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                           if (slotDept) setRegNavDept(slotDept);
                           if (slot.sem) setRegNavSem(slot.sem);
                           if (slot.div) setRegNavDiv(slot.div);
-                          if (slot.batch) setRegNavBatch(slot.batch);
+                          setRegNavBatch('ALL');
                           if (slot.subject) setRegNavSubId(slot.subject);
                           setSelectedLectureDetail(null);
                           setFacultyTab('register');
@@ -3161,8 +3272,19 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         onChange={(e) => {
                           const sId = e.target.value;
                           setAttSubjectId(sId);
+                          setRegNavSubId(sId);
                           const sub = takeAvailableSubjects.find(s => s.id === sId || s.code === sId);
-                          if (sub) setAttSubjectName(sub.shortName || sub.name);
+                          if (sub) {
+                            setAttSubjectName(sub.shortName || sub.name);
+                            if (sub.sem) {
+                              setAttSem(sub.sem);
+                              setRegNavSem(sub.sem);
+                            }
+                            if (sub.dept) {
+                              setAttDept(sub.dept);
+                              setRegNavDept(sub.dept);
+                            }
+                          }
                         }}
                         required
                         style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
@@ -3185,7 +3307,16 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         type="date"
                         className="form-control"
                         value={attDate}
-                        onChange={(e) => setAttDate(e.target.value)}
+                        max={todayDateStr}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v > todayDateStr) {
+                            if (showToast) showToast('Cannot select a future date. Setting to today.', 'warning');
+                            setAttDate(todayDateStr);
+                          } else {
+                            setAttDate(v);
+                          }
+                        }}
                         required
                         style={{ height: '42px', fontSize: '14px', fontWeight: '600' }}
                       />
@@ -3771,9 +3902,9 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                             <span style={{ fontWeight: 800, fontSize: '13px', color: '#1e293b' }}>
                               {serialNum}.
                             </span>
-                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569', letterSpacing: '0.02em' }}>
+                            <strong style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', letterSpacing: '0.02em' }}>
                               {st.enrollmentNo || st.rollNo}
-                            </span>
+                            </strong>
                             {(activeClass?.isElective || attDept === 'Elective (No Department)') && (st.department || st.dept) && (
                               <span style={{
                                 fontSize: '10px',
@@ -3921,7 +4052,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                     setRegNavDept(attDept);
                     setRegNavSem(attSem);
                     setRegNavDiv(attDiv);
-                    setRegNavBatch(attBatch);
+                    setRegNavBatch('ALL');
                     setRegNavSubId(attSubjectId);
                     setFacultyTab('register');
                   }}
@@ -4004,10 +4135,10 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
             facultyRole={true}
             showToast={showToast}
             initialDepartment={regNavDept || attDept || currentFaculty.dept}
-            initialSemester={regNavSem || attSem}
-            initialDivision={regNavDiv || attDiv}
-            initialBatch={regNavBatch || attBatch}
-            initialSubjectId={regNavSubId || attSubjectId}
+            initialSemester={regNavSem || attSem || (takeAvailableSubjects[0]?.sem || '1st Sem')}
+            initialDivision={regNavDiv || attDiv || 'Div 1'}
+            initialBatch={regNavBatch || 'ALL'}
+            initialSubjectId={regNavSubId || attSubjectId || (takeAvailableSubjects[0]?.id || '')}
             onNavigateToTake={({ department, semester, division, batch, subjectId }) => {
               if (department) setAttDept(department);
               if (semester) setAttSem(semester);

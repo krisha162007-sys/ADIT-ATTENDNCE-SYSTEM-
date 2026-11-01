@@ -2242,7 +2242,7 @@ const getSessions = (filterOptions = {}, userContext = null) => {
       }
       return canFacultyTeachElective(user, s.electiveGroupId, s.electiveSubjectId || s.subjectId, s.electiveClassId) || canFacultyTeachClassAndSubject(user, s.department || "Elective (No Department)", s.sem || s.semester, s.division, s.subjectId);
     }
-    return canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectId);
+    return canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectId) || canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectName);
   });
   if (filterOptions && Object.keys(filterOptions).length > 0) {
     const { department, semester, division, subjectId, classType, electiveGroupId, electiveSubjectId, electiveClassId } = filterOptions;
@@ -2277,6 +2277,10 @@ const saveSession = (session, userContext = null) => {
   }
   if (user.role === "student") {
     throw new Error("Unauthorized Security Error: Students are not permitted to record or modify attendance sessions.");
+  }
+  const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  if (session.date && session.date > todayStr) {
+    throw new Error("Validation Error: Cannot record attendance for future dates. Please select today or a past date.");
   }
   if (user.role === "faculty") {
     if (session.classType === "elective" || session.isElective) {
@@ -9889,6 +9893,11 @@ function EnterAttendance({ onSaved, showToast }) {
   };
   const handleSubmit = (e) => {
     e.preventDefault();
+    const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    if (date > todayStr) {
+      alert("Cannot record attendance for future dates. Please select today or a past date.");
+      return;
+    }
     if (!subjectId) {
       alert("Please select a subject!");
       return;
@@ -9983,7 +9992,17 @@ function EnterAttendance({ onSaved, showToast }) {
       type: "date",
       className: "form-control",
       value: date,
-      onChange: (e) => setDate(e.target.value),
+      max: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+      onChange: (e) => {
+        const todayStr = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+        const v = e.target.value;
+        if (v > todayStr) {
+          alert("Cannot select a future date. Setting to today.");
+          setDate(todayStr);
+        } else {
+          setDate(v);
+        }
+      },
       required: true
     }
   )), /* @__PURE__ */ React.createElement("div", { className: "form-group" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: "6px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 14, style: { color: "#2563eb" } }), /* @__PURE__ */ React.createElement("span", null, "Lecture Time Slot")), /* @__PURE__ */ React.createElement(
@@ -10124,7 +10143,7 @@ function EnterAttendance({ onSaved, showToast }) {
     )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", fontSize: "12px", fontWeight: "700" } }, /* @__PURE__ */ React.createElement("span", { className: "badge badge-present" }, "Present: ", presentCount), /* @__PURE__ */ React.createElement("span", { className: "badge badge-absent" }, "Absent: ", absentCount)))
   ), /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { className: "data-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: "80px" } }, "Roll No"), /* @__PURE__ */ React.createElement("th", null, "Student Name"), /* @__PURE__ */ React.createElement("th", null, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", width: "200px" } }, "Attendance Status"), /* @__PURE__ */ React.createElement("th", null, "Remarks / Reason"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "5", style: { textAlign: "center", padding: "30px", color: "var(--text-muted)" } }, "No enrolled students found for ", /* @__PURE__ */ React.createElement("strong", null, selectedDept, " \u2022 ", sem, " \u2022 ", division, " (", academicYear, ")"), ".", /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#64748b", marginTop: "6px" } }, "Tip: Go to ", /* @__PURE__ */ React.createElement("strong", null, "Admin Panel \u2192 Classes"), " to add or bulk upload students to this class."))) : filteredStudents.map((student) => {
     const currentStatus = records[student.id] || "present";
-    return /* @__PURE__ */ React.createElement("tr", { key: student.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "var(--navy-primary)" } }, student.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600" } }, /* @__PURE__ */ React.createElement("div", null, student.name), student.email && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, student.email)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12px", color: "var(--text-muted)" } }, student.enrollmentNo), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "attendance-toggle-group" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("tr", { key: student.id }, /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "800", color: "var(--navy-primary)" } }, student.rollNo), /* @__PURE__ */ React.createElement("td", { style: { fontWeight: "600" } }, /* @__PURE__ */ React.createElement("div", null, student.name), student.email && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#64748b" } }, student.email)), /* @__PURE__ */ React.createElement("td", { style: { fontSize: "12.5px", color: "#0f172a" } }, /* @__PURE__ */ React.createElement("strong", { style: { fontWeight: "800" } }, student.enrollmentNo)), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { className: "attendance-toggle-group" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -10237,16 +10256,16 @@ function AttendanceSheetView({
   const [selectedSemester, setSelectedSemester] = useState(() => {
     if (initialSemester) return initialSemester;
     if (isFaculty && authClasses && authClasses.length > 0) {
-      return authClasses[0].semester || "3rd Sem";
+      return authClasses[0].semester || "1st Sem";
     }
-    return "3rd Sem";
+    return "1st Sem";
   });
   const [selectedDivision, setSelectedDivision] = useState(() => {
     if (initialDivision) return initialDivision;
     if (isFaculty && authClasses && authClasses.length > 0) {
       return authClasses[0].division || "Div 1";
     }
-    return "Div 3";
+    return "Div 1";
   });
   const [selectedBatch, setSelectedBatch] = useState(initialBatch || "ALL");
   const [selectedTerm, setSelectedTerm] = useState("Odd");
@@ -10322,7 +10341,7 @@ function AttendanceSheetView({
   }, [allSubjects, isFaculty, currentUser, selectedDepartment, selectedSemester, selectedDivision, allSessions]);
   const [selectedSubjectId, setSelectedSubjectId] = useState(() => {
     if (initialSubjectId) return initialSubjectId;
-    return availableSubjects[0]?.id || "SUB_DS";
+    return availableSubjects[0]?.id || "";
   });
   useEffect(() => {
     if (initialSubjectId && initialSubjectId !== selectedSubjectId && availableSubjects.some((s) => s.id === initialSubjectId)) {
@@ -10349,14 +10368,14 @@ function AttendanceSheetView({
       selectedSemester,
       selectedDivision,
       selectedSubjectId
-    );
+    ) || activeSubject?.code && canFacultyTeachClassAndSubject(currentUser, selectedDepartment, selectedSemester, selectedDivision, activeSubject.code) || activeSubject?.shortName && canFacultyTeachClassAndSubject(currentUser, selectedDepartment, selectedSemester, selectedDivision, activeSubject.shortName);
     const facId = currentUser.facultyId || currentUser.id;
     const facName = (currentUser.name || "").trim().toLowerCase();
     const hasRecorded = allSessions.some(
-      (s) => (s.facultyId === facId || s.takenBy === facId || s.facultyName && s.facultyName.trim().toLowerCase() === facName) && (s.subjectId === selectedSubjectId || s.subjectName === selectedSubjectId) && (!selectedDepartment || s.department === selectedDepartment) && (!selectedDivision || selectedDivision === "ALL" || normalizeDiv(s.division) === normalizeDiv(selectedDivision))
+      (s) => (s.facultyId === facId || s.takenBy === facId || s.facultyName && s.facultyName.trim().toLowerCase() === facName) && (s.subjectId === selectedSubjectId || s.subjectName === selectedSubjectId || s.subjectId === activeSubject?.code || activeSubject?.shortName && s.subjectId === activeSubject.shortName) && (!selectedDepartment || s.department === selectedDepartment) && (!selectedDivision || selectedDivision === "ALL" || normalizeDiv(s.division) === normalizeDiv(selectedDivision))
     );
     return canTeach || hasRecorded;
-  }, [isFaculty, currentUser, selectedDepartment, selectedSemester, selectedDivision, selectedSubjectId, allSessions]);
+  }, [isFaculty, currentUser, selectedDepartment, selectedSemester, selectedDivision, selectedSubjectId, activeSubject, allSessions]);
   const handleSwitchToAuthorized = () => {
     if (authClasses && authClasses.length > 0) {
       const first = authClasses[0];
@@ -10380,16 +10399,23 @@ function AttendanceSheetView({
   const subjectSessions = useMemo(() => {
     if (!isAuthorized) return [];
     return allSessions.filter((s) => {
-      const matchSubject = s.subjectId === selectedSubjectId || s.subjectId === activeSubject.code || s.subjectName === activeSubject.name || activeSubject.shortName && s.subjectName === activeSubject.shortName;
+      const sSubId = (s.subjectId || "").trim().toLowerCase();
+      const sSubName = (s.subjectName || "").trim().toLowerCase();
+      const selSubId = (selectedSubjectId || "").trim().toLowerCase();
+      const actCode = (activeSubject?.code || "").trim().toLowerCase();
+      const actName = (activeSubject?.name || "").trim().toLowerCase();
+      const actShort = (activeSubject?.shortName || "").trim().toLowerCase();
+      const actId = (activeSubject?.id || "").trim().toLowerCase();
+      const matchSubject = selSubId && (sSubId === selSubId || sSubName === selSubId) || actId && (sSubId === actId || sSubName === actId) || actCode && (sSubId === actCode || sSubName === actCode) || actShort && (sSubId === actShort || sSubName === actShort) || actName && (sSubName === actName || sSubId === actName);
       if (!matchSubject) return false;
       if (s.sem && selectedSemester && normalizeSem(s.sem) !== normalizeSem(selectedSemester)) {
         return false;
       }
-      if (selectedDivision !== "ALL" && s.division) {
+      if (selectedDivision !== "ALL" && s.division && s.division !== "ALL") {
         if (normalizeDiv(s.division) !== normalizeDiv(selectedDivision)) return false;
       }
-      if (selectedBatch !== "ALL" && !isBatchMatch(s.batch, selectedBatch)) {
-        return false;
+      if (selectedBatch !== "ALL" && s.batch && s.batch !== "ALL") {
+        if (!isBatchMatch(s.batch, selectedBatch)) return false;
       }
       return true;
     }).sort((a, b) => {
@@ -10886,7 +10912,7 @@ Session ID: ${sess.id}`
           className: "erp-td-sticky-enroll",
           title: `Roll #${student.rollNo || idx + 1}: ${student.name} (${student.batch || "Batch A"})`
         },
-        student.enrollmentNo
+        /* @__PURE__ */ React.createElement("strong", { style: { fontWeight: "800", color: "#0f172a" } }, student.enrollmentNo)
       ), /* @__PURE__ */ React.createElement(
         "td",
         {
@@ -10928,7 +10954,7 @@ Session ID: ${sess.id}`
           },
           displayText
         );
-      }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-enroll-repeat" }, student.enrollmentNo), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "700" } }, presentCount), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "700", color: exceptionCount > 0 ? "#1e40af" : "#64748b" } }, exceptionCount > 0 ? `${exceptionCount} (EX)` : "0"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat" }, total), /* @__PURE__ */ React.createElement(
+      }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-enroll-repeat" }, /* @__PURE__ */ React.createElement("strong", { style: { fontWeight: "800", color: "#0f172a" } }, student.enrollmentNo)), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "700" } }, presentCount), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "700", color: exceptionCount > 0 ? "#1e40af" : "#64748b" } }, exceptionCount > 0 ? `${exceptionCount} (EX)` : "0"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat" }, total), /* @__PURE__ */ React.createElement(
         "td",
         {
           className: "erp-td-stat",
@@ -18489,31 +18515,71 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   const [attStartTime, setAttStartTime] = useState("09:00");
   const [attEndTime, setAttEndTime] = useState("09:55");
   const [attTimeSlot, setAttTimeSlot] = useState("09:00 - 09:55");
-  const [attDept, setAttDept] = useState(() => currentFaculty?.dept || "Computer Engineering");
-  const [attSem, setAttSem] = useState("3rd Sem");
+  const [attDept, setAttDept] = useState(() => currentFaculty?.dept || "Information Technology");
+  const [attSem, setAttSem] = useState("");
   const [attDiv, setAttDiv] = useState("Div 1");
   const [attBatch, setAttBatch] = useState("ALL");
   const [attYear, setAttYear] = useState(DEFAULT_ACADEMIC_YEAR);
-  const [attSubjectId, setAttSubjectId] = useState("SUB_DS");
-  const [attSubjectName, setAttSubjectName] = useState("DATA STRUCTURES");
+  const [attSubjectId, setAttSubjectId] = useState("");
+  const [attSubjectName, setAttSubjectName] = useState("");
   const [attRoom, setAttRoom] = useState("Room 201");
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
-  const [regNavDept, setRegNavDept] = useState(() => currentFaculty?.dept || "Computer Engineering");
-  const [regNavSem, setRegNavSem] = useState("3rd Sem");
+  const [regNavDept, setRegNavDept] = useState(() => currentFaculty?.dept || "Information Technology");
+  const [regNavSem, setRegNavSem] = useState("");
   const [regNavDiv, setRegNavDiv] = useState("Div 1");
   const [regNavBatch, setRegNavBatch] = useState("ALL");
-  const [regNavSubId, setRegNavSubId] = useState("SUB_DS");
+  const [regNavSubId, setRegNavSubId] = useState("");
   const authorizedClasses = useMemo(() => {
     return getAuthorizedFacultyClasses(currentFaculty);
   }, [currentFaculty, classesTick]);
   const authorizedSubjects = useMemo(() => {
     return getAuthorizedFacultySubjects(currentFaculty);
   }, [currentFaculty, timetableSyncTick]);
+  const facultyTimetableEntries = useMemo(() => {
+    const facId = currentFaculty?.id || currentFaculty?.facultyId;
+    return facId ? getEntriesByFaculty(facId) : [];
+  }, [currentFaculty, timetableSyncTick]);
   const takeAvailableSubjects = useMemo(() => {
-    let list = authorizedSubjects && authorizedSubjects.length > 0 ? [...authorizedSubjects] : getSubjects();
+    if (currentFaculty.role === "admin" || currentFaculty.id === "FAC_ADMIN") {
+      return getSubjects();
+    }
+    const allSubs = getSubjects();
+    const facId = currentFaculty?.id || currentFaculty?.facultyId;
+    const facName = (currentFaculty?.name || "").trim().toLowerCase();
+    const allocatedKeys = /* @__PURE__ */ new Set();
+    facultyTimetableEntries.forEach((e) => {
+      if (e.subjectId) allocatedKeys.add(e.subjectId.trim().toLowerCase());
+      if (e.subject) allocatedKeys.add(e.subject.trim().toLowerCase());
+      if (e.subjectFullName) allocatedKeys.add(e.subjectFullName.trim().toLowerCase());
+      if (e.subjectName) allocatedKeys.add(e.subjectName.trim().toLowerCase());
+    });
+    if (currentFaculty.subjects) {
+      currentFaculty.subjects.split(",").forEach((s) => {
+        const tr = s.trim().toLowerCase();
+        if (tr) allocatedKeys.add(tr);
+      });
+    }
+    allSubs.forEach((s) => {
+      const matchFac = s.facultyId && (s.facultyId === facId || s.facultyId === currentFaculty.id) || s.faculty && s.faculty.trim().toLowerCase() === facName;
+      if (matchFac) {
+        if (s.id) allocatedKeys.add(s.id.trim().toLowerCase());
+        if (s.code) allocatedKeys.add(s.code.trim().toLowerCase());
+        if (s.shortName) allocatedKeys.add(s.shortName.trim().toLowerCase());
+        if (s.name) allocatedKeys.add(s.name.trim().toLowerCase());
+      }
+    });
+    (authorizedSubjects || []).forEach((as) => {
+      if (as.id) allocatedKeys.add(as.id.trim().toLowerCase());
+      if (as.code) allocatedKeys.add(as.code.trim().toLowerCase());
+      if (as.shortName) allocatedKeys.add(as.shortName.trim().toLowerCase());
+      if (as.name) allocatedKeys.add(as.name.trim().toLowerCase());
+    });
+    const list = allSubs.filter((s) => {
+      return allocatedKeys.has((s.id || "").toLowerCase()) || allocatedKeys.has((s.code || "").toLowerCase()) || allocatedKeys.has((s.shortName || "").toLowerCase()) || allocatedKeys.has((s.name || "").toLowerCase());
+    });
     const electiveClasses = getClasses().filter((c) => c.isElective);
     electiveClasses.forEach((c) => {
-      const matchFac = currentFaculty.role === "admin" || currentFaculty.id === "FAC_ADMIN" || c.facultyId && (c.facultyId === currentFaculty.id || c.facultyId === currentFaculty.facultyId) || c.facultyName && c.facultyName.trim().toLowerCase() === (currentFaculty.name || "").trim().toLowerCase();
+      const matchFac = c.facultyId && (c.facultyId === facId || c.facultyId === currentFaculty.id) || c.facultyName && c.facultyName.trim().toLowerCase() === facName;
       if (matchFac && c.subjectId && !list.some((s) => s.id === c.subjectId || s.name === c.subjectName)) {
         list.push({
           id: c.subjectId,
@@ -18526,14 +18592,10 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         });
       }
     });
-    if (attSubjectId && !list.some((s) => s.id === attSubjectId)) {
-      const allSub = getSubjects();
-      const s = allSub.find((sub) => sub.id === attSubjectId || sub.code === attSubjectId);
-      if (s) list.push(s);
-      else list.push({ id: attSubjectId, name: attSubjectName || attSubjectId, shortName: attSubjectName || attSubjectId });
-    }
-    return list;
-  }, [authorizedSubjects, attSubjectId, attSubjectName]);
+    if (list.length > 0) return list;
+    if (authorizedSubjects && authorizedSubjects.length > 0) return authorizedSubjects;
+    return [];
+  }, [currentFaculty, facultyTimetableEntries, authorizedSubjects]);
   const takeAvailableDepts = useMemo(() => {
     const allDepts = getDepartments();
     const hasElective = authorizedClasses.some((c) => c.isElective) || (currentFaculty.role === "admin" || currentFaculty.id === "FAC_ADMIN") || getClasses().some((c) => c.isElective && (c.facultyId === currentFaculty.id || c.facultyName?.toLowerCase() === (currentFaculty.name || "").toLowerCase()));
@@ -18631,18 +18693,31 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   const [hasLoadedStudents, setHasLoadedStudents] = useState(false);
   const [unmarkedAlert, setUnmarkedAlert] = useState(null);
   useEffect(() => {
-    if (takeAvailableSubjects.length > 0 && !takeAvailableSubjects.some((s) => s.id === attSubjectId)) {
-      setAttSubjectId(takeAvailableSubjects[0].id);
-      setAttSubjectName(takeAvailableSubjects[0].shortName || takeAvailableSubjects[0].name);
+    if (takeAvailableSubjects.length > 0 && (!attSubjectId || !takeAvailableSubjects.some((s) => s.id === attSubjectId))) {
+      const first = takeAvailableSubjects[0];
+      setAttSubjectId(first.id);
+      setAttSubjectName(first.shortName || first.name);
+      setRegNavSubId(first.id);
+      if (first.sem) {
+        setAttSem(first.sem);
+        setRegNavSem(first.sem);
+      }
+      if (first.dept) {
+        setAttDept(first.dept);
+        setRegNavDept(first.dept);
+      }
     }
     if (takeAvailableDepts.length > 0 && !takeAvailableDepts.some((d) => d.name === attDept)) {
       setAttDept(takeAvailableDepts[0].name);
+      setRegNavDept(takeAvailableDepts[0].name);
     }
     if (takeAvailableSemesters.length > 0 && !takeAvailableSemesters.includes(attSem)) {
       setAttSem(takeAvailableSemesters[0]);
+      setRegNavSem(takeAvailableSemesters[0]);
     }
     if (takeAvailableDivisions.length > 0 && !takeAvailableDivisions.includes(attDiv)) {
       setAttDiv(takeAvailableDivisions[0]);
+      setRegNavDiv(takeAvailableDivisions[0]);
     }
   }, [currentFaculty, takeAvailableSubjects, takeAvailableDepts, takeAvailableSemesters, takeAvailableDivisions]);
   const selectLectureForAttendance = (lec, targetDate = null) => {
@@ -18651,6 +18726,9 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       if (lec.date) dateToUse = lec.date;
       else if (lec.day) dateToUse = getDateForDayName(lec.day);
       else dateToUse = todayDateStr;
+    }
+    if (dateToUse > todayDateStr) {
+      dateToUse = todayDateStr;
     }
     setAttDate(dateToUse);
     const timeSlotStr = lec.time || lec.timeSlot || "09:00 - 09:55";
@@ -18766,6 +18844,12 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     if (!attDate) {
       if (showToast) showToast("Please enter a session date.", "error");
       setUnmarkedAlert("Please enter a session date.");
+      return;
+    }
+    if (attDate > todayDateStr) {
+      const msg = "Attendance date cannot be in the future. Please select today or a past date.";
+      if (showToast) showToast(msg, "error");
+      setUnmarkedAlert(msg);
       return;
     }
     if (!attStartTime || !attEndTime) {
@@ -18936,6 +19020,12 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   }, [facultySessions, attDate, attStartTime, attEndTime, attSubjectId, attSubjectName, activeClass, attSem, attDiv, attBatch]);
   const executeSaveAttendance = (recordsToSave) => {
     if (isSavingAttendance) return;
+    if (attDate > todayDateStr) {
+      const msg = "Attendance date cannot be in the future. Please select today or a past date.";
+      if (showToast) showToast(msg, "error");
+      setUnmarkedAlert(msg);
+      return;
+    }
     setIsSavingAttendance(true);
     const slotStr = `${attStartTime} - ${attEndTime}`;
     const normCurSlot = normalizeTimeSlot(slotStr);
@@ -19004,7 +19094,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       setRegNavDept(attDept);
       setRegNavSem(attSem);
       setRegNavDiv(attDiv);
-      setRegNavBatch(attBatch);
+      setRegNavBatch("ALL");
       setRegNavSubId(attSubjectId);
       if (activeClass?.id) setRegClassId(activeClass.id);
       if (attSubjectId) setRegSubjectId(attSubjectId);
@@ -19020,6 +19110,12 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   };
   const handleSubmitAttendance = (e) => {
     if (e) e.preventDefault();
+    if (attDate > todayDateStr) {
+      const msg = "Attendance date cannot be in the future. Please select today or a past date.";
+      if (showToast) showToast(msg, "error");
+      setUnmarkedAlert(msg);
+      return;
+    }
     if (classStudents.length === 0) {
       const msg = 'Cannot save attendance: No students loaded for this class. Please click "Load Students" first.';
       if (showToast) showToast(msg, "error");
@@ -19417,6 +19513,13 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         {
           type: "button",
           onClick: () => {
+            if (item.id === "register") {
+              if (attDept) setRegNavDept(attDept);
+              if (attSem) setRegNavSem(attSem);
+              if (attDiv) setRegNavDiv(attDiv);
+              setRegNavBatch("ALL");
+              if (attSubjectId) setRegNavSubId(attSubjectId);
+            }
             setFacultyTab(item.id);
             if (item.id === "take") setAttendanceStep("setup");
           },
@@ -19521,7 +19624,14 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     "button",
     {
       type: "button",
-      onClick: () => setFacultyTab("register"),
+      onClick: () => {
+        if (attDept) setRegNavDept(attDept);
+        if (attSem) setRegNavSem(attSem);
+        if (attDiv) setRegNavDiv(attDiv);
+        setRegNavBatch("ALL");
+        if (attSubjectId) setRegNavSubId(attSubjectId);
+        setFacultyTab("register");
+      },
       style: {
         display: "flex",
         alignItems: "center",
@@ -19667,7 +19777,14 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     {
       className: "card",
       style: { padding: "20px", borderRadius: "12px", cursor: "pointer", border: "1px solid #e2e8f0" },
-      onClick: () => setFacultyTab("register")
+      onClick: () => {
+        if (attDept) setRegNavDept(attDept);
+        if (attSem) setRegNavSem(attSem);
+        if (attDiv) setRegNavDiv(attDiv);
+        setRegNavBatch("ALL");
+        if (attSubjectId) setRegNavSubId(attSubjectId);
+        setFacultyTab("register");
+      }
     },
     /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 22 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: 0 } }, "Attendance Register"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: "2px 0 0" } }, "Class P/A matrix, defaulters & export")))
   ), /* @__PURE__ */ React.createElement(
@@ -20370,7 +20487,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
           if (slotDept2) setRegNavDept(slotDept2);
           if (slot.sem) setRegNavSem(slot.sem);
           if (slot.div) setRegNavDiv(slot.div);
-          if (slot.batch) setRegNavBatch(slot.batch);
+          setRegNavBatch("ALL");
           if (slot.subject) setRegNavSubId(slot.subject);
           setSelectedLectureDetail(null);
           setFacultyTab("register");
@@ -20417,8 +20534,19 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       onChange: (e) => {
         const sId = e.target.value;
         setAttSubjectId(sId);
+        setRegNavSubId(sId);
         const sub = takeAvailableSubjects.find((s) => s.id === sId || s.code === sId);
-        if (sub) setAttSubjectName(sub.shortName || sub.name);
+        if (sub) {
+          setAttSubjectName(sub.shortName || sub.name);
+          if (sub.sem) {
+            setAttSem(sub.sem);
+            setRegNavSem(sub.sem);
+          }
+          if (sub.dept) {
+            setAttDept(sub.dept);
+            setRegNavDept(sub.dept);
+          }
+        }
       },
       required: true,
       style: { height: "42px", fontSize: "14px", fontWeight: "600" }
@@ -20431,7 +20559,16 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       type: "date",
       className: "form-control",
       value: attDate,
-      onChange: (e) => setAttDate(e.target.value),
+      max: todayDateStr,
+      onChange: (e) => {
+        const v = e.target.value;
+        if (v > todayDateStr) {
+          if (showToast) showToast("Cannot select a future date. Setting to today.", "warning");
+          setAttDate(todayDateStr);
+        } else {
+          setAttDate(v);
+        }
+      },
       required: true,
       style: { height: "42px", fontSize: "14px", fontWeight: "600" }
     }
@@ -20866,7 +21003,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
           transition: "background-color 0.15s ease"
         }
       },
-      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "3px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "5px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: "13px", color: "#1e293b" } }, serialNum, "."), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", fontWeight: 600, color: "#475569", letterSpacing: "0.02em" } }, st.enrollmentNo || st.rollNo), (activeClass?.isElective || attDept === "Elective (No Department)") && (st.department || st.dept) && /* @__PURE__ */ React.createElement("span", { style: {
+      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "3px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "5px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: "13px", color: "#1e293b" } }, serialNum, "."), /* @__PURE__ */ React.createElement("strong", { style: { fontSize: "13px", fontWeight: "800", color: "#0f172a", letterSpacing: "0.02em" } }, st.enrollmentNo || st.rollNo), (activeClass?.isElective || attDept === "Elective (No Department)") && (st.department || st.dept) && /* @__PURE__ */ React.createElement("span", { style: {
         fontSize: "10px",
         padding: "1px 5px",
         borderRadius: "4px",
@@ -20981,7 +21118,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
         setRegNavDept(attDept);
         setRegNavSem(attSem);
         setRegNavDiv(attDiv);
-        setRegNavBatch(attBatch);
+        setRegNavBatch("ALL");
         setRegNavSubId(attSubjectId);
         setFacultyTab("register");
       },
@@ -21053,10 +21190,10 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       facultyRole: true,
       showToast,
       initialDepartment: regNavDept || attDept || currentFaculty.dept,
-      initialSemester: regNavSem || attSem,
-      initialDivision: regNavDiv || attDiv,
-      initialBatch: regNavBatch || attBatch,
-      initialSubjectId: regNavSubId || attSubjectId,
+      initialSemester: regNavSem || attSem || (takeAvailableSubjects[0]?.sem || "1st Sem"),
+      initialDivision: regNavDiv || attDiv || "Div 1",
+      initialBatch: regNavBatch || "ALL",
+      initialSubjectId: regNavSubId || attSubjectId || (takeAvailableSubjects[0]?.id || ""),
       onNavigateToTake: ({ department, semester, division, batch, subjectId }) => {
         if (department) setAttDept(department);
         if (semester) setAttSem(semester);

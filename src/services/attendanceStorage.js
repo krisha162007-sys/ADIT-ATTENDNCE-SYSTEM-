@@ -2724,7 +2724,8 @@ export const getSessions = (filterOptions = {}, userContext = null) => {
     }
 
     // 3. Or faculty is currently assigned to teach this class and subject
-    return canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectId);
+    return canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectId) ||
+           canFacultyTeachClassAndSubject(user, s.department, s.sem, s.division, s.subjectName);
   });
 
   if (filterOptions && Object.keys(filterOptions).length > 0) {
@@ -2763,6 +2764,12 @@ export const saveSession = (session, userContext = null) => {
   }
   if (user.role === 'student') {
     throw new Error('Unauthorized Security Error: Students are not permitted to record or modify attendance sessions.');
+  }
+
+  // Future date validation guard: attendance cannot be taken for dates yet to come
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (session.date && session.date > todayStr) {
+    throw new Error('Validation Error: Cannot record attendance for future dates. Please select today or a past date.');
   }
 
   // Authorization check: Faculty can only record attendance for authorized subjects & classes
