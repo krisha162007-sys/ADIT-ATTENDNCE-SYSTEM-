@@ -292,6 +292,46 @@ export const migrateLocalDataToRtdb = async (force = false) => {
 };
 
 /**
+ * Fetches all attendance sessions directly from cloud and merges with local storage.
+ * Ensures cross-device synchronization and full historical visibility in registers.
+ */
+export const fetchSessionsFromCloud = async () => {
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/${RTDB_PATHS.SESSIONS}.json`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        const cloudSessions = Object.values(data).filter(Boolean);
+        const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const localSessions = JSON.parse(raw || '[]');
+        const sessionMap = new Map();
+        localSessions.forEach(s => { if (s && s.id) sessionMap.set(s.id, s); });
+        cloudSessions.forEach(s => { if (s && s.id) sessionMap.set(s.id, { ...(sessionMap.get(s.id) || {}), ...s }); });
+
+        const merged = Array.from(sessionMap.values()).sort((a, b) => {
+          const dateDiff = new Date(a.date) - new Date(b.date);
+          if (dateDiff !== 0) return dateDiff;
+          const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split('-')[0].trim() : '');
+          const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split('-')[0].trim() : '');
+          if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+          return (a.submittedAt || a.id || '').localeCompare(b.submittedAt || b.id || '');
+        });
+
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(merged));
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+        }
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('[RTDB] fetchSessionsFromCloud notice:', err.message);
+  }
+  return null;
+};
+
+/**
  * Pulls all records from Firebase Realtime Database and updates localStorage caches.
  */
 export const fetchAllFromRtdb = async () => {
@@ -300,30 +340,33 @@ export const fetchAllFromRtdb = async () => {
 
   let fetchedData = {};
 
-  if (db && f && typeof f.ref === 'function' && typeof f.get === 'function') {
+  // 1. Ultra-fast REST fetch (retrieves full institutional snapshot in ~200ms)
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/.json`;
+    const res = await fetch(url);
+    if (res.ok) {
+      fetchedData = (await res.json()) || {};
+    }
+  } catch (e) {
+    console.warn('[RTDB] REST fetch all notice:', e.message);
+  }
+
+  // 2. SDK fallback if REST was blocked
+  if (Object.keys(fetchedData).length === 0 && db && f && typeof f.ref === 'function' && typeof f.get === 'function') {
     try {
       const paths = Object.values(RTDB_PATHS);
       for (const p of paths) {
-        const snap = await f.get(f.ref(db, p));
-        if (snap.exists() && snap.val()) {
-          fetchedData[p] = snap.val();
+        try {
+          const snap = await f.get(f.ref(db, p));
+          if (snap.exists() && snap.val()) {
+            fetchedData[p] = snap.val();
+          }
+        } catch (innerErr) {
+          // continue with other collections
         }
       }
     } catch (e) {
       console.warn('[RTDB] SDK fetch all notice:', e.message);
-    }
-  }
-
-  // REST fallback if SDK empty or not configured
-  if (Object.keys(fetchedData).length === 0) {
-    try {
-      const url = `${DEFAULT_DATABASE_URL}/.json`;
-      const res = await fetch(url);
-      if (res.ok) {
-        fetchedData = (await res.json()) || {};
-      }
-    } catch (e) {
-      console.warn('[RTDB] REST fetch all notice:', e.message);
     }
   }
 
@@ -385,11 +428,25 @@ export const fetchAllFromRtdb = async () => {
       }
     }
 
-    // 7. Sessions
+    // 7. Sessions (Safely merged by ID so newly taken local sessions and cloud sessions are unified)
     if (fetchedData.adit_sessions) {
-      const sess = Object.values(fetchedData.adit_sessions);
-      if (sess.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sess));
+      const cloudSess = Object.values(fetchedData.adit_sessions).filter(Boolean);
+      const rawLocal = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+      const localSess = JSON.parse(rawLocal || '[]');
+      const sessionMap = new Map();
+      localSess.forEach(s => { if (s && s.id) sessionMap.set(s.id, s); });
+      cloudSess.forEach(s => { if (s && s.id) sessionMap.set(s.id, { ...(sessionMap.get(s.id) || {}), ...s }); });
+      
+      const mergedSess = Array.from(sessionMap.values()).sort((a, b) => {
+        const dateDiff = new Date(a.date) - new Date(b.date);
+        if (dateDiff !== 0) return dateDiff;
+        const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split('-')[0].trim() : '');
+        const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split('-')[0].trim() : '');
+        if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+        return (a.submittedAt || a.id || '').localeCompare(b.submittedAt || b.id || '');
+      });
+      if (mergedSess.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSess));
       }
     }
 
@@ -458,12 +515,18 @@ export const startRealtimeDatabaseSync = () => {
     });
     activeListeners.push({ ref: ttRef, unsub: unsubTT });
 
-    // Sessions listener
+    // Sessions listener (Safely merged by ID)
     const sessRef = f.ref(db, RTDB_PATHS.SESSIONS);
     const unsubSess = f.onValue(sessRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const sessions = Object.values(snap.val());
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+        const cloudSessions = Object.values(snap.val()).filter(Boolean);
+        const rawLocal = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const localSess = JSON.parse(rawLocal || '[]');
+        const map = new Map();
+        localSess.forEach(s => { if (s && s.id) map.set(s.id, s); });
+        cloudSessions.forEach(s => { if (s && s.id) map.set(s.id, { ...(map.get(s.id) || {}), ...s }); });
+        const merged = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(merged));
         if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
       }
     });
@@ -556,6 +619,7 @@ if (typeof window !== 'undefined') {
   window.checkCloudDataExists = checkCloudDataExists;
   window.migrateLocalDataToRtdb = migrateLocalDataToRtdb;
   window.fetchAllFromRtdb = fetchAllFromRtdb;
+  window.fetchSessionsFromCloud = fetchSessionsFromCloud;
   window.startRealtimeDatabaseSync = startRealtimeDatabaseSync;
   window.stopRealtimeDatabaseSync = stopRealtimeDatabaseSync;
   window.RTDB_PATHS = RTDB_PATHS;

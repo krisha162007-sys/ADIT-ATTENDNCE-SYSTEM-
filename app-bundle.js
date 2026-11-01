@@ -2415,6 +2415,10 @@ const saveSession = (session, userContext = null) => {
       window.syncDocToFirestore("adit_sessions", saved.id, saved).catch(() => {
       });
     }
+    if (typeof window.fetchSessionsFromCloud === "function") {
+      window.fetchSessionsFromCloud().catch(() => {
+      });
+    }
   }
   allSessions.saved = saved;
   allSessions.id = saved.id;
@@ -9403,32 +9407,70 @@ const migrateLocalDataToRtdb = async (force = false) => {
     return { migrated: false, error: err.message };
   }
 };
+const fetchSessionsFromCloud = async () => {
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/${RTDB_PATHS.SESSIONS}.json`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === "object") {
+        const cloudSessions = Object.values(data).filter(Boolean);
+        const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const localSessions = JSON.parse(raw || "[]");
+        const sessionMap = /* @__PURE__ */ new Map();
+        localSessions.forEach((s) => {
+          if (s && s.id) sessionMap.set(s.id, s);
+        });
+        cloudSessions.forEach((s) => {
+          if (s && s.id) sessionMap.set(s.id, { ...sessionMap.get(s.id) || {}, ...s });
+        });
+        const merged = Array.from(sessionMap.values()).sort((a, b) => {
+          const dateDiff = new Date(a.date) - new Date(b.date);
+          if (dateDiff !== 0) return dateDiff;
+          const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split("-")[0].trim() : "");
+          const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split("-")[0].trim() : "");
+          if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+          return (a.submittedAt || a.id || "").localeCompare(b.submittedAt || b.id || "");
+        });
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(merged));
+        if (typeof window !== "undefined" && window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+        }
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn("[RTDB] fetchSessionsFromCloud notice:", err.message);
+  }
+  return null;
+};
 const fetchAllFromRtdb = async () => {
   const db = getRealtimeDatabase();
   const f = getRtdbPrimitives();
   let fetchedData = {};
-  if (db && f && typeof f.ref === "function" && typeof f.get === "function") {
+  try {
+    const url = `${DEFAULT_DATABASE_URL}/.json`;
+    const res = await fetch(url);
+    if (res.ok) {
+      fetchedData = await res.json() || {};
+    }
+  } catch (e) {
+    console.warn("[RTDB] REST fetch all notice:", e.message);
+  }
+  if (Object.keys(fetchedData).length === 0 && db && f && typeof f.ref === "function" && typeof f.get === "function") {
     try {
       const paths = Object.values(RTDB_PATHS);
       for (const p of paths) {
-        const snap = await f.get(f.ref(db, p));
-        if (snap.exists() && snap.val()) {
-          fetchedData[p] = snap.val();
+        try {
+          const snap = await f.get(f.ref(db, p));
+          if (snap.exists() && snap.val()) {
+            fetchedData[p] = snap.val();
+          }
+        } catch (innerErr) {
         }
       }
     } catch (e) {
       console.warn("[RTDB] SDK fetch all notice:", e.message);
-    }
-  }
-  if (Object.keys(fetchedData).length === 0) {
-    try {
-      const url = `${DEFAULT_DATABASE_URL}/.json`;
-      const res = await fetch(url);
-      if (res.ok) {
-        fetchedData = await res.json() || {};
-      }
-    } catch (e) {
-      console.warn("[RTDB] REST fetch all notice:", e.message);
     }
   }
   if (Object.keys(fetchedData).length === 0) {
@@ -9478,9 +9520,26 @@ const fetchAllFromRtdb = async () => {
       }
     }
     if (fetchedData.adit_sessions) {
-      const sess = Object.values(fetchedData.adit_sessions);
-      if (sess.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sess));
+      const cloudSess = Object.values(fetchedData.adit_sessions).filter(Boolean);
+      const rawLocal = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+      const localSess = JSON.parse(rawLocal || "[]");
+      const sessionMap = /* @__PURE__ */ new Map();
+      localSess.forEach((s) => {
+        if (s && s.id) sessionMap.set(s.id, s);
+      });
+      cloudSess.forEach((s) => {
+        if (s && s.id) sessionMap.set(s.id, { ...sessionMap.get(s.id) || {}, ...s });
+      });
+      const mergedSess = Array.from(sessionMap.values()).sort((a, b) => {
+        const dateDiff = new Date(a.date) - new Date(b.date);
+        if (dateDiff !== 0) return dateDiff;
+        const timeA = a.startTime || (a.timeSlot ? a.timeSlot.split("-")[0].trim() : "");
+        const timeB = b.startTime || (b.timeSlot ? b.timeSlot.split("-")[0].trim() : "");
+        if (timeA && timeB && timeA !== timeB) return timeA.localeCompare(timeB);
+        return (a.submittedAt || a.id || "").localeCompare(b.submittedAt || b.id || "");
+      });
+      if (mergedSess.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(mergedSess));
       }
     }
     if (fetchedData.adit_exceptions) {
@@ -9538,8 +9597,18 @@ const startRealtimeDatabaseSync = () => {
     const sessRef = f.ref(db, RTDB_PATHS.SESSIONS);
     const unsubSess = f.onValue(sessRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const sessions = Object.values(snap.val());
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+        const cloudSessions = Object.values(snap.val()).filter(Boolean);
+        const rawLocal = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const localSess = JSON.parse(rawLocal || "[]");
+        const map = /* @__PURE__ */ new Map();
+        localSess.forEach((s) => {
+          if (s && s.id) map.set(s.id, s);
+        });
+        cloudSessions.forEach((s) => {
+          if (s && s.id) map.set(s.id, { ...map.get(s.id) || {}, ...s });
+        });
+        const merged = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(merged));
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
       }
     });
@@ -9618,6 +9687,7 @@ if (typeof window !== "undefined") {
   window.checkCloudDataExists = checkCloudDataExists;
   window.migrateLocalDataToRtdb = migrateLocalDataToRtdb;
   window.fetchAllFromRtdb = fetchAllFromRtdb;
+  window.fetchSessionsFromCloud = fetchSessionsFromCloud;
   window.startRealtimeDatabaseSync = startRealtimeDatabaseSync;
   window.stopRealtimeDatabaseSync = stopRealtimeDatabaseSync;
   window.RTDB_PATHS = RTDB_PATHS;
@@ -10219,6 +10289,46 @@ function AttendanceSheetView({
       window.removeEventListener("adit-exceptions-updated", handleSessionsUpdate);
     };
   }, []);
+  useEffect(() => {
+    let isMounted = true;
+    const syncSessions = async () => {
+      try {
+        let merged = null;
+        if (typeof window !== "undefined" && typeof window.fetchSessionsFromCloud === "function") {
+          merged = await window.fetchSessionsFromCloud();
+        } else {
+          const res = await fetch("https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app/adit_sessions.json");
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === "object") {
+              const cloudSessions = Object.values(data).filter(Boolean);
+              const raw = localStorage.getItem("adit_attendance_sessions");
+              const localSessions = JSON.parse(raw || "[]");
+              const map = /* @__PURE__ */ new Map();
+              localSessions.forEach((s) => {
+                if (s && s.id) map.set(s.id, s);
+              });
+              cloudSessions.forEach((s) => {
+                if (s && s.id) map.set(s.id, { ...map.get(s.id) || {}, ...s });
+              });
+              merged = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+              localStorage.setItem("adit_attendance_sessions", JSON.stringify(merged));
+              if (typeof window !== "undefined" && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
+              }
+            }
+          }
+        }
+        if (isMounted) setSessionsTick((t) => t + 1);
+      } catch (err) {
+        console.warn("AttendanceSheetView cloud sessions sync notice:", err);
+      }
+    };
+    syncSessions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const allSessions = useMemo(() => {
     return getSessions({}, currentUser);
   }, [sessionsTick, currentUser]);
@@ -10343,10 +10453,15 @@ function AttendanceSheetView({
     if (initialSubjectId) return initialSubjectId;
     return availableSubjects[0]?.id || "";
   });
+  const isSubMatch = (s, targetId) => {
+    if (!s || !targetId) return false;
+    const t = String(targetId).trim().toLowerCase();
+    return s.id && String(s.id).trim().toLowerCase() === t || s.code && String(s.code).trim().toLowerCase() === t || s.shortName && String(s.shortName).trim().toLowerCase() === t || s.name && String(s.name).trim().toLowerCase() === t;
+  };
   useEffect(() => {
-    if (initialSubjectId && initialSubjectId !== selectedSubjectId && availableSubjects.some((s) => s.id === initialSubjectId)) {
+    if (initialSubjectId && initialSubjectId !== selectedSubjectId && availableSubjects.some((s) => isSubMatch(s, initialSubjectId))) {
       setSelectedSubjectId(initialSubjectId);
-    } else if (availableSubjects.length > 0 && !availableSubjects.some((s) => s.id === selectedSubjectId)) {
+    } else if (availableSubjects.length > 0 && !availableSubjects.some((s) => isSubMatch(s, selectedSubjectId))) {
       setSelectedSubjectId(availableSubjects[0].id);
     }
   }, [availableSubjects, initialSubjectId, selectedSubjectId]);
@@ -10766,6 +10881,23 @@ function AttendanceSheetView({
     },
     /* @__PURE__ */ React.createElement(PlusCircle, { size: 15 }),
     /* @__PURE__ */ React.createElement("span", null, "+ Take Attendance")
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: "btn btn-secondary",
+      onClick: async () => {
+        if (typeof window !== "undefined" && typeof window.fetchSessionsFromCloud === "function") {
+          const res = await window.fetchSessionsFromCloud();
+          setSessionsTick((t) => t + 1);
+          if (showToast) showToast(`Synced ${res ? res.length : 0} attendance records from cloud!`);
+        }
+      },
+      style: { height: "38px", padding: "0 12px", display: "flex", alignItems: "center", gap: "6px" },
+      title: "Pull latest attendance sessions from Cloud Database"
+    },
+    /* @__PURE__ */ React.createElement(RotateCcw, { size: 15, style: { color: "#2563eb" } }),
+    /* @__PURE__ */ React.createElement("span", null, "Sync Cloud")
   ), /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -18486,6 +18618,14 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   useEffect(() => {
     reloadSessions();
   }, [currentFaculty]);
+  useEffect(() => {
+    if (facultyTab === "register") {
+      if (typeof window !== "undefined" && typeof window.fetchSessionsFromCloud === "function") {
+        window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {
+        });
+      }
+    }
+  }, [facultyTab]);
   const facultySessions = useMemo(() => {
     return allSessions.filter(
       (s) => s.facultyId === currentFaculty.id || s.facultyName && s.facultyName.toLowerCase() === currentFaculty.name.toLowerCase()
@@ -19096,6 +19236,10 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       setRegNavDiv(attDiv);
       setRegNavBatch("ALL");
       setRegNavSubId(attSubjectId);
+      if (typeof window !== "undefined" && typeof window.fetchSessionsFromCloud === "function") {
+        window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {
+        });
+      }
       if (activeClass?.id) setRegClassId(activeClass.id);
       if (attSubjectId) setRegSubjectId(attSubjectId);
       setAttendanceStep("setup");
@@ -19519,6 +19663,10 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
               if (attDiv) setRegNavDiv(attDiv);
               setRegNavBatch("ALL");
               if (attSubjectId) setRegNavSubId(attSubjectId);
+              if (typeof window !== "undefined" && typeof window.fetchSessionsFromCloud === "function") {
+                window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {
+                });
+              }
             }
             setFacultyTab(item.id);
             if (item.id === "take") setAttendanceStep("setup");

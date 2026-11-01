@@ -2929,6 +2929,9 @@ export const saveSession = (session, userContext = null) => {
     if (typeof window.syncDocToFirestore === 'function' && saved && saved.id) {
       window.syncDocToFirestore('adit_sessions', saved.id, saved).catch(() => {});
     }
+    if (typeof window.fetchSessionsFromCloud === 'function') {
+      window.fetchSessionsFromCloud().catch(() => {});
+    }
   }
   allSessions.saved = saved;
   allSessions.id = saved.id;

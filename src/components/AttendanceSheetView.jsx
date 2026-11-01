@@ -81,6 +81,42 @@ export default function AttendanceSheetView({
     };
   }, []);
 
+  // Live Cloud Synchronization: fetch all sessions upon register mounting
+  useEffect(() => {
+    let isMounted = true;
+    const syncSessions = async () => {
+      try {
+        let merged = null;
+        if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+          merged = await window.fetchSessionsFromCloud();
+        } else {
+          const res = await fetch('https://adit-attendance-system-default-rtdb.asia-southeast1.firebasedatabase.app/adit_sessions.json');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && typeof data === 'object') {
+              const cloudSessions = Object.values(data).filter(Boolean);
+              const raw = localStorage.getItem('adit_attendance_sessions');
+              const localSessions = JSON.parse(raw || '[]');
+              const map = new Map();
+              localSessions.forEach(s => { if (s && s.id) map.set(s.id, s); });
+              cloudSessions.forEach(s => { if (s && s.id) map.set(s.id, { ...(map.get(s.id) || {}), ...s }); });
+              merged = Array.from(map.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+              localStorage.setItem('adit_attendance_sessions', JSON.stringify(merged));
+              if (typeof window !== 'undefined' && window.dispatchEvent) {
+                window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+              }
+            }
+          }
+        }
+        if (isMounted) setSessionsTick(t => t + 1);
+      } catch (err) {
+        console.warn('AttendanceSheetView cloud sessions sync notice:', err);
+      }
+    };
+    syncSessions();
+    return () => { isMounted = false; };
+  }, []);
+
   // -------------------------------------------------------------
   // 2. Faculty Access Control & Scoped Authorization
   // -------------------------------------------------------------
@@ -236,11 +272,20 @@ export default function AttendanceSheetView({
     return availableSubjects[0]?.id || '';
   });
 
+  const isSubMatch = (s, targetId) => {
+    if (!s || !targetId) return false;
+    const t = String(targetId).trim().toLowerCase();
+    return (s.id && String(s.id).trim().toLowerCase() === t) ||
+           (s.code && String(s.code).trim().toLowerCase() === t) ||
+           (s.shortName && String(s.shortName).trim().toLowerCase() === t) ||
+           (s.name && String(s.name).trim().toLowerCase() === t);
+  };
+
   // Ensure selectedSubjectId is valid when department/semester/division changes
   useEffect(() => {
-    if (initialSubjectId && initialSubjectId !== selectedSubjectId && availableSubjects.some(s => s.id === initialSubjectId)) {
+    if (initialSubjectId && initialSubjectId !== selectedSubjectId && availableSubjects.some(s => isSubMatch(s, initialSubjectId))) {
       setSelectedSubjectId(initialSubjectId);
-    } else if (availableSubjects.length > 0 && !availableSubjects.some(s => s.id === selectedSubjectId)) {
+    } else if (availableSubjects.length > 0 && !availableSubjects.some(s => isSubMatch(s, selectedSubjectId))) {
       setSelectedSubjectId(availableSubjects[0].id);
     }
   }, [availableSubjects, initialSubjectId, selectedSubjectId]);
@@ -824,6 +869,23 @@ export default function AttendanceSheetView({
                 <span>+ Take Attendance</span>
               </button>
             )}
+
+            <button 
+              type="button"
+              className="btn btn-secondary"
+              onClick={async () => {
+                if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+                  const res = await window.fetchSessionsFromCloud();
+                  setSessionsTick(t => t + 1);
+                  if (showToast) showToast(`Synced ${res ? res.length : 0} attendance records from cloud!`);
+                }
+              }}
+              style={{ height: '38px', padding: '0 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Pull latest attendance sessions from Cloud Database"
+            >
+              <RotateCcw size={15} style={{ color: '#2563eb' }} />
+              <span>Sync Cloud</span>
+            </button>
 
             <button 
               type="button"

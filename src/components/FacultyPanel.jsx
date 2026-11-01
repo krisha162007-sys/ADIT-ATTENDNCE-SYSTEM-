@@ -257,6 +257,15 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     reloadSessions();
   }, [currentFaculty]);
 
+  // Pull latest cloud sessions whenever switching to register view
+  useEffect(() => {
+    if (facultyTab === 'register') {
+      if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+        window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {});
+      }
+    }
+  }, [facultyTab]);
+
   // Filter sessions recorded by THIS faculty
   const facultySessions = useMemo(() => {
     return allSessions.filter(s => 
@@ -1010,6 +1019,11 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       setRegNavBatch('ALL');
       setRegNavSubId(attSubjectId);
 
+      // Immediately pull all cloud sessions so register contains all previous entries!
+      if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+        window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {});
+      }
+
       // Automatically transition to Attendance Register
       if (activeClass?.id) setRegClassId(activeClass.id);
       if (attSubjectId) setRegSubjectId(attSubjectId);
@@ -1575,6 +1589,9 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         if (attDiv) setRegNavDiv(attDiv);
                         setRegNavBatch('ALL');
                         if (attSubjectId) setRegNavSubId(attSubjectId);
+                        if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+                          window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {});
+                        }
                       }
                       setFacultyTab(item.id);
                       if (item.id === 'take') setAttendanceStep('setup');
