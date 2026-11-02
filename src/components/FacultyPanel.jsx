@@ -277,9 +277,20 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   // Today's Date String
   const todayDateStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // Today's scheduled lectures for this faculty
+  // Today's scheduled lectures for this faculty (Deduplicated)
   const { dayName: currentDayName, lectures: todayScheduledLectures } = useMemo(() => {
-    return getFacultyScheduledLecturesForDate(currentFaculty.id, todayDateStr);
+    const res = getFacultyScheduledLecturesForDate(currentFaculty.id, todayDateStr);
+    const uniqueMap = new Map();
+    (res.lectures || []).forEach(l => {
+      const uKey = `${l.time || l.timeSlot}__${l.subjectId || l.subjectName}__${l.sem}__${l.div}__${l.batch || 'ALL'}`.toLowerCase();
+      if (!uniqueMap.has(uKey)) {
+        uniqueMap.set(uKey, l);
+      }
+    });
+    return {
+      dayName: res.dayName,
+      lectures: Array.from(uniqueMap.values())
+    };
   }, [currentFaculty.id, todayDateStr, timetableSyncTick]);
 
   // Check which of today's lectures already have attendance recorded
@@ -949,16 +960,21 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       (s.batch || 'ALL') === (attBatch || 'ALL')
     );
 
-    // Finalize records: preserve explicit present, mark approved exception only if excused, and enrich with enrollmentNo
+    // Finalize records: ensure all students have an explicit status (defaulting unmarked to absent),
+    // mark approved exception only if excused, and enrich with enrollmentNo
     const finalRecords = { ...recordsToSave };
     classStudents.forEach(st => {
-      const cur = finalRecords[st.id];
+      let cur = finalRecords[st.id];
+      if (!cur || (cur !== 'present' && cur !== 'absent' && cur !== 'od')) {
+        cur = 'absent';
+      }
       const excCheck = isStudentExcusedForSession(st.id, attDate, slotStr, attSubjectId);
       if (cur === 'absent' && excCheck && excCheck.isExcused) {
-        finalRecords[st.id] = 'od';
+        cur = 'od';
       }
-      if (st.enrollmentNo && finalRecords[st.id] !== undefined) {
-        finalRecords[st.enrollmentNo] = finalRecords[st.id];
+      finalRecords[st.id] = cur;
+      if (st.enrollmentNo) {
+        finalRecords[st.enrollmentNo] = cur;
       }
     });
 
@@ -1067,21 +1083,23 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       return;
     }
 
-    const unmarkList = classStudents.filter(s => {
-      const st = attRecords[s.id];
-      return !st || (st !== 'present' && st !== 'absent' && st !== 'od');
+    // Automatically mark all remaining unmarked students as Absent upon submission
+    const resolvedRecords = { ...attRecords };
+    let autoAbsentCount = 0;
+    classStudents.forEach(s => {
+      const st = resolvedRecords[s.id];
+      if (!st || (st !== 'present' && st !== 'absent' && st !== 'od')) {
+        resolvedRecords[s.id] = 'absent';
+        if (s.enrollmentNo) {
+          resolvedRecords[s.enrollmentNo] = 'absent';
+        }
+        autoAbsentCount++;
+      }
     });
 
-    if (unmarkList.length > 0) {
-      const msg = `Attendance submission blocked: ${unmarkList.length} of ${classStudents.length} student(s) remain unmarked. Every student must be explicitly marked. Click "Mark Remaining as Absent" to resolve.`;
-      setUnmarkedAlert(msg);
-      if (showToast) {
-        showToast(`Cannot submit: ${unmarkList.length} student(s) remain unmarked. Please mark all students before saving.`, 'error');
-      }
-      return;
-    }
-
-    executeSaveAttendance(attRecords);
+    setAttRecords(resolvedRecords);
+    setUnmarkedAlert(null);
+    executeSaveAttendance(resolvedRecords);
   };
 
   // -------------------------------------------------------------
@@ -4114,28 +4132,35 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                     <span>Delete This Attendance Record</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleSubmitAttendance}
-                  disabled={isSavingAttendance}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '11px 26px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    backgroundColor: isSavingAttendance ? '#94a3b8' : '#2563eb',
-                    color: '#ffffff',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    cursor: isSavingAttendance ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
-                  }}
-                >
-                  <Save size={16} />
-                  <span>{isSavingAttendance ? 'Saving Attendance...' : 'Submit & Save Attendance'}</span>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={handleSubmitAttendance}
+                    disabled={isSavingAttendance}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '11px 26px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: isSavingAttendance ? '#94a3b8' : '#2563eb',
+                      color: '#ffffff',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      cursor: isSavingAttendance ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)'
+                    }}
+                  >
+                    <Save size={16} />
+                    <span>{isSavingAttendance ? 'Saving Attendance...' : 'Submit & Save Attendance'}</span>
+                  </button>
+                  {unmarkedCount > 0 && (
+                    <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: '600' }}>
+                      ({unmarkedCount} unmarked will be saved as Absent)
+                    </span>
+                  )}
+                </div>
               </div>
               </div>
             </div>

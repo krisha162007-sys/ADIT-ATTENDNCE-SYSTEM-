@@ -5244,6 +5244,37 @@ const DEFAULT_TIMETABLE_ENTRIES = [
     "isContinuation": true
   }
 ];
+const deduplicateTimetableEntries = (entries) => {
+  if (!Array.isArray(entries)) return [];
+  const slotMap = /* @__PURE__ */ new Map();
+  const getSlotKey = (e) => {
+    if (!e) return "";
+    const day = (e.day || "").trim().toLowerCase();
+    const time = (e.timeSlot || e.combinedTimeSlot || "").replace(/\s+/g, "").toLowerCase();
+    const subj = (e.subjectId || e.subjectName || e.subject || "").trim().toLowerCase();
+    const sem = (e.semId || e.sem || "").toString().toLowerCase().replace("sem", "").replace("semester", "").trim();
+    const div = (e.divId || e.div || "").toString().toLowerCase().replace("div", "").replace("division", "").trim();
+    const batch = (e.batch || "ALL").trim().toLowerCase();
+    const facId = (e.facultyId || "").trim().toLowerCase();
+    const isCont = Boolean(e.isContinuation);
+    return `${day}__${time}__${subj}__${sem}__${div}__${batch}__${facId}__${isCont}`;
+  };
+  entries.forEach((e) => {
+    if (!e) return;
+    const key = getSlotKey(e);
+    if (!slotMap.has(key)) {
+      slotMap.set(key, e);
+    } else {
+      const existing = slotMap.get(key);
+      const curScore = (existing.facultyName && existing.facultyName.toLowerCase() !== "faculty" ? 10 : 0) + (existing.room ? 2 : 0);
+      const newScore = (e.facultyName && e.facultyName.toLowerCase() !== "faculty" ? 10 : 0) + (e.room ? 2 : 0);
+      if (newScore > curScore) {
+        slotMap.set(key, e);
+      }
+    }
+  });
+  return Array.from(slotMap.values());
+};
 const getTimetableEntries = () => {
   if (typeof localStorage === "undefined") return [];
   const data = localStorage.getItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES);
@@ -5257,10 +5288,11 @@ const getTimetableEntries = () => {
           needsSave = true;
         }
       });
-      if (needsSave) {
-        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(parsed));
+      const deduped = deduplicateTimetableEntries(parsed);
+      if (deduped.length !== parsed.length || needsSave) {
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(deduped));
       }
-      return parsed;
+      return deduped;
     } catch (e) {
       console.error(e);
     }
@@ -6475,7 +6507,7 @@ const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
     return e.day === dayName;
   });
   if (dayEntries.length > 0) {
-    const lectures2 = dayEntries.map((e) => ({
+    const rawLectures = dayEntries.map((e) => ({
       id: e.id,
       time: e.combinedTimeSlot || e.timeSlot,
       timeSlot: e.combinedTimeSlot || e.timeSlot,
@@ -6497,7 +6529,14 @@ const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
       rescheduledDate: e.rescheduledDate,
       rescheduleReason: e.rescheduleReason
     }));
-    return { dayName, lectures: lectures2 };
+    const uniqueMap = /* @__PURE__ */ new Map();
+    rawLectures.forEach((l) => {
+      const uKey = `${l.time}__${l.subjectId}__${l.sem}__${l.div}__${l.batch || "ALL"}`.toLowerCase();
+      if (!uniqueMap.has(uKey)) {
+        uniqueMap.set(uKey, l);
+      }
+    });
+    return { dayName, lectures: Array.from(uniqueMap.values()) };
   }
   const grid = getFacultyTimetable(facultyId);
   const daySlots = grid[dayName] || {};
@@ -8494,6 +8533,9 @@ if (typeof window !== "undefined") {
   window.deleteTimetableEntry = deleteTimetableEntry;
   window.getTimetableEntries = getTimetableEntries;
 }
+if (typeof window !== "undefined") {
+  window.deduplicateTimetableEntries = deduplicateTimetableEntries;
+}
 const SYSTEM_STORAGE_KEYS = [
   "adit_attendance_departments",
   "adit_attendance_faculties",
@@ -9514,7 +9556,9 @@ const fetchAllFromRtdb = async () => {
       }
     }
     if (fetchedData.adit_timetable_entries) {
-      const ttes = Object.values(fetchedData.adit_timetable_entries);
+      let ttes = Object.values(fetchedData.adit_timetable_entries);
+      const dedupFn = typeof window !== "undefined" && window.deduplicateTimetableEntries ? window.deduplicateTimetableEntries : typeof deduplicateTimetableEntries === "function" ? deduplicateTimetableEntries : null;
+      if (dedupFn) ttes = dedupFn(ttes);
       if (ttes.length > 0) {
         localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(ttes));
       }
@@ -9588,7 +9632,9 @@ const startRealtimeDatabaseSync = () => {
     const ttRef = f.ref(db, RTDB_PATHS.TIMETABLE_ENTRIES);
     const unsubTT = f.onValue(ttRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const entries = Object.values(snap.val());
+        let entries = Object.values(snap.val());
+        const dedupFn = typeof window !== "undefined" && window.deduplicateTimetableEntries ? window.deduplicateTimetableEntries : typeof deduplicateTimetableEntries === "function" ? deduplicateTimetableEntries : null;
+        if (dedupFn) entries = dedupFn(entries);
         localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
         if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("adit-timetable-synced"));
       }
@@ -18633,7 +18679,18 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
   }, [allSessions, currentFaculty]);
   const todayDateStr = useMemo(() => (/* @__PURE__ */ new Date()).toISOString().split("T")[0], []);
   const { dayName: currentDayName, lectures: todayScheduledLectures } = useMemo(() => {
-    return getFacultyScheduledLecturesForDate(currentFaculty.id, todayDateStr);
+    const res = getFacultyScheduledLecturesForDate(currentFaculty.id, todayDateStr);
+    const uniqueMap = /* @__PURE__ */ new Map();
+    (res.lectures || []).forEach((l) => {
+      const uKey = `${l.time || l.timeSlot}__${l.subjectId || l.subjectName}__${l.sem}__${l.div}__${l.batch || "ALL"}`.toLowerCase();
+      if (!uniqueMap.has(uKey)) {
+        uniqueMap.set(uKey, l);
+      }
+    });
+    return {
+      dayName: res.dayName,
+      lectures: Array.from(uniqueMap.values())
+    };
   }, [currentFaculty.id, todayDateStr, timetableSyncTick]);
   const todayLecturesWithStatus = useMemo(() => {
     return todayScheduledLectures.map((lec) => {
@@ -19175,13 +19232,17 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     );
     const finalRecords = { ...recordsToSave };
     classStudents.forEach((st) => {
-      const cur = finalRecords[st.id];
+      let cur = finalRecords[st.id];
+      if (!cur || cur !== "present" && cur !== "absent" && cur !== "od") {
+        cur = "absent";
+      }
       const excCheck = isStudentExcusedForSession(st.id, attDate, slotStr, attSubjectId);
       if (cur === "absent" && excCheck && excCheck.isExcused) {
-        finalRecords[st.id] = "od";
+        cur = "od";
       }
-      if (st.enrollmentNo && finalRecords[st.id] !== void 0) {
-        finalRecords[st.enrollmentNo] = finalRecords[st.id];
+      finalRecords[st.id] = cur;
+      if (st.enrollmentNo) {
+        finalRecords[st.enrollmentNo] = cur;
       }
     });
     const curPresent = classStudents.filter((s) => finalRecords[s.id] === "present").length;
@@ -19277,19 +19338,21 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       }
       return;
     }
-    const unmarkList = classStudents.filter((s) => {
-      const st = attRecords[s.id];
-      return !st || st !== "present" && st !== "absent" && st !== "od";
-    });
-    if (unmarkList.length > 0) {
-      const msg = `Attendance submission blocked: ${unmarkList.length} of ${classStudents.length} student(s) remain unmarked. Every student must be explicitly marked. Click "Mark Remaining as Absent" to resolve.`;
-      setUnmarkedAlert(msg);
-      if (showToast) {
-        showToast(`Cannot submit: ${unmarkList.length} student(s) remain unmarked. Please mark all students before saving.`, "error");
+    const resolvedRecords = { ...attRecords };
+    let autoAbsentCount = 0;
+    classStudents.forEach((s) => {
+      const st = resolvedRecords[s.id];
+      if (!st || st !== "present" && st !== "absent" && st !== "od") {
+        resolvedRecords[s.id] = "absent";
+        if (s.enrollmentNo) {
+          resolvedRecords[s.enrollmentNo] = "absent";
+        }
+        autoAbsentCount++;
       }
-      return;
-    }
-    executeSaveAttendance(attRecords);
+    });
+    setAttRecords(resolvedRecords);
+    setUnmarkedAlert(null);
+    executeSaveAttendance(resolvedRecords);
   };
   const allClasses = useMemo(() => getClasses(), [classesTick]);
   const allSubjects = useMemo(() => getSubjects(), []);
@@ -21308,7 +21371,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     },
     /* @__PURE__ */ React.createElement(Trash2, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Delete This Attendance Record")
-  ), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -21331,7 +21394,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     },
     /* @__PURE__ */ React.createElement(Save, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, isSavingAttendance ? "Saving Attendance..." : "Submit & Save Attendance")
-  ))))), facultyTab === "register" && /* @__PURE__ */ React.createElement(
+  ), unmarkedCount > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11.5px", color: "#64748b", fontWeight: "600" } }, "(", unmarkedCount, " unmarked will be saved as Absent)")))))), facultyTab === "register" && /* @__PURE__ */ React.createElement(
     AttendanceSheetView,
     {
       currentUser,

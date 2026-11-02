@@ -420,9 +420,11 @@ export const fetchAllFromRtdb = async () => {
       }
     }
 
-    // 6. Timetable Entries
+    // 6. Timetable Entries (Safely deduplicated)
     if (fetchedData.adit_timetable_entries) {
-      const ttes = Object.values(fetchedData.adit_timetable_entries);
+      let ttes = Object.values(fetchedData.adit_timetable_entries);
+      const dedupFn = (typeof window !== 'undefined' && window.deduplicateTimetableEntries) ? window.deduplicateTimetableEntries : (typeof deduplicateTimetableEntries === 'function' ? deduplicateTimetableEntries : null);
+      if (dedupFn) ttes = dedupFn(ttes);
       if (ttes.length > 0) {
         localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(ttes));
       }
@@ -504,11 +506,13 @@ export const startRealtimeDatabaseSync = () => {
     });
     activeListeners.push({ ref: facRef, unsub: unsubFac });
 
-    // Timetable listener
+    // Timetable listener (Safely deduplicated)
     const ttRef = f.ref(db, RTDB_PATHS.TIMETABLE_ENTRIES);
     const unsubTT = f.onValue(ttRef, (snap) => {
       if (snap.exists() && snap.val()) {
-        const entries = Object.values(snap.val());
+        let entries = Object.values(snap.val());
+        const dedupFn = (typeof window !== 'undefined' && window.deduplicateTimetableEntries) ? window.deduplicateTimetableEntries : (typeof deduplicateTimetableEntries === 'function' ? deduplicateTimetableEntries : null);
+        if (dedupFn) entries = dedupFn(entries);
         localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(entries));
         if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('adit-timetable-synced'));
       }

@@ -800,6 +800,41 @@ export const DEFAULT_TIMETABLE_ENTRIES = [
   }
 ];
 
+export const deduplicateTimetableEntries = (entries) => {
+  if (!Array.isArray(entries)) return [];
+  const slotMap = new Map();
+
+  const getSlotKey = (e) => {
+    if (!e) return '';
+    const day = (e.day || '').trim().toLowerCase();
+    const time = (e.timeSlot || e.combinedTimeSlot || '').replace(/\s+/g, '').toLowerCase();
+    const subj = (e.subjectId || e.subjectName || e.subject || '').trim().toLowerCase();
+    const sem = (e.semId || e.sem || '').toString().toLowerCase().replace('sem', '').replace('semester', '').trim();
+    const div = (e.divId || e.div || '').toString().toLowerCase().replace('div', '').replace('division', '').trim();
+    const batch = (e.batch || 'ALL').trim().toLowerCase();
+    const facId = (e.facultyId || '').trim().toLowerCase();
+    const isCont = Boolean(e.isContinuation);
+    return `${day}__${time}__${subj}__${sem}__${div}__${batch}__${facId}__${isCont}`;
+  };
+
+  entries.forEach(e => {
+    if (!e) return;
+    const key = getSlotKey(e);
+    if (!slotMap.has(key)) {
+      slotMap.set(key, e);
+    } else {
+      const existing = slotMap.get(key);
+      const curScore = (existing.facultyName && existing.facultyName.toLowerCase() !== 'faculty' ? 10 : 0) + (existing.room ? 2 : 0);
+      const newScore = (e.facultyName && e.facultyName.toLowerCase() !== 'faculty' ? 10 : 0) + (e.room ? 2 : 0);
+      if (newScore > curScore) {
+        slotMap.set(key, e);
+      }
+    }
+  });
+
+  return Array.from(slotMap.values());
+};
+
 export const getTimetableEntries = () => {
   if (typeof localStorage === 'undefined') return [];
   const data = localStorage.getItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES);
@@ -813,10 +848,11 @@ export const getTimetableEntries = () => {
           needsSave = true;
         }
       });
-      if (needsSave) {
-        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(parsed));
+      const deduped = deduplicateTimetableEntries(parsed);
+      if (deduped.length !== parsed.length || needsSave) {
+        localStorage.setItem(TT_STORAGE_KEYS.TIMETABLE_ENTRIES, JSON.stringify(deduped));
       }
-      return parsed;
+      return deduped;
     } catch (e) {
       console.error(e);
     }
@@ -2249,7 +2285,7 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
     return e.day === dayName;
   });
   if (dayEntries.length > 0) {
-    const lectures = dayEntries.map(e => ({
+    const rawLectures = dayEntries.map(e => ({
       id: e.id,
       time: e.combinedTimeSlot || e.timeSlot,
       timeSlot: e.combinedTimeSlot || e.timeSlot,
@@ -2271,7 +2307,17 @@ export const getFacultyScheduledLecturesForDate = (facultyId, dateStr) => {
       rescheduledDate: e.rescheduledDate,
       rescheduleReason: e.rescheduleReason
     }));
-    return { dayName, lectures };
+
+    // Deduplicate lectures so duplicate slots never produce repeated cards on dashboard
+    const uniqueMap = new Map();
+    rawLectures.forEach(l => {
+      const uKey = `${l.time}__${l.subjectId}__${l.sem}__${l.div}__${l.batch || 'ALL'}`.toLowerCase();
+      if (!uniqueMap.has(uKey)) {
+        uniqueMap.set(uKey, l);
+      }
+    });
+
+    return { dayName, lectures: Array.from(uniqueMap.values()) };
   }
   // Fallback to getFacultyTimetable
   const grid = getFacultyTimetable(facultyId);
@@ -4542,3 +4588,5 @@ if (typeof window !== 'undefined') {
   window.deleteTimetableEntry = deleteTimetableEntry;
   window.getTimetableEntries = getTimetableEntries;
 }
+
+if (typeof window !== "undefined") { window.deduplicateTimetableEntries = deduplicateTimetableEntries; }
