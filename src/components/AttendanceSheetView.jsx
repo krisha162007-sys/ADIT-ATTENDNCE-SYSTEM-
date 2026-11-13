@@ -1349,8 +1349,42 @@ export default function AttendanceSheetView({
         const fullTime = sessionToDelete.timeSlot || (sessionToDelete.startTime ? `${sessionToDelete.startTime} - ${sessionToDelete.endTime}` : 'Regular Slot');
 
         return (
-          <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-            <div className="modal-content" style={{ maxWidth: '520px', width: '92%', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.25)' }}>
+          <div 
+            className="modal-overlay" 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0, 
+              width: '100vw', 
+              height: '100vh', 
+              backgroundColor: 'rgba(15, 23, 42, 0.75)', 
+              backdropFilter: 'blur(4px)', 
+              WebkitBackdropFilter: 'blur(4px)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              zIndex: 99999, 
+              padding: '16px' 
+            }}
+            onClick={() => setSessionToDelete(null)}
+          >
+            <div 
+              className="modal-content" 
+              style={{ 
+                maxWidth: '490px', 
+                width: '100%', 
+                backgroundColor: '#ffffff', 
+                borderRadius: '20px', 
+                padding: '24px 22px', 
+                boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.45)', 
+                position: 'relative', 
+                zIndex: 100000, 
+                animation: 'modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1)' 
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -1428,8 +1462,44 @@ export default function AttendanceSheetView({
           MODAL: VIEW CLASS ATTENDANCE EXCEPTIONS
           ===================================================================== */}
       {showClassExceptionsModal && (
-        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
-          <div className="modal-content" style={{ maxWidth: '720px', width: '92%', borderRadius: '16px', padding: '24px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        <div 
+          className="modal-overlay" 
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            width: '100vw', 
+            height: '100vh', 
+            backgroundColor: 'rgba(15, 23, 42, 0.75)', 
+            backdropFilter: 'blur(4px)', 
+            WebkitBackdropFilter: 'blur(4px)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 99999, 
+            padding: '16px' 
+          }}
+          onClick={() => setShowClassExceptionsModal(false)}
+        >
+          <div 
+            className="modal-content" 
+            style={{ 
+              maxWidth: '720px', 
+              width: '92%', 
+              borderRadius: '16px', 
+              padding: '24px', 
+              maxHeight: '85vh', 
+              display: 'flex', 
+              flexDirection: 'column',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.45)',
+              position: 'relative',
+              zIndex: 100000
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '16px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
