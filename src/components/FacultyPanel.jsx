@@ -2087,29 +2087,91 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                       </div>
 
                       {/* Action Button */}
-                      <button
-                        type="button"
-                        onClick={() => selectLectureForAttendance(lec)}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '9px 14px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: lec.isCompleted ? '#059669' : '#2563eb',
-                          color: '#ffffff',
-                          fontWeight: '700',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
-                        }}
-                      >
-                        {lec.isCompleted ? <Eye size={15} /> : <UserCheck size={15} />}
-                        <span>{lec.isCompleted ? 'Re-open Attendance' : 'Take Attendance'}</span>
-                      </button>
+                      {lec.isCompleted ? (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => selectLectureForAttendance(lec)}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '9px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              backgroundColor: '#059669',
+                              color: '#ffffff',
+                              fontWeight: '700',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+                            }}
+                          >
+                            <Eye size={15} />
+                            <span>Re-open Attendance</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Are you sure you want to remove the attendance taken for ${lec.subjectName || lec.subjectId} (${lec.time})? This will delete the recorded attendance and reset the lecture to pending.`)) {
+                                try {
+                                  if (lec.session?.id) {
+                                    deleteSession(lec.session.id, currentFaculty);
+                                    reloadSessions();
+                                    if (showToast) showToast('Attendance removed successfully!');
+                                  }
+                                } catch (err) {
+                                  alert(err.message || 'Error removing attendance');
+                                }
+                              }
+                            }}
+                            title="Remove attendance of this lecture"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '9px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #fecdd3',
+                              backgroundColor: '#fff1f2',
+                              color: '#dc2626',
+                              fontWeight: '700',
+                              fontSize: '12px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <Trash2 size={13} />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => selectLectureForAttendance(lec)}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            padding: '9px 14px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: '#2563eb',
+                            color: '#ffffff',
+                            fontWeight: '700',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+                          }}
+                        >
+                          <UserCheck size={15} />
+                          <span>Take Attendance</span>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3771,6 +3833,62 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                2. STUDENT ATTENDANCE LIST (Multi-Column Checkbox Grid)
                ------------------------------------------------------------- */}
             <div className="card" style={{ padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+              
+              {/* Notice with small option at the side when attendance is already taken for this lecture */}
+              {existingSessionForSlot && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  marginBottom: '16px',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle2 size={16} color="#059669" />
+                    <span style={{ fontSize: '13px', color: '#065f46', fontWeight: '700' }}>
+                      Attendance already taken for this lecture ({Object.values(existingSessionForSlot.records || {}).filter(s => s === 'present').length} Present)
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to remove the attendance taken for ${attSubjectName || attSubjectId} (${attSem} ${attDiv}) on ${attDate}? This will remove all student markings and reset this session.`)) {
+                        try {
+                          deleteSession(existingSessionForSlot.id, currentFaculty);
+                          reloadSessions();
+                          setAttRecords({});
+                          if (showToast) showToast('Attendance record removed successfully!');
+                        } catch (err) {
+                          alert(err.message || 'Error deleting session');
+                        }
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '5px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: '#fff1f2',
+                      border: '1px solid #fecdd3',
+                      color: '#dc2626',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                    title="Remove attendance of this lecture"
+                  >
+                    <Trash2 size={13} />
+                    <span>Remove Attendance</span>
+                  </button>
+                </div>
+              )}
               
               {/* Header Controls & Live Stats */}
               <div style={{

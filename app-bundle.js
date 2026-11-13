@@ -10321,30 +10321,6 @@ function AttendanceSheetView({
   const allDepartments = useMemo(() => getDepartments(), []);
   const [sessionsTick, setSessionsTick] = useState(0);
   const [studentsTick, setStudentsTick] = useState(0);
-  const [showManageLecturesModal, setShowManageLecturesModal] = useState(false);
-  const [selectedLectureDetail, setSelectedLectureDetail] = useState(null);
-  const [sessionToDelete, setSessionToDelete] = useState(null);
-  const [isDeletingSession, setIsDeletingSession] = useState(false);
-  const handleConfirmDeleteSession = async () => {
-    if (!sessionToDelete) return;
-    try {
-      setIsDeletingSession(true);
-      deleteSession(sessionToDelete.id, currentUser);
-      setSessionsTick((t) => t + 1);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("adit-sessions-updated"));
-      }
-      if (showToast) {
-        showToast(`Attendance record for ${sessionToDelete.date} deleted successfully!`, "success");
-      }
-      setSessionToDelete(null);
-      setSelectedLectureDetail(null);
-    } catch (err) {
-      alert(err.message || "Error deleting attendance session");
-    } finally {
-      setIsDeletingSession(false);
-    }
-  };
   useEffect(() => {
     const handleSessionsUpdate = () => setSessionsTick((t) => t + 1);
     const handleStudentsUpdate = () => setStudentsTick((t) => t + 1);
@@ -10951,17 +10927,6 @@ function AttendanceSheetView({
     },
     /* @__PURE__ */ React.createElement(PlusCircle, { size: 15 }),
     /* @__PURE__ */ React.createElement("span", null, "+ Take Attendance")
-  ), isAuthorized && subjectSessions.length > 0 && /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-secondary",
-      onClick: () => setShowManageLecturesModal(true),
-      style: { height: "38px", padding: "0 12px", display: "flex", alignItems: "center", gap: "6px", color: "#b91c1c", borderColor: "#fecdd3" },
-      title: "View conducted lectures and delete unwanted attendance records"
-    },
-    /* @__PURE__ */ React.createElement(Trash2, { size: 15, style: { color: "#dc2626" } }),
-    /* @__PURE__ */ React.createElement("span", null, "Manage / Delete (", subjectSessions.length, ")")
   ), /* @__PURE__ */ React.createElement(
     "button",
     {
@@ -11097,18 +11062,15 @@ function AttendanceSheetView({
         {
           key: sess.id,
           className: "erp-th-date",
-          onClick: () => setSelectedLectureDetail(sess),
-          style: { cursor: "pointer" },
           title: `Lecture #${sessIdx + 1}
 Date: ${sess.date}
 Time: ${fullTime}
 Topic: ${sess.topic || "Regular Lecture"}
 Faculty: ${sess.facultyName || "Faculty"}
-Click to view details or delete attendance record`
+Session ID: ${sess.id}`
         },
         /* @__PURE__ */ React.createElement("div", { style: { fontWeight: "800" } }, datePart),
-        sameDateSessions.length > 1 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: "#0369a1", fontWeight: "700" } }, slotPart),
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: "9px", color: "#64748b", fontWeight: "600", marginTop: "1px" } }, "L", sessIdx + 1)
+        sameDateSessions.length > 1 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: "#0369a1", fontWeight: "700" } }, slotPart)
       );
     }), /* @__PURE__ */ React.createElement("th", { className: "erp-th-enroll-repeat" }, "Enrollment No"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Present"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Exceptions (EX)"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Out of"), /* @__PURE__ */ React.createElement("th", { className: "erp-th-stat" }, "Percentage"))), /* @__PURE__ */ React.createElement("tbody", null, filteredStudents.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement(
       "td",
@@ -11212,126 +11174,7 @@ Click to view details or delete attendance record`
       });
       return /* @__PURE__ */ React.createElement("td", { key: sess.id, className: "erp-td-stat", style: { fontWeight: "800" } }, count);
     }), /* @__PURE__ */ React.createElement("td", { className: "erp-td-enroll-repeat" }, "-"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat" }, "-"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat" }, "-"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat" }, "-"), /* @__PURE__ */ React.createElement("td", { className: "erp-td-stat", style: { fontWeight: "800", color: Number(classAverage) < 75 ? "#b91c1c" : "#15803d" } }, classAverage, "%"))))), /* @__PURE__ */ React.createElement("div", { className: "erp-sheet-footer-info" }, /* @__PURE__ */ React.createElement("div", { className: "erp-legend-box" }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "700", color: "#475569", marginRight: "6px" } }, "Legend:"), /* @__PURE__ */ React.createElement("span", { className: "erp-legend-item" }, /* @__PURE__ */ React.createElement("span", { className: "erp-legend-swatch erp-cell-p" }, "P"), " Present"), /* @__PURE__ */ React.createElement("span", { className: "erp-legend-item" }, /* @__PURE__ */ React.createElement("span", { className: "erp-legend-swatch erp-cell-a" }, "A"), " Absent"), /* @__PURE__ */ React.createElement("span", { className: "erp-legend-item" }, /* @__PURE__ */ React.createElement("span", { className: "erp-legend-swatch erp-cell-ex" }, "EX"), " Approved Exception"), /* @__PURE__ */ React.createElement("span", { className: "erp-legend-item" }, /* @__PURE__ */ React.createElement("span", { className: "erp-legend-swatch erp-cell-empty" }, "-"), " Unrecorded"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#94a3b8", marginLeft: "12px" } }, "(Click any cell to toggle P \u2194 A \u2194 EX)")), /* @__PURE__ */ React.createElement("div", { className: "erp-stats-strip" }, /* @__PURE__ */ React.createElement("span", null, "Enrolled Students: ", /* @__PURE__ */ React.createElement("strong", null, filteredStudents.length)), /* @__PURE__ */ React.createElement("span", null, "Total Lectures Conducted: ", /* @__PURE__ */ React.createElement("strong", null, totalConducted)), /* @__PURE__ */ React.createElement("span", null, "Class Average: ", /* @__PURE__ */ React.createElement("strong", null, classAverage, "%")), /* @__PURE__ */ React.createElement("span", null, "Shortage (<75%): ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#b91c1c" } }, shortageCount)), /* @__PURE__ */ React.createElement("span", null, "Eligible (\u226575%): ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#15803d" } }, eligibleCount)))))
-  ), selectedLectureDetail && (() => {
-    let pCount = 0;
-    let aCount = 0;
-    let odCount = 0;
-    if (selectedLectureDetail.records) {
-      Object.values(selectedLectureDetail.records).forEach((st) => {
-        if (st === "present") pCount++;
-        else if (st === "absent") aCount++;
-        else if (st === "od" || st === "exception") odCount++;
-      });
-    }
-    const totalMarked = pCount + aCount + odCount;
-    const pct = totalMarked > 0 ? (pCount + odCount) / totalMarked * 100 : 0;
-    const fullTime = selectedLectureDetail.timeSlot || (selectedLectureDetail.startTime ? `${selectedLectureDetail.startTime} - ${selectedLectureDetail.endTime}` : "Regular Slot");
-    return /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "560px", width: "92%", borderRadius: "16px", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.18)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "inline-flex", alignItems: "center", gap: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "700", marginBottom: "6px" } }, /* @__PURE__ */ React.createElement(Clock, { size: 12 }), /* @__PURE__ */ React.createElement("span", null, "Conducted Lecture Session")), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0, fontFamily: "'Outfit', sans-serif" } }, selectedLectureDetail.date, " (", fullTime, ")"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: "2px 0 0" } }, activeSubject.name, " \u2022 ", selectedSemester, " ", selectedDivision, " ", selectedBatch !== "ALL" ? `(${selectedBatch})` : "")), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        onClick: () => setSelectedLectureDetail(null),
-        style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8" }
-      },
-      "\u2715"
-    )), /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px", marginBottom: "18px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "3px" } }, "Topic / Syllabus Covered:"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: "#0f172a" } }, selectedLectureDetail.topic || "Regular Lecture Session")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: "#15803d" } }, "Present"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#166534" } }, pCount)), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", backgroundColor: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: "#be123c" } }, "Absent"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#9f1239" } }, aCount)), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", fontWeight: "700", color: "#1d4ed8" } }, "Percentage"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "18px", fontWeight: "800", color: "#1e40af" } }, pct.toFixed(1), "%"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11.5px", color: "#64748b", marginTop: "12px" } }, "Recorded By: ", /* @__PURE__ */ React.createElement("strong", null, selectedLectureDetail.facultyName || "Faculty"), " \u2022 Session ID: ", /* @__PURE__ */ React.createElement("code", { style: { fontSize: "10.5px" } }, selectedLectureDetail.id))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" } }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "btn btn-danger",
-        onClick: () => setSessionToDelete(selectedLectureDetail),
-        style: { display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", fontWeight: "700", backgroundColor: "#dc2626", color: "#ffffff", border: "none", borderRadius: "10px", cursor: "pointer" }
-      },
-      /* @__PURE__ */ React.createElement(Trash2, { size: 15 }),
-      /* @__PURE__ */ React.createElement("span", null, "Delete This Attendance Record")
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "btn btn-secondary",
-        onClick: () => setSelectedLectureDetail(null),
-        style: { padding: "10px 18px", fontWeight: "600" }
-      },
-      "Close"
-    ))));
-  })(), showManageLecturesModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "680px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement(Trash2, { size: 20, color: "#dc2626" }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0, fontFamily: "'Outfit', sans-serif" } }, "Manage Lecture Attendance Records")), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: 0 } }, "Review or delete attendance records for ", activeSubject.shortName || activeSubject.name, " (", selectedSemester, " ", selectedDivision, " ", selectedBatch !== "ALL" ? `\u2022 ${selectedBatch}` : "", ").")), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      onClick: () => setShowManageLecturesModal(false),
-      style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8" }
-    },
-    "\u2715"
-  )), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", marginBottom: "16px" } }, subjectSessions.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { padding: "36px", textAlign: "center", color: "#64748b", backgroundColor: "#f8fafc", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement(AlertCircle, { size: 32, color: "#94a3b8", style: { marginBottom: "8px" } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: "#334155" } }, "No Recorded Lectures"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: "#94a3b8", marginTop: "2px" } }, "There are no recorded attendance sessions for this class and subject yet.")) : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "10px" } }, [...subjectSessions].reverse().map((sess, idx) => {
-    let p = 0;
-    let a = 0;
-    if (sess.records) {
-      Object.values(sess.records).forEach((st) => {
-        if (st === "present") p++;
-        else if (st === "absent") a++;
-      });
-    }
-    const fullTime = sess.timeSlot || (sess.startTime ? `${sess.startTime} - ${sess.endTime}` : "Regular Slot");
-    return /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        key: sess.id,
-        style: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 16px",
-          backgroundColor: "#f8fafc",
-          border: "1px solid #e2e8f0",
-          borderRadius: "10px",
-          gap: "12px",
-          flexWrap: "wrap"
-        }
-      },
-      /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: "220px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "800", fontSize: "14px", color: "#0f172a" } }, sess.date), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", padding: "1px 7px", borderRadius: "4px", backgroundColor: "#e2e8f0", color: "#475569", fontWeight: "600" } }, fullTime), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: "#16a34a", fontWeight: "700" } }, p, " Present \u2022 ", a, " Absent")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12.5px", color: "#334155", fontWeight: "600" } }, sess.topic || "Regular Lecture Session"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: "#94a3b8", marginTop: "2px" } }, "Faculty: ", sess.facultyName || "Faculty")),
-      /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          type: "button",
-          className: "btn btn-danger",
-          onClick: () => setSessionToDelete(sess),
-          style: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", fontWeight: "700", fontSize: "12px", backgroundColor: "#fee2e2", color: "#dc2626", border: "1px solid #fecdd3", borderRadius: "8px", cursor: "pointer" },
-          title: "Delete this attendance record"
-        },
-        /* @__PURE__ */ React.createElement(Trash2, { size: 13 }),
-        /* @__PURE__ */ React.createElement("span", null, "Delete")
-      )
-    );
-  }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "12px" } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-secondary",
-      onClick: () => setShowManageLecturesModal(false)
-    },
-    "Close"
-  )))), sessionToDelete && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "520px", width: "92%", borderRadius: "16px", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.25)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 24, color: "#dc2626" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", margin: 0, color: "#991b1b", fontFamily: "'Outfit', sans-serif" } }, "Delete Attendance Record?"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12px", color: "#b91c1c", margin: "2px 0 0" } }, "Please confirm to prevent accidental deletion"))), /* @__PURE__ */ React.createElement("div", { style: { backgroundColor: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px 16px", marginBottom: "16px", fontSize: "13px", color: "#334155" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b" } }, "Date & Time: "), /* @__PURE__ */ React.createElement("strong", null, sessionToDelete.date), " (", sessionToDelete.timeSlot || (sessionToDelete.startTime ? `${sessionToDelete.startTime} - ${sessionToDelete.endTime}` : "Regular Slot"), ")"), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b" } }, "Subject: "), /* @__PURE__ */ React.createElement("strong", null, sessionToDelete.subjectName || activeSubject.name)), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b" } }, "Class: "), /* @__PURE__ */ React.createElement("strong", null, sessionToDelete.sem || selectedSemester, " \u2022 ", sessionToDelete.division || selectedDivision, " ", sessionToDelete.batch && sessionToDelete.batch !== "ALL" ? `(${sessionToDelete.batch})` : "")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#64748b" } }, "Topic Covered: "), /* @__PURE__ */ React.createElement("strong", null, sessionToDelete.topic || "Regular Lecture"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 14px", backgroundColor: "#fff1f2", border: "1px solid #fecdd3", borderRadius: "8px", marginBottom: "20px", fontSize: "12.5px", color: "#9f1239", lineHeight: 1.4 } }, /* @__PURE__ */ React.createElement("strong", null, "\u26A0\uFE0F Permanent Action:"), " Deleting this attendance record will remove all student attendance markings for this session from the cloud and recalculate class percentages. ", /* @__PURE__ */ React.createElement("strong", null, "This cannot be undone.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "10px" } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-secondary",
-      disabled: isDeletingSession,
-      onClick: () => setSessionToDelete(null),
-      style: { padding: "9px 18px", fontWeight: "600" }
-    },
-    "Cancel, Keep Record"
-  ), /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      type: "button",
-      className: "btn btn-danger",
-      disabled: isDeletingSession,
-      onClick: handleConfirmDeleteSession,
-      style: { display: "flex", alignItems: "center", gap: "6px", padding: "9px 18px", fontWeight: "700", backgroundColor: "#dc2626", color: "#ffffff", border: "none", borderRadius: "8px", cursor: isDeletingSession ? "not-allowed" : "pointer" }
-    },
-    /* @__PURE__ */ React.createElement(Trash2, { size: 15 }),
-    /* @__PURE__ */ React.createElement("span", null, isDeletingSession ? "Deleting..." : "Yes, Permanently Delete")
-  )))), showClassExceptionsModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "720px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement(Award, { size: 20, color: "#2563eb" }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0, fontFamily: "'Outfit', sans-serif" } }, "Approved Exceptions for ", selectedSemester, " ", selectedDivision)), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: 0 } }, "Official duty exemptions authorized for students in this class.")), /* @__PURE__ */ React.createElement(
+  ), showClassExceptionsModal && /* @__PURE__ */ React.createElement("div", { className: "modal-backdrop", style: { display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1050 } }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", style: { maxWidth: "720px", width: "92%", borderRadius: "16px", padding: "24px", maxHeight: "85vh", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement(Award, { size: 20, color: "#2563eb" }), /* @__PURE__ */ React.createElement("h3", { style: { fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0, fontFamily: "'Outfit', sans-serif" } }, "Approved Exceptions for ", selectedSemester, " ", selectedDivision)), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "12.5px", color: "#64748b", margin: 0 } }, "Official duty exemptions authorized for students in this class.")), /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -20219,7 +20062,66 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
       borderRadius: "20px",
       border: `1px solid ${lec.isCompleted ? "#a7f3d0" : "#fde68a"}`
     } }, lec.isCompleted ? /* @__PURE__ */ React.createElement(Check, { size: 12 }) : /* @__PURE__ */ React.createElement(Clock, { size: 12 }), lec.isCompleted ? "Completed" : "Pending")), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" } }, lec.subjectName || lec.subjectId), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: "#475569", fontWeight: "600", marginBottom: "12px" } }, lec.sem, " \u2022 ", lec.div, " ", lec.room ? `\u2022 Room ${lec.room}` : "")),
-    /* @__PURE__ */ React.createElement(
+    lec.isCompleted ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => selectLectureForAttendance(lec),
+        style: {
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
+          padding: "9px 12px",
+          borderRadius: "8px",
+          border: "none",
+          backgroundColor: "#059669",
+          color: "#ffffff",
+          fontWeight: "700",
+          fontSize: "13px",
+          cursor: "pointer",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.06)"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Eye, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "Re-open Attendance")
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: (e) => {
+          e.stopPropagation();
+          if (window.confirm(`Are you sure you want to remove the attendance taken for ${lec.subjectName || lec.subjectId} (${lec.time})? This will delete the recorded attendance and reset the lecture to pending.`)) {
+            try {
+              if (lec.session?.id) {
+                deleteSession(lec.session.id, currentFaculty);
+                reloadSessions();
+                if (showToast) showToast("Attendance removed successfully!");
+              }
+            } catch (err) {
+              alert(err.message || "Error removing attendance");
+            }
+          }
+        },
+        title: "Remove attendance of this lecture",
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "9px 12px",
+          borderRadius: "8px",
+          border: "1px solid #fecdd3",
+          backgroundColor: "#fff1f2",
+          color: "#dc2626",
+          fontWeight: "700",
+          fontSize: "12px",
+          cursor: "pointer"
+        }
+      },
+      /* @__PURE__ */ React.createElement(Trash2, { size: 13 }),
+      /* @__PURE__ */ React.createElement("span", null, "Remove")
+    )) : /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -20233,7 +20135,7 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
           padding: "9px 14px",
           borderRadius: "8px",
           border: "none",
-          backgroundColor: lec.isCompleted ? "#059669" : "#2563eb",
+          backgroundColor: "#2563eb",
           color: "#ffffff",
           fontWeight: "700",
           fontSize: "13px",
@@ -20241,8 +20143,8 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
           boxShadow: "0 2px 4px rgba(0,0,0,0.06)"
         }
       },
-      lec.isCompleted ? /* @__PURE__ */ React.createElement(Eye, { size: 15 }) : /* @__PURE__ */ React.createElement(UserCheck, { size: 15 }),
-      /* @__PURE__ */ React.createElement("span", null, lec.isCompleted ? "Re-open Attendance" : "Take Attendance")
+      /* @__PURE__ */ React.createElement(UserCheck, { size: 15 }),
+      /* @__PURE__ */ React.createElement("span", null, "Take Attendance")
     )
   )))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" } }, /* @__PURE__ */ React.createElement(
     "div",
@@ -21239,7 +21141,51 @@ function FacultyPanel({ currentUser, currentFaculty: propFaculty, showToast, onE
     },
     /* @__PURE__ */ React.createElement(Users, { size: 16 }),
     /* @__PURE__ */ React.createElement("span", null, "Load Students")
-  )))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", marginBottom: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: {
+  )))), /* @__PURE__ */ React.createElement("div", { className: "card", style: { padding: "24px", borderRadius: "16px", marginBottom: "24px" } }, existingSessionForSlot && /* @__PURE__ */ React.createElement("div", { style: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    backgroundColor: "#ecfdf5",
+    border: "1px solid #a7f3d0",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+    gap: "8px"
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "8px" } }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, color: "#059669" }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "13px", color: "#065f46", fontWeight: "700" } }, "Attendance already taken for this lecture (", Object.values(existingSessionForSlot.records || {}).filter((s) => s === "present").length, " Present)")), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => {
+        if (window.confirm(`Are you sure you want to remove the attendance taken for ${attSubjectName || attSubjectId} (${attSem} ${attDiv}) on ${attDate}? This will remove all student markings and reset this session.`)) {
+          try {
+            deleteSession(existingSessionForSlot.id, currentFaculty);
+            reloadSessions();
+            setAttRecords({});
+            if (showToast) showToast("Attendance record removed successfully!");
+          } catch (err) {
+            alert(err.message || "Error deleting session");
+          }
+        }
+      },
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "5px 10px",
+        borderRadius: "6px",
+        backgroundColor: "#fff1f2",
+        border: "1px solid #fecdd3",
+        color: "#dc2626",
+        fontSize: "12px",
+        fontWeight: "700",
+        cursor: "pointer"
+      },
+      title: "Remove attendance of this lecture"
+    },
+    /* @__PURE__ */ React.createElement(Trash2, { size: 13 }),
+    /* @__PURE__ */ React.createElement("span", null, "Remove Attendance")
+  )), /* @__PURE__ */ React.createElement("div", { style: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
