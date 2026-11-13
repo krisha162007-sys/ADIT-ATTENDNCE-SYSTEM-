@@ -18,14 +18,17 @@ import {
   ShieldCheck,
   ShieldAlert,
   Lock,
-  RotateCcw
+  RotateCcw,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
   getStudents, 
   getSubjects, 
   getSessions, 
-  saveSession, 
+  saveSession,
+  deleteSession, 
   getCollegeName, 
   getDepartments,
   getClasses,
@@ -63,6 +66,30 @@ export default function AttendanceSheetView({
   // -------------------------------------------------------------
   const [sessionsTick, setSessionsTick] = useState(0);
   const [studentsTick, setStudentsTick] = useState(0);
+
+  // State for deleting lecture attendance when clicking date header
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    try {
+      setIsDeletingSession(true);
+      deleteSession(sessionToDelete.id, currentUser);
+      setSessionsTick(t => t + 1);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+      }
+      if (showToast) {
+        showToast(`Attendance for ${sessionToDelete.date} deleted successfully!`, 'success');
+      }
+      setSessionToDelete(null);
+    } catch (err) {
+      alert(err.message || 'Error deleting attendance session');
+    } finally {
+      setIsDeletingSession(false);
+    }
+  };
 
   useEffect(() => {
     const handleSessionsUpdate = () => setSessionsTick(t => t + 1);
@@ -1090,12 +1117,17 @@ export default function AttendanceSheetView({
                       <th 
                         key={sess.id} 
                         className="erp-th-date"
-                        title={`Lecture #${sessIdx + 1}\nDate: ${sess.date}\nTime: ${fullTime}\nTopic: ${sess.topic || 'Regular Lecture'}\nFaculty: ${sess.facultyName || 'Faculty'}\nSession ID: ${sess.id}`}
+                        onClick={() => setSessionToDelete(sess)}
+                        style={{ cursor: 'pointer' }}
+                        title={`Lecture #${sessIdx + 1} (${sess.date})\nTime: ${fullTime}\nTopic: ${sess.topic || 'Regular Lecture'}\nClick date to delete this lecture attendance`}
                       >
                         <div style={{ fontWeight: '800' }}>{datePart}</div>
                         {sameDateSessions.length > 1 && (
                           <div style={{ fontSize: '10px', color: '#0369a1', fontWeight: '700' }}>{slotPart}</div>
                         )}
+                        <div className="erp-th-delete-icon" style={{ marginTop: '2px', display: 'flex', justifyContent: 'center' }}>
+                          <Trash2 size={11} color="#94a3b8" />
+                        </div>
                       </th>
                     );
                   })}
@@ -1301,6 +1333,96 @@ export default function AttendanceSheetView({
 
         </div>
       )}
+
+      {/* =====================================================================
+          CONFIRMATION MODAL: DELETE LECTURE ATTENDANCE WHEN DATE IS CLICKED
+          ===================================================================== */}
+      {sessionToDelete && (() => {
+        let pCount = 0;
+        let aCount = 0;
+        if (sessionToDelete.records) {
+          Object.values(sessionToDelete.records).forEach(st => {
+            if (st === 'present') pCount++;
+            else if (st === 'absent') aCount++;
+          });
+        }
+        const fullTime = sessionToDelete.timeSlot || (sessionToDelete.startTime ? `${sessionToDelete.startTime} - ${sessionToDelete.endTime}` : 'Regular Slot');
+
+        return (
+          <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+            <div className="modal-content" style={{ maxWidth: '520px', width: '92%', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.25)' }}>
+              
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <AlertTriangle size={24} color="#dc2626" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#991b1b', fontFamily: "'Outfit', sans-serif" }}>
+                    Delete Lecture Attendance?
+                  </h3>
+                  <p style={{ fontSize: '12.5px', color: '#b91c1c', margin: '2px 0 0' }}>
+                    Do you want to delete the attendance for this lecture?
+                  </p>
+                </div>
+              </div>
+
+              {/* Session Details Box */}
+              <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', fontSize: '13px', color: '#334155' }}>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#64748b' }}>Date & Time: </span>
+                  <strong style={{ color: '#0f172a' }}>{sessionToDelete.date}</strong> ({fullTime})
+                </div>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#64748b' }}>Subject: </span>
+                  <strong>{sessionToDelete.subjectName || activeSubject.name}</strong>
+                </div>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#64748b' }}>Class: </span>
+                  <strong>{sessionToDelete.sem || selectedSemester} • {sessionToDelete.division || selectedDivision} {sessionToDelete.batch && sessionToDelete.batch !== 'ALL' ? `(${sessionToDelete.batch})` : ''}</strong>
+                </div>
+                <div style={{ marginBottom: '6px' }}>
+                  <span style={{ color: '#64748b' }}>Topic Covered: </span>
+                  <strong>{sessionToDelete.topic || 'Regular Lecture Session'}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b' }}>Attendance Marked: </span>
+                  <strong style={{ color: '#16a34a' }}>{pCount} Present</strong>, <strong style={{ color: '#dc2626' }}>{aCount} Absent</strong>
+                </div>
+              </div>
+
+              {/* Warning text */}
+              <div style={{ padding: '10px 14px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px', marginBottom: '20px', fontSize: '12.5px', color: '#9f1239', lineHeight: 1.4 }}>
+                <strong>⚠️ Warning:</strong> Deleting this lecture attendance will permanently remove all student attendance markings for this session and update the register. <strong>This action cannot be undone.</strong>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={isDeletingSession}
+                  onClick={() => setSessionToDelete(null)}
+                  style={{ padding: '9px 18px', fontWeight: '600' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={isDeletingSession}
+                  onClick={handleConfirmDeleteSession}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', fontWeight: '700', backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '8px', cursor: isDeletingSession ? 'not-allowed' : 'pointer' }}
+                >
+                  <Trash2 size={15} />
+                  <span>{isDeletingSession ? 'Deleting...' : 'Yes, Delete It'}</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* =====================================================================
           MODAL: VIEW CLASS ATTENDANCE EXCEPTIONS
