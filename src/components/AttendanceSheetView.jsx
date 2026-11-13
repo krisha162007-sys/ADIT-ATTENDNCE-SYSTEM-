@@ -706,10 +706,10 @@ export default function AttendanceSheetView({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           
           {/* Cascading Filter Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', width: '100%' }}>
             
             {/* 1. Department */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 160px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Department
               </label>
@@ -717,7 +717,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
-                style={{ height: '36px', minWidth: '180px', fontWeight: '600', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 160px)', fontWeight: '600', fontSize: '12.5px' }}
               >
                 {departments.map(d => (
                   <option key={d.id} value={d.name}>{d.name}</option>
@@ -726,7 +726,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* 2. Semester */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 95px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Semester
               </label>
@@ -734,7 +734,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={selectedSemester}
                 onChange={(e) => setSelectedSemester(e.target.value)}
-                style={{ height: '36px', minWidth: '95px', fontWeight: '600', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 95px)', fontWeight: '600', fontSize: '12.5px' }}
               >
                 {availableSemesters.map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -743,7 +743,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* 3. Division */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 95px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Division
               </label>
@@ -751,7 +751,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={selectedDivision}
                 onChange={(e) => setSelectedDivision(e.target.value)}
-                style={{ height: '36px', minWidth: '95px', fontWeight: '600', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 95px)', fontWeight: '600', fontSize: '12.5px' }}
               >
                 {availableDivisions.map(d => (
                   <option key={d} value={d}>{d === 'ALL' ? 'All Divs' : d}</option>
@@ -760,7 +760,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* 4. Batch */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 100px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Batch
               </label>
@@ -768,7 +768,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
-                style={{ height: '36px', minWidth: '100px', fontWeight: '600', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 100px)', fontWeight: '600', fontSize: '12.5px' }}
               >
                 <option value="ALL">All Batches</option>
                 <option value="Batch A">Batch A</option>
@@ -782,7 +782,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* 5. Subject */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '2 1 min(100%, 180px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Course / Subject
               </label>
@@ -790,7 +790,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={selectedSubjectId}
                 onChange={(e) => setSelectedSubjectId(e.target.value)}
-                style={{ height: '36px', minWidth: '220px', fontWeight: '700', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 180px)', fontWeight: '700', fontSize: '12.5px' }}
               >
                 {availableSubjects.map(s => (
                   <option key={s.id} value={s.id}>
@@ -801,7 +801,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* Term & Year */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 150px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Term &amp; Year
               </label>
@@ -810,7 +810,7 @@ export default function AttendanceSheetView({
                   className="form-control"
                   value={selectedTerm}
                   onChange={(e) => setSelectedTerm(e.target.value)}
-                  style={{ height: '36px', width: '75px', fontWeight: '600', fontSize: '12px' }}
+                  style={{ height: '36px', width: '50%', fontWeight: '600', fontSize: '12px' }}
                 >
                   <option value="Odd">Odd</option>
                   <option value="Even">Even</option>
@@ -819,7 +819,7 @@ export default function AttendanceSheetView({
                   className="form-control"
                   value={academicYear}
                   onChange={(e) => setAcademicYear(e.target.value)}
-                  style={{ height: '36px', width: '95px', fontWeight: '600', fontSize: '12px' }}
+                  style={{ height: '36px', width: '50%', fontWeight: '600', fontSize: '12px' }}
                 >
                   {ACADEMIC_YEARS.map(y => (
                     <option key={y} value={y}>{y}</option>
@@ -829,7 +829,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* Status Filter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 130px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Attendance Status
               </label>
@@ -837,7 +837,7 @@ export default function AttendanceSheetView({
                 className="form-control"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ height: '36px', minWidth: '140px', fontSize: '12.5px' }}
+                style={{ height: '36px', width: '100%', minWidth: 'min(100%, 130px)', fontSize: '12.5px' }}
               >
                 <option value="ALL">All ({enrolledStudents.length})</option>
                 <option value="SHORTAGE">Shortage &lt; 75% ({shortageCount})</option>
@@ -846,7 +846,7 @@ export default function AttendanceSheetView({
             </div>
 
             {/* Search Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 min(100%, 130px)' }}>
               <label style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', color: '#64748b' }}>
                 Search Student
               </label>
@@ -858,7 +858,7 @@ export default function AttendanceSheetView({
                   placeholder="Name / Enr..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ height: '36px', paddingLeft: '30px', width: '145px', fontSize: '12.5px' }}
+                  style={{ height: '36px', paddingLeft: '30px', width: '100%', minWidth: 'min(100%, 120px)', fontSize: '12.5px' }}
                 />
               </div>
             </div>
@@ -866,7 +866,7 @@ export default function AttendanceSheetView({
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', width: '100%', marginTop: '6px' }}>
             <button 
               type="button"
               className="btn btn-secondary"

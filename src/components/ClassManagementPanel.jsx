@@ -1327,8 +1327,8 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
             </div>
 
             {/* Quick Actions & Search */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div className="input-with-icon" style={{ minWidth: '220px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+              <div className="input-with-icon" style={{ minWidth: 'min(100%, 200px)', flex: '1 1 180px' }}>
                 <Search className="input-icon" size={15} />
                 <input
                   type="text"
@@ -1336,16 +1336,16 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
                   placeholder="Search Enrollment No, Name, Batch..."
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}
-                  style={{ height: '36px', fontSize: '13px' }}
+                  style={{ height: '36px', fontSize: '13px', width: '100%' }}
                 />
               </div>
 
-              <div style={{ minWidth: '130px' }}>
+              <div style={{ minWidth: 'min(100%, 120px)', flex: '1 1 110px' }}>
                 <select
                   className="form-control"
                   value={classStudentBatchFilter}
                   onChange={(e) => setClassStudentBatchFilter(e.target.value)}
-                  style={{ height: '36px', fontSize: '13px', fontWeight: '700' }}
+                  style={{ height: '36px', fontSize: '13px', fontWeight: '700', width: '100%' }}
                   title="Filter students by lab batch"
                 >
                   <option value="ALL">All Batches</option>
@@ -1429,7 +1429,7 @@ export default function ClassManagementPanel({ departments: initialDepts, showTo
           {/* Student Table */}
           {filteredClassStudents.length > 0 ? (
             <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                     <th style={{ padding: '12px 16px', width: '70px', fontWeight: '800', color: '#475569' }}>#</th>

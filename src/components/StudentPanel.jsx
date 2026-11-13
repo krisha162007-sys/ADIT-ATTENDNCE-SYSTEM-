@@ -409,7 +409,7 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
       {/* ============================================================== */}
       {/* 3. MAIN CONTENT CONTAINER                                      */}
       {/* ============================================================== */}
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px 48px' }}>
+      <main className="student-main-content" style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px 48px' }}>
         {/* ========================================================== */}
         {/* VIEW: DASHBOARD                                            */}
         {/* ========================================================== */}
@@ -1320,9 +1320,10 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
                   </p>
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   <table style={{
                     width: '100%',
+                    minWidth: '580px',
                     borderCollapse: 'collapse',
                     textAlign: 'left',
                     fontSize: '13px'
@@ -1446,9 +1447,10 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
               padding: '24px',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
             }}>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <table style={{
                   width: '100%',
+                  minWidth: '680px',
                   borderCollapse: 'collapse',
                   textAlign: 'left',
                   fontSize: '13px'

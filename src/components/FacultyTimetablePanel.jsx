@@ -975,8 +975,8 @@ export default function FacultyTimetablePanel({
             </div>
 
             {/* INTERACTIVE TIMETABLE GRID */}
-            <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '12.5px' }}>
+            <div className="table-responsive" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'center', fontSize: '12.5px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th style={{ padding: '12px 14px', width: '110px', textAlign: 'left', fontWeight: '700', color: '#475569' }}>

@@ -108,7 +108,7 @@ export default function LoginView({ onLoginSuccess, showToast }) {
         </div>
 
         {/* Single Common Login Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '32px 28px 36px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '28px 20px 32px' }}>
           {/* Error Banner */}
           {errorMsg && (
             <div style={{

@@ -10830,40 +10830,40 @@ function AttendanceSheetView({
     else shortageCount++;
   });
   const classAverage = filteredStudents.length > 0 ? (totalPctSum / filteredStudents.length).toFixed(2) : "0.00";
-  return /* @__PURE__ */ React.createElement("div", { className: "erp-attendance-view", style: { maxWidth: "1440px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card no-print", style: { marginBottom: "20px", padding: "16px 20px", borderRadius: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Department"), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "erp-attendance-view", style: { maxWidth: "1440px", margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { className: "card no-print", style: { marginBottom: "20px", padding: "16px 20px", borderRadius: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "12px", width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 160px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Department"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedDepartment,
       onChange: (e) => setSelectedDepartment(e.target.value),
-      style: { height: "36px", minWidth: "180px", fontWeight: "600", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 160px)", fontWeight: "600", fontSize: "12.5px" }
     },
     departments.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.id, value: d.name }, d.name))
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Semester"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 95px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Semester"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedSemester,
       onChange: (e) => setSelectedSemester(e.target.value),
-      style: { height: "36px", minWidth: "95px", fontWeight: "600", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 95px)", fontWeight: "600", fontSize: "12.5px" }
     },
     availableSemesters.map((s) => /* @__PURE__ */ React.createElement("option", { key: s, value: s }, s))
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Division"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 95px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Division"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedDivision,
       onChange: (e) => setSelectedDivision(e.target.value),
-      style: { height: "36px", minWidth: "95px", fontWeight: "600", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 95px)", fontWeight: "600", fontSize: "12.5px" }
     },
     availableDivisions.map((d) => /* @__PURE__ */ React.createElement("option", { key: d, value: d }, d === "ALL" ? "All Divs" : d))
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Batch"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 100px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Batch"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedBatch,
       onChange: (e) => setSelectedBatch(e.target.value),
-      style: { height: "36px", minWidth: "100px", fontWeight: "600", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 100px)", fontWeight: "600", fontSize: "12.5px" }
     },
     /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Batches"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch A" }, "Batch A"),
@@ -10871,22 +10871,22 @@ function AttendanceSheetView({
     /* @__PURE__ */ React.createElement("option", { value: "Batch C" }, "Batch C"),
     /* @__PURE__ */ React.createElement("option", { value: "Batch D" }, "Batch D"),
     selectedBatch && !["ALL", "Batch A", "Batch B", "Batch C", "Batch D"].includes(selectedBatch) && /* @__PURE__ */ React.createElement("option", { value: selectedBatch }, selectedBatch)
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Course / Subject"), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "2 1 min(100%, 180px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Course / Subject"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedSubjectId,
       onChange: (e) => setSelectedSubjectId(e.target.value),
-      style: { height: "36px", minWidth: "220px", fontWeight: "700", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 180px)", fontWeight: "700", fontSize: "12.5px" }
     },
     availableSubjects.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.code ? `${s.code} - ` : "", s.shortName || s.name))
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Term & Year"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "5px" } }, /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 150px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Term & Year"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "5px" } }, /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: selectedTerm,
       onChange: (e) => setSelectedTerm(e.target.value),
-      style: { height: "36px", width: "75px", fontWeight: "600", fontSize: "12px" }
+      style: { height: "36px", width: "50%", fontWeight: "600", fontSize: "12px" }
     },
     /* @__PURE__ */ React.createElement("option", { value: "Odd" }, "Odd"),
     /* @__PURE__ */ React.createElement("option", { value: "Even" }, "Even")
@@ -10896,21 +10896,21 @@ function AttendanceSheetView({
       className: "form-control",
       value: academicYear,
       onChange: (e) => setAcademicYear(e.target.value),
-      style: { height: "36px", width: "95px", fontWeight: "600", fontSize: "12px" }
+      style: { height: "36px", width: "50%", fontWeight: "600", fontSize: "12px" }
     },
     ACADEMIC_YEARS.map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y))
-  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Attendance Status"), /* @__PURE__ */ React.createElement(
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 130px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Attendance Status"), /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "form-control",
       value: statusFilter,
       onChange: (e) => setStatusFilter(e.target.value),
-      style: { height: "36px", minWidth: "140px", fontSize: "12.5px" }
+      style: { height: "36px", width: "100%", minWidth: "min(100%, 130px)", fontSize: "12.5px" }
     },
     /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All (", enrolledStudents.length, ")"),
     /* @__PURE__ */ React.createElement("option", { value: "SHORTAGE" }, "Shortage < 75% (", shortageCount, ")"),
     /* @__PURE__ */ React.createElement("option", { value: "ELIGIBLE" }, "Eligible \u2265 75% (", eligibleCount, ")")
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Search Student"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement(Search, { size: 14, style: { position: "absolute", left: "10px", top: "11px", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "4px", flex: "1 1 min(100%, 130px)" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: "11px", fontWeight: "800", textTransform: "uppercase", color: "#64748b" } }, "Search Student"), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement(Search, { size: 14, style: { position: "absolute", left: "10px", top: "11px", color: "#94a3b8" } }), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "text",
@@ -10918,9 +10918,9 @@ function AttendanceSheetView({
       placeholder: "Name / Enr...",
       value: searchQuery,
       onChange: (e) => setSearchQuery(e.target.value),
-      style: { height: "36px", paddingLeft: "30px", width: "145px", fontSize: "12.5px" }
+      style: { height: "36px", paddingLeft: "30px", width: "100%", minWidth: "min(100%, 120px)", fontSize: "12.5px" }
     }
-  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: "8px" } }, /* @__PURE__ */ React.createElement(
+  )))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", width: "100%", marginTop: "6px" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       type: "button",
@@ -13491,7 +13491,7 @@ function FacultyTimetablePanel({
           " Print"
         ))
       ),
-      /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
+      /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", minWidth: "680px", borderCollapse: "collapse", textAlign: "center", fontSize: "12.5px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 14px", width: "110px", textAlign: "left", fontWeight: "700", color: "#475569" } }, "Time"), TIMETABLE_DAYS.map((day) => /* @__PURE__ */ React.createElement("th", { key: day, style: { padding: "12px 8px", fontWeight: "700", color: "#475569" } }, day)))), /* @__PURE__ */ React.createElement("tbody", null, (() => {
         const dayCellMap = {};
         TIMETABLE_DAYS.forEach((dayName) => {
           dayCellMap[dayName] = new Array(TIME_SLOTS.length);
@@ -15530,7 +15530,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       border: `1px solid ${selectedClass.isElective ? "#ddd6fe" : "#bfdbfe"}`,
       fontWeight: "800",
       marginRight: "6px"
-    } }, selectedClass.isElective ? selectedClass.subjectName || "Elective Class" : selectedClass.departmentName), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "500" } }, "\u2022 ", selectedClass.semester, " \u2022 ", selectedClass.division || selectedClass.name, " (", selectedClass.academicYear, ")"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "input-with-icon", style: { minWidth: "220px" } }, /* @__PURE__ */ React.createElement(Search, { className: "input-icon", size: 15 }), /* @__PURE__ */ React.createElement(
+    } }, selectedClass.isElective ? selectedClass.subjectName || "Elective Class" : selectedClass.departmentName), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: "500" } }, "\u2022 ", selectedClass.semester, " \u2022 ", selectedClass.division || selectedClass.name, " (", selectedClass.academicYear, ")"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", width: "100%" } }, /* @__PURE__ */ React.createElement("div", { className: "input-with-icon", style: { minWidth: "min(100%, 200px)", flex: "1 1 180px" } }, /* @__PURE__ */ React.createElement(Search, { className: "input-icon", size: 15 }), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "text",
@@ -15538,15 +15538,15 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
         placeholder: "Search Enrollment No, Name, Batch...",
         value: studentSearch,
         onChange: (e) => setStudentSearch(e.target.value),
-        style: { height: "36px", fontSize: "13px" }
+        style: { height: "36px", fontSize: "13px", width: "100%" }
       }
-    )), /* @__PURE__ */ React.createElement("div", { style: { minWidth: "130px" } }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { style: { minWidth: "min(100%, 120px)", flex: "1 1 110px" } }, /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "form-control",
         value: classStudentBatchFilter,
         onChange: (e) => setClassStudentBatchFilter(e.target.value),
-        style: { height: "36px", fontSize: "13px", fontWeight: "700" },
+        style: { height: "36px", fontSize: "13px", fontWeight: "700", width: "100%" },
         title: "Filter students by lab batch"
       },
       /* @__PURE__ */ React.createElement("option", { value: "ALL" }, "All Batches"),
@@ -15616,7 +15616,7 @@ function ClassManagementPanel({ departments: initialDepts, showToast, onOpenClas
       },
       /* @__PURE__ */ React.createElement(Download, { size: 14 }),
       /* @__PURE__ */ React.createElement("span", null, "Export")
-    )))), filteredClassStudents.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "70px", fontWeight: "800", color: "#475569" } }, "#"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "160px", fontWeight: "800", color: "#475569" } }, "Enrollment No."), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Student Name"), selectedClass.isElective ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "180px", fontWeight: "800", color: "#475569" } }, "Regular Department"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "140px", fontWeight: "800", color: "#475569" } }, "Regular Division")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "120px", fontWeight: "800", color: "#475569" } }, "Batch"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Email Address")), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "160px", textAlign: "right", fontWeight: "800", color: "#475569" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredClassStudents.map((st, idx) => /* @__PURE__ */ React.createElement(
+    )))), filteredClassStudents.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { border: "1px solid #e2e8f0", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", minWidth: "650px", borderCollapse: "collapse", fontSize: "13px" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "70px", fontWeight: "800", color: "#475569" } }, "#"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "160px", fontWeight: "800", color: "#475569" } }, "Enrollment No."), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Student Name"), selectedClass.isElective ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "180px", fontWeight: "800", color: "#475569" } }, "Regular Department"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "140px", fontWeight: "800", color: "#475569" } }, "Regular Division")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "120px", fontWeight: "800", color: "#475569" } }, "Batch"), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", fontWeight: "800", color: "#475569" } }, "Email Address")), /* @__PURE__ */ React.createElement("th", { style: { padding: "12px 16px", width: "160px", textAlign: "right", fontWeight: "800", color: "#475569" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, filteredClassStudents.map((st, idx) => /* @__PURE__ */ React.createElement(
       "tr",
       {
         key: st.id || idx,
@@ -22431,7 +22431,7 @@ function StudentPanel({ currentUser, showToast, onExit }) {
       /* @__PURE__ */ React.createElement(IconComponent, { size: 17, color: isActive ? "#2563eb" : "#64748b" }),
       /* @__PURE__ */ React.createElement("span", null, tab.label)
     );
-  }))), /* @__PURE__ */ React.createElement("main", { style: { maxWidth: "1280px", margin: "0 auto", padding: "24px 20px 48px" } }, activeTab === "dashboard" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: {
+  }))), /* @__PURE__ */ React.createElement("main", { className: "student-main-content", style: { maxWidth: "1280px", margin: "0 auto", padding: "24px 20px 48px" } }, activeTab === "dashboard" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "24px" } }, /* @__PURE__ */ React.createElement("div", { style: {
     background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
     borderRadius: "16px",
     padding: "24px 28px",
@@ -22957,8 +22957,9 @@ function StudentPanel({ currentUser, showToast, onExit }) {
     backgroundColor: "#f8fafc",
     borderRadius: "12px",
     border: "1px dashed #cbd5e1"
-  } }, /* @__PURE__ */ React.createElement(Calendar, { size: 36, color: "#94a3b8", style: { marginBottom: "12px" } }), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "700", color: "#334155", margin: "0 0 4px" } }, "No Lectures Conducted Yet"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Attendance sessions recorded by the faculty member for this course will appear here.")) : /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: {
+  } }, /* @__PURE__ */ React.createElement(Calendar, { size: 36, color: "#94a3b8", style: { marginBottom: "12px" } }), /* @__PURE__ */ React.createElement("h4", { style: { fontSize: "16px", fontWeight: "700", color: "#334155", margin: "0 0 4px" } }, "No Lectures Conducted Yet"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "13px", color: "#64748b", margin: 0 } }, "Attendance sessions recorded by the faculty member for this course will appear here.")) : /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { overflowX: "auto", WebkitOverflowScrolling: "touch" } }, /* @__PURE__ */ React.createElement("table", { style: {
     width: "100%",
+    minWidth: "580px",
     borderCollapse: "collapse",
     textAlign: "left",
     fontSize: "13px"
@@ -23022,8 +23023,9 @@ function StudentPanel({ currentUser, showToast, onExit }) {
     borderRadius: "16px",
     padding: "24px",
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)"
-  } }, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: {
+  } }, /* @__PURE__ */ React.createElement("div", { className: "table-responsive", style: { overflowX: "auto", WebkitOverflowScrolling: "touch" } }, /* @__PURE__ */ React.createElement("table", { style: {
     width: "100%",
+    minWidth: "680px",
     borderCollapse: "collapse",
     textAlign: "left",
     fontSize: "13px"
@@ -23515,7 +23517,7 @@ function LoginView({ onLoginSuccess, showToast }) {
     color: "#bfdbfe",
     margin: 0,
     fontWeight: "500"
-  } }, collegeName)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { padding: "32px 28px 36px" } }, errorMsg && /* @__PURE__ */ React.createElement("div", { style: {
+  } }, collegeName)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, style: { padding: "28px 20px 32px" } }, errorMsg && /* @__PURE__ */ React.createElement("div", { style: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
