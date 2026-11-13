@@ -18,14 +18,18 @@ import {
   ShieldCheck,
   ShieldAlert,
   Lock,
-  RotateCcw
+  RotateCcw,
+  Trash2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
   getStudents, 
   getSubjects, 
   getSessions, 
-  saveSession, 
+  saveSession,
+  deleteSession, 
   getCollegeName, 
   getDepartments,
   getClasses,
@@ -63,6 +67,35 @@ export default function AttendanceSheetView({
   // -------------------------------------------------------------
   const [sessionsTick, setSessionsTick] = useState(0);
   const [studentsTick, setStudentsTick] = useState(0);
+
+  // -------------------------------------------------------------
+  // Attendance Record Management & Safe Deletion State
+  // -------------------------------------------------------------
+  const [showManageLecturesModal, setShowManageLecturesModal] = useState(false);
+  const [selectedLectureDetail, setSelectedLectureDetail] = useState(null);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
+
+  const handleConfirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    try {
+      setIsDeletingSession(true);
+      deleteSession(sessionToDelete.id, currentUser);
+      setSessionsTick(t => t + 1);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('adit-sessions-updated'));
+      }
+      if (showToast) {
+        showToast(`Attendance record for ${sessionToDelete.date} deleted successfully!`, 'success');
+      }
+      setSessionToDelete(null);
+      setSelectedLectureDetail(null);
+    } catch (err) {
+      alert(err.message || 'Error deleting attendance session');
+    } finally {
+      setIsDeletingSession(false);
+    }
+  };
 
   useEffect(() => {
     const handleSessionsUpdate = () => setSessionsTick(t => t + 1);
@@ -870,6 +903,19 @@ export default function AttendanceSheetView({
               </button>
             )}
 
+            {isAuthorized && subjectSessions.length > 0 && (
+              <button 
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowManageLecturesModal(true)}
+                style={{ height: '38px', padding: '0 12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', borderColor: '#fecdd3' }}
+                title="View conducted lectures and delete unwanted attendance records"
+              >
+                <Trash2 size={15} style={{ color: '#dc2626' }} />
+                <span>Manage / Delete ({subjectSessions.length})</span>
+              </button>
+            )}
+
             <button 
               type="button"
               className="btn btn-secondary"
@@ -1090,12 +1136,17 @@ export default function AttendanceSheetView({
                       <th 
                         key={sess.id} 
                         className="erp-th-date"
-                        title={`Lecture #${sessIdx + 1}\nDate: ${sess.date}\nTime: ${fullTime}\nTopic: ${sess.topic || 'Regular Lecture'}\nFaculty: ${sess.facultyName || 'Faculty'}\nSession ID: ${sess.id}`}
+                        onClick={() => setSelectedLectureDetail(sess)}
+                        style={{ cursor: 'pointer' }}
+                        title={`Lecture #${sessIdx + 1}\nDate: ${sess.date}\nTime: ${fullTime}\nTopic: ${sess.topic || 'Regular Lecture'}\nFaculty: ${sess.facultyName || 'Faculty'}\nClick to view details or delete attendance record`}
                       >
                         <div style={{ fontWeight: '800' }}>{datePart}</div>
                         {sameDateSessions.length > 1 && (
                           <div style={{ fontSize: '10px', color: '#0369a1', fontWeight: '700' }}>{slotPart}</div>
                         )}
+                        <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '600', marginTop: '1px' }}>
+                          L{sessIdx + 1}
+                        </div>
                       </th>
                     );
                   })}
@@ -1299,6 +1350,293 @@ export default function AttendanceSheetView({
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL: SELECTED LECTURE DETAIL & ACTIONS
+          ===================================================================== */}
+      {selectedLectureDetail && (() => {
+        let pCount = 0;
+        let aCount = 0;
+        let odCount = 0;
+        if (selectedLectureDetail.records) {
+          Object.values(selectedLectureDetail.records).forEach(st => {
+            if (st === 'present') pCount++;
+            else if (st === 'absent') aCount++;
+            else if (st === 'od' || st === 'exception') odCount++;
+          });
+        }
+        const totalMarked = pCount + aCount + odCount;
+        const pct = totalMarked > 0 ? ((pCount + odCount) / totalMarked) * 100 : 0;
+        const fullTime = selectedLectureDetail.timeSlot || (selectedLectureDetail.startTime ? `${selectedLectureDetail.startTime} - ${selectedLectureDetail.endTime}` : 'Regular Slot');
+
+        return (
+          <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+            <div className="modal-content" style={{ maxWidth: '560px', width: '92%', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.18)' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', marginBottom: '6px' }}>
+                    <Clock size={12} />
+                    <span>Conducted Lecture Session</span>
+                  </div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0, fontFamily: "'Outfit', sans-serif" }}>
+                    {selectedLectureDetail.date} ({fullTime})
+                  </h3>
+                  <p style={{ fontSize: '12.5px', color: '#64748b', margin: '2px 0 0' }}>
+                    {activeSubject.name} • {selectedSemester} {selectedDivision} {selectedBatch !== 'ALL' ? `(${selectedBatch})` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLectureDetail(null)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#94a3b8' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Lecture Overview */}
+              <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', marginBottom: '18px' }}>
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>
+                    Topic / Syllabus Covered:
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>
+                    {selectedLectureDetail.topic || 'Regular Lecture Session'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ textAlign: 'center', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '8px 4px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#15803d' }}>Present</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#166534' }}>{pCount}</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px', padding: '8px 4px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#be123c' }}>Absent</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#9f1239' }}>{aCount}</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '8px 4px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '700', color: '#1d4ed8' }}>Percentage</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#1e40af' }}>{pct.toFixed(1)}%</div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '12px' }}>
+                  Recorded By: <strong>{selectedLectureDetail.facultyName || 'Faculty'}</strong> • Session ID: <code style={{ fontSize: '10.5px' }}>{selectedLectureDetail.id}</code>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => setSessionToDelete(selectedLectureDetail)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 16px', fontWeight: '700', backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '10px', cursor: 'pointer' }}
+                >
+                  <Trash2 size={15} />
+                  <span>Delete This Attendance Record</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedLectureDetail(null)}
+                  style={{ padding: '10px 18px', fontWeight: '600' }}
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* =====================================================================
+          MODAL: MANAGE ALL CONDUCTED LECTURE ATTENDANCE RECORDS
+          ===================================================================== */}
+      {showManageLecturesModal && (
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-content" style={{ maxWidth: '680px', width: '92%', borderRadius: '16px', padding: '24px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Trash2 size={20} color="#dc2626" />
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0, fontFamily: "'Outfit', sans-serif" }}>
+                    Manage Lecture Attendance Records
+                  </h3>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
+                  Review or delete attendance records for {activeSubject.shortName || activeSubject.name} ({selectedSemester} {selectedDivision} {selectedBatch !== 'ALL' ? `• ${selectedBatch}` : ''}).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManageLecturesModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#94a3b8' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
+              {subjectSessions.length === 0 ? (
+                <div style={{ padding: '36px', textAlign: 'center', color: '#64748b', backgroundColor: '#f8fafc', borderRadius: '10px' }}>
+                  <AlertCircle size={32} color="#94a3b8" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#334155' }}>No Recorded Lectures</div>
+                  <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                    There are no recorded attendance sessions for this class and subject yet.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[...subjectSessions].reverse().map((sess, idx) => {
+                    let p = 0;
+                    let a = 0;
+                    if (sess.records) {
+                      Object.values(sess.records).forEach(st => {
+                        if (st === 'present') p++;
+                        else if (st === 'absent') a++;
+                      });
+                    }
+                    const fullTime = sess.timeSlot || (sess.startTime ? `${sess.startTime} - ${sess.endTime}` : 'Regular Slot');
+
+                    return (
+                      <div
+                        key={sess.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          backgroundColor: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '10px',
+                          gap: '12px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: '220px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: '800', fontSize: '14px', color: '#0f172a' }}>
+                              {sess.date}
+                            </span>
+                            <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '4px', backgroundColor: '#e2e8f0', color: '#475569', fontWeight: '600' }}>
+                              {fullTime}
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700' }}>
+                              {p} Present • {a} Absent
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12.5px', color: '#334155', fontWeight: '600' }}>
+                            {sess.topic || 'Regular Lecture Session'}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                            Faculty: {sess.facultyName || 'Faculty'}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => setSessionToDelete(sess)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontWeight: '700', fontSize: '12px', backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecdd3', borderRadius: '8px', cursor: 'pointer' }}
+                          title="Delete this attendance record"
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowManageLecturesModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          CONFIRMATION MODAL: SAFE DELETION CONFIRMATION
+          ===================================================================== */}
+      {sessionToDelete && (
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '520px', width: '92%', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.25)' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertTriangle size={24} color="#dc2626" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#991b1b', fontFamily: "'Outfit', sans-serif" }}>
+                  Delete Attendance Record?
+                </h3>
+                <p style={{ fontSize: '12px', color: '#b91c1c', margin: '2px 0 0' }}>
+                  Please confirm to prevent accidental deletion
+                </p>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', fontSize: '13px', color: '#334155' }}>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ color: '#64748b' }}>Date & Time: </span>
+                <strong>{sessionToDelete.date}</strong> ({sessionToDelete.timeSlot || (sessionToDelete.startTime ? `${sessionToDelete.startTime} - ${sessionToDelete.endTime}` : 'Regular Slot')})
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ color: '#64748b' }}>Subject: </span>
+                <strong>{sessionToDelete.subjectName || activeSubject.name}</strong>
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <span style={{ color: '#64748b' }}>Class: </span>
+                <strong>{sessionToDelete.sem || selectedSemester} • {sessionToDelete.division || selectedDivision} {sessionToDelete.batch && sessionToDelete.batch !== 'ALL' ? `(${sessionToDelete.batch})` : ''}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b' }}>Topic Covered: </span>
+                <strong>{sessionToDelete.topic || 'Regular Lecture'}</strong>
+              </div>
+            </div>
+
+            <div style={{ padding: '10px 14px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px', marginBottom: '20px', fontSize: '12.5px', color: '#9f1239', lineHeight: 1.4 }}>
+              <strong>⚠️ Permanent Action:</strong> Deleting this attendance record will remove all student attendance markings for this session from the cloud and recalculate class percentages. <strong>This cannot be undone.</strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={isDeletingSession}
+                onClick={() => setSessionToDelete(null)}
+                style={{ padding: '9px 18px', fontWeight: '600' }}
+              >
+                Cancel, Keep Record
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={isDeletingSession}
+                onClick={handleConfirmDeleteSession}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', fontWeight: '700', backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '8px', cursor: isDeletingSession ? 'not-allowed' : 'pointer' }}
+              >
+                <Trash2 size={15} />
+                <span>{isDeletingSession ? 'Deleting...' : 'Yes, Permanently Delete'}</span>
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

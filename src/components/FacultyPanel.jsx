@@ -43,7 +43,8 @@ import {
   AlertTriangle,
   FileCheck,
   ExternalLink,
-  Download
+  Download,
+  Menu
 } from 'lucide-react';
 import { 
   getFaculties, 
@@ -162,6 +163,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
 
   // Main active tab in Faculty Panel: 'dashboard', 'timetable', 'take', 'register', 'exceptions', 'history', 'profile'
   const [facultyTab, setFacultyTab] = useState(initialTab || 'dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Timetable & master synchronization ticks for real-time live sync from Admin Panel
   const [timetableSyncTick, setTimetableSyncTick] = useState(0);
@@ -1495,13 +1497,161 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div className="faculty-root-container">
+
+      {/* ===================================================================
+          MOBILE TOP APP BAR (Phones & Tablets <= 768px)
+          =================================================================== */}
+      <header className="faculty-mobile-header no-print">
+        <button
+          type="button"
+          className="faculty-mobile-menu-btn"
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="Open Navigation Menu"
+        >
+          <Menu size={22} />
+        </button>
+
+        <div className="faculty-mobile-title-box">
+          <div className="faculty-mobile-app-name">ADIT Faculty</div>
+          <div className="faculty-mobile-sub">
+            {facultyTab === 'dashboard' ? 'Dashboard' :
+             facultyTab === 'timetable' ? 'My Timetable' :
+             facultyTab === 'take' ? 'Take Attendance' :
+             facultyTab === 'register' ? 'Attendance Register' : 'My Profile'}
+          </div>
+        </div>
+
+        <div 
+          className="faculty-mobile-avatar" 
+          onClick={() => setFacultyTab('profile')}
+          title="View Profile"
+        >
+          {currentFaculty.name?.charAt(0) || 'P'}
+        </div>
+      </header>
+
+      {/* Mobile Slide-out Drawer */}
+      {isMobileMenuOpen && (
+        <div className="faculty-mobile-drawer-overlay no-print" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="faculty-mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="faculty-drawer-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#60a5fa',
+                  padding: '3px 8px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '700'
+                }}>
+                  <GraduationCap size={13} />
+                  <span>Faculty Portal</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#ffffff', margin: '0 0 2px' }}>
+                {currentFaculty.name}
+              </h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                {currentFaculty.dept} • ID: {currentFaculty.id}
+              </p>
+            </div>
+
+            <nav style={{ flex: 1, padding: '16px 12px', overflowY: 'auto' }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = facultyTab === item.id;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.id === 'register') {
+                            if (attDept) setRegNavDept(attDept);
+                            if (attSem) setRegNavSem(attSem);
+                            if (attDiv) setRegNavDiv(attDiv);
+                            setRegNavBatch('ALL');
+                            if (attSubjectId) setRegNavSubId(attSubjectId);
+                            if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+                              window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {});
+                            }
+                          }
+                          setFacultyTab(item.id);
+                          if (item.id === 'take') setAttendanceStep('setup');
+                          setIsMobileMenuOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          backgroundColor: isActive ? '#2563eb' : 'transparent',
+                          color: isActive ? '#ffffff' : '#94a3b8',
+                          fontWeight: isActive ? '700' : '600',
+                          fontSize: '14px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Icon size={18} color={isActive ? '#ffffff' : '#64748b'} />
+                        <span>{item.label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+
+            <div style={{ padding: '16px 12px', borderTop: '1px solid #1e293b' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  logoutUser();
+                  if (onExit) onExit();
+                  else window.location.reload();
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid #334155',
+                  backgroundColor: 'transparent',
+                  color: '#f87171',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogOut size={16} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* ===================================================================
-          FACULTY DEDICATED DARK-NAVY SIDEBAR
+          FACULTY DEDICATED DARK-NAVY SIDEBAR (Desktop)
           =================================================================== */}
       <aside 
-        className="no-print"
+        className="faculty-sidebar no-print"
         style={{
           width: '260px',
           backgroundColor: '#0f172a',
@@ -1675,7 +1825,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
       {/* ===================================================================
           MAIN CONTENT VIEWPORT
           =================================================================== */}
-      <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '28px 36px 48px' }}>
+      <main className="faculty-main-content">
         
         {/* =================================================================
             VIEW 1: FACULTY DASHBOARD
@@ -4679,6 +4829,48 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
         )}
 
       </main>
+
+      {/* ===================================================================
+          MOBILE BOTTOM NAVIGATION BAR (Phones & Tablets <= 768px)
+          =================================================================== */}
+      <nav className="faculty-mobile-bottom-nav no-print" aria-label="Mobile Navigation">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = facultyTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`faculty-mobile-bottom-item ${isActive ? 'is-active' : ''}`}
+              onClick={() => {
+                if (item.id === 'register') {
+                  if (attDept) setRegNavDept(attDept);
+                  if (attSem) setRegNavSem(attSem);
+                  if (attDiv) setRegNavDiv(attDiv);
+                  setRegNavBatch('ALL');
+                  if (attSubjectId) setRegNavSubId(attSubjectId);
+                  if (typeof window !== 'undefined' && typeof window.fetchSessionsFromCloud === 'function') {
+                    window.fetchSessionsFromCloud().then(() => reloadSessions()).catch(() => {});
+                  }
+                }
+                setFacultyTab(item.id);
+                if (item.id === 'take') setAttendanceStep('setup');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="faculty-mobile-bottom-icon">
+                <Icon size={20} />
+              </div>
+              <span className="faculty-mobile-bottom-label">
+                {item.id === 'dashboard' ? 'Home' :
+                 item.id === 'timetable' ? 'Timetable' :
+                 item.id === 'take' ? 'Take Att.' :
+                 item.id === 'register' ? 'Register' : 'Profile'}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
 
     </div>
   );

@@ -2959,7 +2959,9 @@ export const deleteSession = (sessionId, userContext = null) => {
                     target.facultyId === user.id || 
                     target.takenBy === userFacId || 
                     target.takenBy === user.id ||
-                    (target.facultyName && target.facultyName.trim().toLowerCase() === (user.name || '').trim().toLowerCase());
+                    (target.facultyName && target.facultyName.trim().toLowerCase() === (user.name || '').trim().toLowerCase()) ||
+                    (target.facultyName && target.facultyName.trim().toLowerCase() === 'faculty') ||
+                    (typeof canFacultyTeachClassAndSubject === 'function' && canFacultyTeachClassAndSubject(userFacId, target.sem, target.division, target.subjectId));
     if (!isOwner) {
       throw new Error('Unauthorized Security Error: You cannot delete attendance recorded by another faculty member.');
     }
