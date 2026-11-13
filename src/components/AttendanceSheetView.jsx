@@ -1097,6 +1097,11 @@ export default function AttendanceSheetView({
             </div>
           )}
 
+          {/* Mobile Swipe Hint */}
+          <div className="erp-mobile-swipe-hint no-print">
+            👉 Swipe horizontally to view all lecture dates &amp; records
+          </div>
+
           {/* Matrix Table with Horizontal Scrolling */}
           <div className="erp-table-scroll-container">
             <table className="erp-attendance-table">

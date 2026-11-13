@@ -26,7 +26,9 @@ import {
   UserPlus,
   BookPlus,
   ArrowLeft,
-  Database
+  Database,
+  Menu,
+  X
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -102,6 +104,7 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
   // Navigation inside Admin Panel
   // Options: 'faculty' (default, matches screenshot), 'class-timetables', 'dashboard', 'timetables', 'upload', 'subjects', 'departments', 'settings'
   const [adminTab, setAdminTab] = useState(initialTab);
+  const [isAdminMobileMenuOpen, setIsAdminMobileMenuOpen] = useState(false);
 
   // Cloud Sync & Cross-Device Management State
   const [syncConfig, setSyncConfig] = useState(() => (typeof getCloudSyncConfig === 'function' ? getCloudSyncConfig() : { enabled: false, syncUrl: '' }));
@@ -511,6 +514,112 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
 
   return (
     <div className="admin-root-container">
+
+      {/* ===================================================================
+          MOBILE TOP APP BAR (Phones & Tablets <= 900px)
+          =================================================================== */}
+      <header className="admin-mobile-header no-print">
+        <button
+          type="button"
+          className="admin-mobile-menu-btn"
+          onClick={() => setIsAdminMobileMenuOpen(true)}
+          aria-label="Open Navigation Menu"
+        >
+          <Menu size={22} />
+        </button>
+
+        <div className="admin-mobile-title-box">
+          <div className="admin-mobile-app-name">ADIT Admin</div>
+          <div className="admin-mobile-sub">
+            {adminMenuItems.find(m => m.id === adminTab)?.label || 'Administration'}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="admin-mobile-logout-btn"
+          onClick={() => {
+            if (onExit) onExit();
+            else window.location.reload();
+          }}
+          title="Exit Admin Panel"
+        >
+          <LogOut size={18} />
+        </button>
+      </header>
+
+      {/* Mobile Slide-out Drawer */}
+      {isAdminMobileMenuOpen && (
+        <div className="admin-mobile-drawer-overlay no-print" onClick={() => setIsAdminMobileMenuOpen(false)}>
+          <div className="admin-mobile-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-drawer-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  color: '#38bdf8',
+                  padding: '3px 8px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '700'
+                }}>
+                  <GraduationCap size={13} />
+                  <span>Admin Portal</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminMobileMenuOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div style={{ color: '#ffffff', fontWeight: '800', fontSize: '15px' }}>ADIT Attendance</div>
+              <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '2px' }}>Institutional Administration</div>
+            </div>
+
+            <nav className="admin-drawer-nav">
+              {adminMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = adminTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`admin-drawer-item ${isActive ? 'is-active' : ''}`}
+                    onClick={() => {
+                      setAdminTab(item.id);
+                      setIsAdminMobileMenuOpen(false);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    {Icon && <Icon size={18} />}
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className="admin-drawer-footer">
+              <button
+                type="button"
+                className="admin-drawer-logout-btn"
+                onClick={() => {
+                  setIsAdminMobileMenuOpen(false);
+                  if (onExit) onExit();
+                  else window.location.reload();
+                }}
+              >
+                <LogOut size={16} />
+                <span>Exit Admin Panel</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* ===================================================================
           LEFT DARK SIDEBAR: ADIT Attendance Admin Panel
@@ -1366,6 +1475,40 @@ export default function AdminPanel({ showToast, onExit, initialTab = 'faculty' }
           </div>
         </div>
       )}
+
+      {/* ===================================================================
+          MOBILE BOTTOM NAVIGATION BAR (Phones & Tablets <= 900px)
+          =================================================================== */}
+      <nav className="admin-mobile-bottom-nav no-print" aria-label="Admin Mobile Navigation">
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'faculty', label: 'Faculty', icon: Users },
+          { id: 'classes', label: 'Students', icon: GraduationCap },
+          { id: 'timetable', label: 'Timetable', icon: Calendar },
+          { id: 'settings', label: 'Settings', icon: SettingsIcon }
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = adminTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`admin-mobile-bottom-item ${isActive ? 'is-active' : ''}`}
+              onClick={() => {
+                setAdminTab(item.id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="admin-mobile-bottom-icon">
+                {Icon && <Icon size={19} />}
+              </div>
+              <span className="admin-mobile-bottom-label">
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
 
     </div>
   );

@@ -160,9 +160,77 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
       color: '#0f172a'
     }}>
       {/* ============================================================== */}
-      {/* 1. TOP HEADER / BRANDING BANNER                                */}
+      {/* 1. MOBILE APP BAR (Phones & Tablets <= 768px)                  */}
       {/* ============================================================== */}
-      <header style={{
+      <header className="student-mobile-header no-print">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(255, 255, 255, 0.25)'
+          }}>
+            <GraduationCap size={18} color="#ffffff" />
+          </div>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#ffffff', fontFamily: "'Outfit', sans-serif" }}>
+              ADIT Student
+            </div>
+            <div style={{ fontSize: '10.5px', color: '#93c5fd', fontWeight: '600' }}>
+              {activeTab === 'dashboard' ? 'Dashboard' :
+               activeTab === 'subjects' || activeTab === 'subject-detail' ? 'My Subjects' :
+               activeTab === 'overview' ? 'Overview' : 'My Profile'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div 
+            onClick={() => setActiveTab('profile')}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: '#ffffff',
+              color: '#1e3a8a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '800',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
+            title="Profile"
+          >
+            {studentName.charAt(0)}
+          </div>
+          <button
+            type="button"
+            onClick={onExit}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#f87171',
+              cursor: 'pointer',
+              padding: '6px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            title="Logout"
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* ============================================================== */}
+      {/* 1B. DESKTOP HEADER / BRANDING BANNER                           */}
+      {/* ============================================================== */}
+      <header className="student-desktop-header" style={{
         background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%)',
         color: '#ffffff',
         padding: '18px 24px',
@@ -284,9 +352,9 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
       </header>
 
       {/* ============================================================== */}
-      {/* 2. NAVIGATION BAR                                              */}
+      {/* 2. DESKTOP NAVIGATION BAR                                      */}
       {/* ============================================================== */}
-      <nav style={{
+      <nav className="student-desktop-nav" style={{
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #e2e8f0',
         padding: '0 24px',
@@ -1989,6 +2057,40 @@ export default function StudentPanel({ currentUser, showToast, onExit }) {
           </div>
         )}
       </main>
+
+      {/* ============================================================== */}
+      {/* 4. MOBILE BOTTOM NAVIGATION BAR (Phones <= 768px)              */}
+      {/* ============================================================== */}
+      <nav className="student-mobile-bottom-nav no-print" aria-label="Student Mobile Navigation">
+        {[
+          { id: 'dashboard', label: 'Home', icon: BarChart2 },
+          { id: 'subjects', label: 'Subjects', icon: BookOpen },
+          { id: 'overview', label: 'Overview', icon: FileText },
+          { id: 'profile', label: 'Profile', icon: User }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id || (tab.id === 'subjects' && activeTab === 'subject-detail');
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`student-mobile-bottom-item ${isActive ? 'is-active' : ''}`}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id !== 'subjects') setSelectedSubjectId(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="student-mobile-bottom-icon">
+                <Icon size={19} />
+              </div>
+              <span className="student-mobile-bottom-label">
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

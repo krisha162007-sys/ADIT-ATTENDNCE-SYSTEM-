@@ -85,6 +85,7 @@
   padding: 0;
 }
 
+html,
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-page);
@@ -92,6 +93,16 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -1414,11 +1425,13 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-.faculty-mobile-header {
-  display: none;
-}
-
-.faculty-mobile-bottom-nav {
+.faculty-mobile-header,
+.student-mobile-header,
+.admin-mobile-header,
+.faculty-mobile-bottom-nav,
+.student-mobile-bottom-nav,
+.admin-mobile-bottom-nav,
+.erp-mobile-swipe-hint {
   display: none;
 }
 
@@ -1597,15 +1610,304 @@ html, body {
     font-weight: 800;
   }
 
-  /* Admin sidebar on phone */
+  /* Student Panel Mobile Navigation */
+  .student-desktop-header {
+    display: none !important;
+  }
+  .student-desktop-nav {
+    display: none !important;
+  }
+  .student-mobile-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    padding: 0 16px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 990;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  }
+  .student-mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    background-color: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
+    z-index: 1000;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .student-mobile-bottom-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .student-mobile-bottom-item.is-active {
+    color: #2563eb;
+  }
+  .student-mobile-bottom-item.is-active .student-mobile-bottom-icon {
+    background-color: #eff6ff;
+    color: #2563eb;
+    border-radius: 12px;
+    padding: 3px 12px;
+  }
+  .student-mobile-bottom-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .student-mobile-bottom-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .student-mobile-bottom-item.is-active .student-mobile-bottom-label {
+    font-weight: 800;
+  }
+
+  /* ERP Swipe Hint */
+  .erp-mobile-swipe-hint {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+}
+
+/* ==========================================================================
+   ADMIN PANEL MOBILE / TABLET RESPONSIVENESS (<= 900px)
+   ========================================================================== */
+@media (max-width: 900px) {
   .admin-dark-sidebar {
     display: none !important;
   }
   .admin-root-container {
     flex-direction: column !important;
+    min-height: 100vh;
   }
   .admin-main-viewport {
-    padding: 14px 12px 60px !important;
+    padding: 14px 12px 85px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .admin-mobile-header {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    height: 58px;
+    padding: 0 16px;
+    background-color: #0b1120;
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    z-index: 990;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid #1e293b;
+  }
+  .admin-mobile-menu-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+    margin-left: -6px;
+  }
+  .admin-mobile-menu-btn:active {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .admin-mobile-title-box {
+    text-align: center;
+  }
+  .admin-mobile-app-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .admin-mobile-sub {
+    font-size: 11px;
+    color: #38bdf8;
+    font-weight: 600;
+  }
+  .admin-mobile-logout-btn {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .admin-mobile-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(11, 17, 32, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1200;
+    animation: fadeIn 0.15s ease-out;
+  }
+  .admin-mobile-drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 290px;
+    max-width: 85vw;
+    background-color: #0f172a;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.5);
+    z-index: 1210;
+    animation: slideInLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .admin-drawer-header {
+    padding: 20px 18px 16px;
+    border-bottom: 1px solid #1e293b;
+    background-color: #0b1120;
+  }
+  .admin-drawer-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .admin-drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: none;
+    background: none;
+    color: #94a3b8;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .admin-drawer-item:active,
+  .admin-drawer-item.is-active {
+    background-color: #1e293b;
+    color: #38bdf8;
+    font-weight: 700;
+  }
+  .admin-drawer-footer {
+    padding: 14px 16px;
+    border-top: 1px solid #1e293b;
+    background-color: #0b1120;
+  }
+  .admin-drawer-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .admin-mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    background-color: rgba(15, 23, 42, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #1e293b;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 4px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .admin-mobile-bottom-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .admin-mobile-bottom-item.is-active {
+    color: #38bdf8;
+  }
+  .admin-mobile-bottom-item.is-active .admin-mobile-bottom-icon {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-radius: 12px;
+    padding: 3px 12px;
+  }
+  .admin-mobile-bottom-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+  }
+  .admin-mobile-bottom-label {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .admin-mobile-bottom-item.is-active .admin-mobile-bottom-label {
+    font-weight: 800;
   }
 }
 

@@ -221,7 +221,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
     return TIMETABLE_DAYS.includes(dName) ? dName : 'Monday';
   }, []);
   const [selectedTimetableDay, setSelectedTimetableDay] = useState(todayDayName);
-  const [isWeeklyGridView, setIsWeeklyGridView] = useState(true);
+  const [isWeeklyGridView, setIsWeeklyGridView] = useState(() => (typeof window !== 'undefined' ? window.innerWidth > 768 : true));
 
   // Interactive Lecture Detail Modal state
   const [selectedLectureDetail, setSelectedLectureDetail] = useState(null);
@@ -3502,14 +3502,17 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
               </div>
 
               <form onSubmit={handleLoadStudents}>
-                <div style={{
+                <div 
+                  className="lecture-setup-grid"
+                  style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '20px',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+                    gap: '16px',
                     marginBottom: '24px'
-                  }}>
-                    {/* 1. Subject */}
-                    <div style={{ gridColumn: 'span 2' }}>
+                  }}
+                >
+                  {/* 1. Subject */}
+                  <div style={{ gridColumn: '1 / -1' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#334155', marginBottom: '6px' }}>
                         1. Subject <span style={{ color: '#e11d48' }}>*</span>
                       </label>
@@ -3765,7 +3768,7 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                     </div>
 
                     {/* Topic Covered */}
-                    <div style={{ gridColumn: 'span 2' }}>
+                    <div style={{ gridColumn: '1 / -1' }}>
                       <label htmlFor="att-topic-input" style={{ display: 'block', fontSize: '13px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' }}>
                         Topic / Syllabus Covered <span style={{ color: '#ef4444' }}>*</span> <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: '700' }}>(Required)</span>
                       </label>
@@ -4105,7 +4108,15 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  paddingBottom: '4px',
+                  maxWidth: '100%',
+                  scrollbarWidth: 'none'
+                }}>
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'present', label: 'Present' },
@@ -4125,7 +4136,9 @@ export default function FacultyPanel({ currentUser, currentFaculty: propFaculty,
                         color: statusFilter === f.id ? '#ffffff' : '#475569',
                         fontSize: '12px',
                         fontWeight: '700',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                       }}
                     >
                       {f.label}
